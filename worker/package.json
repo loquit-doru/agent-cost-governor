@@ -1,0 +1,21 @@
+{
+  "name": "agent-cost-governor-worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "build": "tsc -p tsconfig.json",
+    "check": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "hono": "^4.6.12",
+    "jose": "^5.10.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260116.0",
+    "typescript": "^5.6.3",
+    "wrangler": "^3.99.0"
+  }
+}

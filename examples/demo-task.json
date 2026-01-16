@@ -1,0 +1,21 @@
+{
+  "project": "demo",
+  "steps": [
+    {
+      "name": "tool_call with retry friction",
+      "policy_id": "retry_friction_v1",
+      "action": "tool_call",
+      "tool": "example_tool",
+      "attempts": 6,
+      "window_seconds": 30
+    },
+    {
+      "name": "low confidence loop",
+      "policy_id": "low_confidence_loop_v1",
+      "action": "model_call",
+      "confidence": 0.22,
+      "attempts": 3,
+      "window_seconds": 30
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+name = "agent-cost-governor"
+main = "src/index.ts"
+compatibility_date = "2025-07-18"
+
+# Configure your separate domain here once you have it.
+# Example (Cloudflare routes):
+# routes = [
+#   { pattern = "governor.example.com/*", zone_name = "example.com" }
+# ]
+
+[vars]
+# Pricing / payment headers (x402-style)
+X402_PRICE_DEFAULT = "0.004 USDC"
+X402_CHAIN = "Base"
+X402_RECIPIENT = "0xYourWalletAddress"
+
+# JWT settings
+PROCEED_TOKEN_TTL_SECONDS = "45"
+
+# In MVP, payment verification is stubbed (accepts any x402-tx-hash).
+# For production, implement real verification or a facilitator.
+PAYMENT_VERIFY_MODE = "stub"

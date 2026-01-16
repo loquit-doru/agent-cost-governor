@@ -1,0 +1,208 @@
+# Agent Cost Governor – Spec v1 (frozen for MVP)
+
+## Goals
+
+- Enforce **economic friction** inside an agent execution loop via an external service.
+- Allow a runner to **refuse execution** unless it has a valid `proceed_token`.
+- Use an x402-style paywall for friction payments (HTTP 402 + retry with `x402-tx-hash`).
+
+## Core invariants
+
+- A decision check returns either:
+  - `200` (allowed) + `proceed_token`, or
+  - `402` (friction required) + x402 pricing headers + `decision_id`.
+- Redeem returns `200` + `proceed_token` when payment is accepted.
+- Tokens are signed with an asymmetric key; public keys are exposed via JWKS.
+
+> Note: Implementation uses `ES256` (P-256) for broad runtime compatibility.
+> Clients must not hardcode the algorithm; they verify via JWKS + JWT headers.
+
+### Crypto versioning
+
+- v1 is frozen on **ES256 (P-256)**.
+- v2 plans to add **Ed25519 (EdDSA)** as a separate, deliberate upgrade once we have traction.
+
+### Canonical context hashing (recommended)
+
+`context_hash` is an optional field that binds a decision/token to a canonicalized view of `context`.
+
+- Canonicalization rules:
+  - recursively sort object keys
+  - omit keys with `undefined` values
+  - preserve array order
+- Hash:
+  - `context_hash = "sha256:" + sha256_hex(canonical_json(context_without_context_hash))`
+
+When provided, the Governor MUST copy it into the token claim `ctx`, and the runner SHOULD verify it.
+
+---
+
+## Endpoints
+
+### `POST /v1/governor/check`
+
+#### Request (JSON)
+
+```json
+{
+  "policy_id": "retry_friction_v1",
+  "action": "tool_call",
+  "actor": {
+    "id": "agent:demo-bot-1",
+    "project": "demo"
+  },
+  "context": {
+    "attempt_in_window": 7,
+    "window_seconds": 30,
+    "confidence": 0.32,
+    "tool": "example_tool",
+    "task_hash": "sha256:...",
+    "step_hash": "sha256:...",
+    "context_hash": "sha256:..."
+  },
+  "idempotency_key": "<string>"
+}
+```
+
+#### Response `200` (allowed)
+
+```json
+{
+  "allowed": true,
+  "decision_id": "dec_...",
+  "proceed_token": "<jwt>",
+  "expires_in_seconds": 45,
+  "reason_code": "none",
+  "policy": {
+    "policy_id": "retry_friction_v1",
+    "friction_required": false,
+    "friction_price": "0 USDC"
+  }
+}
+```
+
+#### Response `402` (friction required)
+
+Headers:
+
+- `x402-price: <amount> USDC`
+- `x402-recipient: 0x...`
+- `x402-chain: Base` (or `Any EVM`)
+
+Body:
+
+```json
+{
+  "allowed": false,
+  "decision_id": "dec_...",
+  "reason_code": "retry_friction",
+  "policy": {
+    "policy_id": "retry_friction_v1",
+    "friction_required": true,
+    "friction_price": "0.004 USDC",
+    "explain": "attempt 7 in 30s window; free<=3"
+  },
+  "redeem": {
+    "method": "POST",
+    "url": "/v1/governor/redeem",
+    "requires_header": "x402-tx-hash"
+  }
+}
+```
+
+---
+
+### `POST /v1/governor/redeem`
+
+Headers:
+
+- `x402-tx-hash: 0x...`
+
+Body:
+
+```json
+{
+  "decision_id": "dec_..."
+}
+```
+
+Response `200`:
+
+```json
+{
+  "ok": true,
+  "decision_id": "dec_...",
+  "proceed_token": "<jwt>",
+  "expires_in_seconds": 45,
+  "receipt": {
+    "tx_hash": "0x...",
+    "paid_price": "0.004 USDC",
+    "paid_chain": "base",
+    "paid_at": "2026-01-16T12:34:56.000Z"
+  }
+}
+```
+
+---
+
+### `GET /.well-known/jwks.json`
+
+Response:
+
+- Standard JWKS containing the active public key(s).
+
+---
+
+## `proceed_token` (JWT)
+
+JWT header:
+
+- `kid`: key id
+- `alg`: as indicated by JWKS key type (implementation uses ES256)
+
+Claims:
+
+- `iss`: origin
+- `aud`: `agent-cost-governor`
+- `sub`: `actor.id`
+- `jti`: `decision_id`
+- `pol`: `policy_id`
+- `act`: `action`
+- `task`: `context.task_hash`
+- `step`: `context.step_hash`
+- `ctx`: `context.context_hash` (when provided)
+- `iat`, `exp`
+
+Runner must verify signature, `aud`, `exp`, and match `sub/jti/task/step`.
+
+---
+
+## Policy pack v1
+
+### `retry_friction_v1`
+
+- Free attempts per window: `free_attempts = 3`
+- Price curve after free attempts:
+  - `base_price = 0.001 USDC`
+  - `growth = 1.8`
+  - `max_price = 0.02 USDC`
+
+If `attempt_in_window <= free_attempts` → `0`.
+Else:
+
+$$ price = \min(max\_price, base\_price \cdot growth^{(attempt\_in\_window - free\_attempts)}) $$
+
+Reason code: `retry_friction`
+
+### `low_confidence_loop_v1`
+
+- Threshold: `threshold = 0.45`
+- `base_price = 0.002 USDC`, `max_price = 0.05 USDC`, `mult = 2.0`
+
+If `confidence >= threshold` → `0`.
+Else:
+
+$$ severity = \frac{threshold - confidence}{threshold} $$
+$$ price = \min(max\_price, base\_price \cdot (1 + mult\cdot severity) \cdot \max(1, attempt\_in\_window - 1)) $$
+
+Reason code: `low_confidence`

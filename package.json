@@ -1,0 +1,19 @@
+{
+  "name": "agent-cost-governor",
+  "private": true,
+  "workspaces": [
+    "worker",
+    "runner"
+  ],
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "wait-on": "^7.2.0"
+  },
+  "scripts": {
+    "dev:worker": "npm --workspace worker run dev",
+    "dev:worker:8787": "npm --workspace worker run dev -- --port 8787",
+    "build": "npm --workspaces run build",
+    "check": "npm --workspaces run check",
+    "smoke": "npm run build && concurrently -k -s first \"npm run dev:worker\" \"wait-on http://127.0.0.1:8787/health && node runner/dist/cli.js run examples/demo-task.json --governor http://127.0.0.1:8787 --tx-hash 0xstub\""
+  }
+}
