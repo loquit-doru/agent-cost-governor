@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { exportJWK, importJWK, SignJWT } from 'jose';
 
 import { DecisionStoreDO, type DecisionRecord } from './decisionStoreDO.js';
+import { verifyPayment } from './paymentVerify.js';
 
 type Env = {
   // x402-style pricing headers
@@ -90,10 +91,6 @@ const checkSchema = z.object({
 const redeemSchema = z.object({
   decision_id: z.string().min(1).max(200),
 });
-
-function nowIso(): string {
-  return new Date().toISOString();
-}
 
 function getTtlSeconds(env: Env): number {
   const n = Number(env.PROCEED_TOKEN_TTL_SECONDS ?? '45');
@@ -412,15 +409,14 @@ app.post('/v1/governor/redeem', async (c) => {
     return c.json({ error: 'invalid_request', issues: parsed.error.issues }, 400);
   }
 
-  // MVP: accept any tx hash when PAYMENT_VERIFY_MODE=stub.
-  const mode = String(c.env.PAYMENT_VERIFY_MODE ?? 'stub').trim().toLowerCase();
-  if (mode !== 'stub') {
-    return c.json({ error: 'payment_verification_not_implemented' }, 501);
-  }
-
   const record = await getDecisionRecord(c.env, parsed.data.decision_id);
   if (!record) {
     return c.json({ error: 'unknown_or_expired_decision' }, 404);
+  }
+
+  const payment = await verifyPayment(c.env, txHash, record);
+  if (!payment.ok) {
+    return c.json({ error: payment.error }, payment.status);
   }
 
   // One-time redeem: delete record after successful lookup to prevent reuse.
@@ -444,12 +440,7 @@ app.post('/v1/governor/redeem', async (c) => {
       decision_id: parsed.data.decision_id,
       proceed_token: signed.token,
       expires_in_seconds: signed.expiresInSeconds,
-      receipt: {
-        tx_hash: txHash,
-        paid_price: record.price,
-        paid_chain: String(record.chain || c.env.X402_CHAIN || 'base').toLowerCase(),
-        paid_at: nowIso(),
-      },
+      receipt: payment.receipt,
     },
     200,
   );
