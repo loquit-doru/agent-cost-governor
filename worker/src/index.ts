@@ -2,6 +2,8 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { exportJWK, importJWK, SignJWT } from 'jose';
 
+import { DecisionStoreDO, type DecisionRecord } from './decisionStoreDO.js';
+
 type Env = {
   // x402-style pricing headers
   X402_PRICE_DEFAULT?: string;
@@ -16,40 +18,52 @@ type Env = {
 
   // Signing key: P-256 private JWK JSON string (stored as secret in prod)
   GOVERNOR_SIGNING_JWK?: string;
+
+  // Durable Objects
+  DECISIONS: DurableObjectNamespace;
 };
 
 type Vars = {};
 
 const app = new Hono<{ Bindings: Env; Variables: Vars }>();
 
-type DecisionRecord = {
-  decisionId: string;
-  createdAtMs: number;
-  expiresAtMs: number;
-  actorId: string;
-  policyId: string;
-  action: string;
-  taskHash?: string;
-  stepHash?: string;
-  contextHash?: string;
-  price: string;
-  chain: string;
-  recipient: string;
-};
-
-// MVP persistence: in-memory only (per isolate). Good enough for local dev and early demos.
-// For production-grade behavior, move this to a Durable Object or KV.
-const decisionStore = new Map<string, DecisionRecord>();
-
 let cachedSigningKey:
   | { source: 'env'; envJwk: string; privateKey: CryptoKey; publicJwk: any; kid: string }
   | { source: 'generated'; privateKey: CryptoKey; publicJwk: any; kid: string }
   | null = null;
 
-function pruneDecisionStore(nowMs: number): void {
-  for (const [k, v] of decisionStore.entries()) {
-    if (nowMs >= v.expiresAtMs) decisionStore.delete(k);
-  }
+function getDecisionStoreStub(env: Env): DurableObjectStub {
+  // Single global store keyed by decision_id.
+  const id = env.DECISIONS.idFromName('decision-store');
+  return env.DECISIONS.get(id);
+}
+
+async function putDecisionRecord(env: Env, record: DecisionRecord): Promise<void> {
+  const stub = getDecisionStoreStub(env);
+  const url = new URL(`/decisions/${encodeURIComponent(record.decisionId)}`, 'https://do.internal');
+  const res = await stub.fetch(url.toString(), {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ record }),
+  });
+  if (!res.ok) throw new Error(`decision_store_put_failed status=${res.status}`);
+}
+
+async function getDecisionRecord(env: Env, decisionId: string): Promise<DecisionRecord | null> {
+  const stub = getDecisionStoreStub(env);
+  const url = new URL(`/decisions/${encodeURIComponent(decisionId)}`, 'https://do.internal');
+  const res = await stub.fetch(url.toString(), { method: 'GET' });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`decision_store_get_failed status=${res.status}`);
+  const body = (await res.json().catch(() => null)) as { record?: DecisionRecord } | null;
+  return body?.record ?? null;
+}
+
+async function deleteDecisionRecord(env: Env, decisionId: string): Promise<void> {
+  const stub = getDecisionStoreStub(env);
+  const url = new URL(`/decisions/${encodeURIComponent(decisionId)}`, 'https://do.internal');
+  const res = await stub.fetch(url.toString(), { method: 'DELETE' });
+  if (!res.ok) throw new Error(`decision_store_delete_failed status=${res.status}`);
 }
 
 const checkSchema = z.object({
@@ -350,8 +364,7 @@ app.post('/v1/governor/check', async (c) => {
   c.header('cache-control', 'no-store');
 
   const nowMs = Date.now();
-  pruneDecisionStore(nowMs);
-  decisionStore.set(decisionId, {
+  await putDecisionRecord(c.env, {
     decisionId,
     createdAtMs: nowMs,
     // Allow enough time for a human to pay and paste a tx hash.
@@ -405,12 +418,13 @@ app.post('/v1/governor/redeem', async (c) => {
     return c.json({ error: 'payment_verification_not_implemented' }, 501);
   }
 
-  const nowMs = Date.now();
-  pruneDecisionStore(nowMs);
-  const record = decisionStore.get(parsed.data.decision_id);
+  const record = await getDecisionRecord(c.env, parsed.data.decision_id);
   if (!record) {
     return c.json({ error: 'unknown_or_expired_decision' }, 404);
   }
+
+  // One-time redeem: delete record after successful lookup to prevent reuse.
+  await deleteDecisionRecord(c.env, parsed.data.decision_id);
 
   const signed = await signProceedToken({
     env: c.env,
@@ -444,3 +458,5 @@ app.post('/v1/governor/redeem', async (c) => {
 app.get('/health', (c) => c.json({ ok: true }, 200));
 
 export default app;
+
+export { DecisionStoreDO };

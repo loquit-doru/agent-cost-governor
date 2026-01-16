@@ -2,6 +2,14 @@ name = "agent-cost-governor"
 main = "src/index.ts"
 compatibility_date = "2025-07-18"
 
+[[durable_objects.bindings]]
+name = "DECISIONS"
+class_name = "DecisionStoreDO"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["DecisionStoreDO"]
+
 # Configure your separate domain here once you have it.
 # Example (Cloudflare routes):
 # routes = [
