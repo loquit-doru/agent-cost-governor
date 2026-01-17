@@ -4,6 +4,7 @@ import { exportJWK, importJWK, SignJWT } from 'jose';
 
 import { DecisionStoreDO, type DecisionRecord } from './decisionStoreDO.js';
 import { verifyPayment } from './paymentVerify.js';
+import { facilitatorVerifyPayment } from './facilitator.js';
 import { actorKey, logEvent, txKey } from './observability.js';
 import { writeMetric } from './metrics.js';
 
@@ -18,6 +19,14 @@ type Env = {
 
   // Payment verification (MVP)
   PAYMENT_VERIFY_MODE?: string; // "stub" | "facilitator" | "onchain"
+
+  // Facilitator verifier (v2): governor calls this service to validate tx
+  FACILITATOR_URL?: string;
+  FACILITATOR_KEY?: string;
+
+  // Minimal onchain verifier inputs (used by the built-in facilitator endpoint)
+  BASE_RPC_URL?: string;
+  BASE_USDC_ADDRESS?: string;
 
   // Signing key: P-256 private JWK JSON string (stored as secret in prod)
   GOVERNOR_SIGNING_JWK?: string;
@@ -97,6 +106,14 @@ const checkSchema = z.object({
 
 const redeemSchema = z.object({
   decision_id: z.string().min(1).max(200),
+});
+
+const facilitatorVerifySchema = z.object({
+  tx_hash: z.string().min(1).max(200),
+  required_price: z.string().min(1).max(50),
+  required_chain: z.string().min(1).max(50),
+  required_recipient: z.string().min(1).max(100),
+  decision_id: z.string().min(1).max(200).optional(),
 });
 
 function setProceedgateHeaders(
@@ -312,6 +329,53 @@ app.get('/.well-known/jwks.json', async (c) => {
   const { publicJwk } = await getOrCreateSigningKey(c.env);
   c.header('cache-control', 'public, max-age=300');
   return c.json({ keys: [publicJwk] }, 200);
+});
+
+app.post('/x402/verify', async (c) => {
+  const startMs = Date.now();
+
+  const key = String(c.env.FACILITATOR_KEY ?? '').trim();
+  if (!key) {
+    writeMetric(c.env, {
+      indexes: ['facilitator_fail', 'unknown', 'unknown', 'facilitator_key_missing'],
+      doubles: [1, Date.now() - startMs],
+    });
+    return c.json({ ok: false, error: 'facilitator_key_missing' }, 501);
+  }
+
+  const auth = String(c.req.header('authorization') ?? '').trim();
+  if (auth !== `Bearer ${key}`) {
+    writeMetric(c.env, {
+      indexes: ['facilitator_fail', 'unknown', 'unknown', 'unauthorized'],
+      doubles: [1, Date.now() - startMs],
+    });
+    return c.json({ ok: false, error: 'unauthorized' }, 401);
+  }
+
+  const body = await c.req.json().catch(() => null);
+  const parsed = facilitatorVerifySchema.safeParse(body);
+  if (!parsed.success) {
+    writeMetric(c.env, {
+      indexes: ['facilitator_fail', 'unknown', 'unknown', 'invalid_request'],
+      doubles: [1, Date.now() - startMs],
+    });
+    return c.json({ ok: false, error: 'invalid_request', issues: parsed.error.issues }, 400);
+  }
+
+  const result = await facilitatorVerifyPayment(c.env, parsed.data);
+  if (!result.ok) {
+    writeMetric(c.env, {
+      indexes: ['facilitator_fail', 'unknown', 'unknown', result.error],
+      doubles: [1, Date.now() - startMs],
+    });
+    return c.json({ ok: false, error: result.error }, result.status);
+  }
+
+  writeMetric(c.env, {
+    indexes: ['facilitator_ok', 'unknown', 'unknown', 'ok'],
+    doubles: [1, Date.now() - startMs],
+  });
+  return c.json({ ok: true, receipt: result.receipt }, 200);
 });
 
 app.post('/v1/governor/check', async (c) => {

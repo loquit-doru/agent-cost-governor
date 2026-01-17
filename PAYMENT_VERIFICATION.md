@@ -18,6 +18,62 @@ Planned (v2+):
 - `facilitator`: call a trusted verifier service that validates tx and returns canonical receipt data.
 - `onchain`: directly verify onchain for the configured chain (heavier, more moving parts).
 
+## Facilitator contract (minimal)
+
+Governor (worker) calls a verifier service:
+
+- `POST /x402/verify`
+- Header: `Authorization: Bearer <FACILITATOR_KEY>`
+- Body:
+
+```json
+{
+  "tx_hash": "0x...",
+  "decision_id": "dec_...",
+  "required_price": "0.0018 USDC",
+  "required_chain": "Base",
+  "required_recipient": "0x..."
+}
+```
+
+Response:
+
+- `200`:
+
+```json
+{
+  "ok": true,
+  "receipt": {
+    "tx_hash": "0x...",
+    "paid_price": "0.002 USDC",
+    "paid_chain": "base",
+    "paid_at": "2026-01-17T12:00:00.000Z"
+  }
+}
+```
+
+- Non-2xx: `{ "ok": false, "error": "..." }`
+
+## Built-in facilitator endpoint (for demos)
+
+This repo's worker includes a minimal verifier endpoint at `POST /x402/verify`.
+
+It supports:
+
+- `tx_hash=0xstub` for local/dev flows.
+- Real Base tx verification via JSON-RPC (no indexer): it checks the tx receipt logs for a USDC `Transfer` to `required_recipient` of at least `required_price`.
+
+Required env vars/secrets:
+
+- `FACILITATOR_KEY` (required; shared secret)
+- `BASE_RPC_URL` (required for real tx verification)
+- Optional: `BASE_USDC_ADDRESS` (defaults to Base USDC)
+
+Recommended governor config for this mode:
+
+- `PAYMENT_VERIFY_MODE=facilitator`
+- `FACILITATOR_URL=https://governor.proceedgate.dev/x402/verify` (or `http://127.0.0.1:8787/x402/verify` locally)
+
 ## Receipt
 
 On successful redeem, Governor returns a `receipt` object:
