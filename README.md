@@ -123,6 +123,12 @@ Deploy:
 
 - Push changes to `site/` on `main`, or run the workflow manually.
 
+Local deploy (if you are logged in via `wrangler`):
+
+```bash
+npm run deploy:site
+```
+
 Note: There is also an optional manual-only GitHub Pages workflow for previewing, but the production domain should be Cloudflare Pages.
 
 ## Docs
