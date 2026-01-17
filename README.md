@@ -1,26 +1,61 @@
-# Agent Cost Governor (DFaaS v1)
+# ProceedGate (DFaaS v1)
 
-Standalone project (separate from TokenSentry) for a pay-per-decision “economic governor” designed for autonomous agents.
+Stop runaway agents. Enforce cost and behavior.
 
-- Worker (Cloudflare Workers + TypeScript + Hono): exposes the Governor API.
+ProceedGate is a **cost-control & governance** primitive for autonomous agents in production.
+
+It sits **outside** the agent loop and blocks expensive/risky steps unless the agent has a valid short-lived `proceed_token`.
+
+Primary audience (v1 headline): **internal teams running agents in prod**.
+
+## Integrate in 30 minutes
+
+The quickest path is to adopt ProceedGate as a **runner/middleware gate**:
+
+1. Before each step (tool call / retry / browser action / paid API call), call `POST /v1/governor/check`.
+2. If you get `200`, proceed.
+3. If you get `402`, your system must resolve friction (payment is one option) then call `POST /v1/governor/redeem` and proceed.
+
+This repo includes a reference runner to demonstrate *hard enforcement*.
+
+## What “costly steps” means (canonical v1 examples)
+
+- LLM retries / regeneration loops
+- Browser / web automation actions (Playwright-style)
+- External paid API calls
+
+## How it works (two outcomes)
+
+Every decision check returns only:
+
+- `200` (allowed) + `proceed_token`, or
+- `402` (friction required) + `x402-*` pricing headers + `decision_id`
+
+Friction is a mechanism to make enforcement real.
+
+Payment (x402-style) is **one possible** way to resolve friction. In later phases, friction can also be resolved via budgets, rate limits, or manual approvals.
+
+## What’s in this repo
+
+- Worker (Cloudflare Workers + TypeScript + Hono): Governor API.
 - Runner (Node.js + TypeScript CLI): reference enforcement implementation.
 
-## High-level
-
-The runner calls the Governor before executing steps (tool calls / retries). The Governor either:
-
-- returns `200` with a short-lived `proceed_token`, or
-- returns `402` with `x402-*` pricing headers; runner pays and redeems, then continues.
-
-## Local dev
+## Quickstart
 
 ### Prereqs
+
 - Node.js 20+ recommended (Node 18+ OK)
 
 ### Install
 
 ```bash
 npm install
+```
+
+### Run end-to-end locally (recommended)
+
+```bash
+npm run smoke
 ```
 
 ### Run Worker locally
@@ -33,12 +68,10 @@ npm run dev:worker
 
 ```bash
 npm run build
-node runner/dist/cli.js run examples/demo-task.json --governor http://127.0.0.1:8787
+node runner/dist/cli.js run examples/demo-task.json --governor http://127.0.0.1:8787 --tx-hash 0xstub
 ```
 
-## Domain / deploy
-
-This repo is designed to be deployed to a separate domain.
+## Deploy
 
 Chosen v1 hostname:
 
@@ -46,40 +79,32 @@ Chosen v1 hostname:
 
 Routes are configured in `worker/wrangler.toml`.
 
-Important: ensure the hostname resolves in DNS.
+### DNS
 
-- In Cloudflare DNS for `proceedgate.dev`, create `governor` as a proxied record (CNAME is fine).
-- Point it to your Workers hostname (e.g. `agent-cost-governor.<your-account>.workers.dev`) or any placeholder target while proxied.
+In Cloudflare DNS for `proceedgate.dev`, create `governor` as a proxied record.
 
-### Deploy
+### Secrets (prod)
 
-Prereqs:
-
-- `wrangler` authenticated (`npx wrangler login`)
-
-Recommended secrets (prod):
+Recommended:
 
 - `GOVERNOR_SIGNING_JWK` (stable ES256 private JWK JSON)
-
-Set secrets:
 
 ```bash
 cd worker
 npx wrangler secret put GOVERNOR_SIGNING_JWK
 ```
 
-Deploy:
+### Deploy
 
 ```bash
-cd worker
-npx wrangler deploy
+npm run deploy:worker
 ```
 
-## Spec
+## Docs
 
-See `SPEC.md` for the frozen v1 contract.
-
-## Operations
-
-- Live tail (prod): `npm run tail:prod`
-- Metrics + example queries: see `OPERATIONS.md`
+- Spec (frozen v1 contract): `SPEC.md`
+- Smoke test: `SMOKE_TEST.md`
+- Payment verification modes: `PAYMENT_VERIFICATION.md`
+- Observability (logs/headers/metrics): `OBSERVABILITY.md`
+- Operations (tail + metrics queries): `OPERATIONS.md`
+- Buyer-friendly technical summary: `ONE_PAGER.md`
