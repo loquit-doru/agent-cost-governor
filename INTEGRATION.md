@@ -19,6 +19,20 @@ npm i @proceedgate/node
 
 Node 18+ is required (built-in `fetch`).
 
+## Runnable demo
+
+From the repo root:
+
+```bash
+npm run demo:sdk
+```
+
+With non-interactive friction (stub redeem):
+
+```bash
+PROCEEDGATE_TX_HASH=0xstub npm run demo:sdk
+```
+
 ---
 
 ## Minimal wiring

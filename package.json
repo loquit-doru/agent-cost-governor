@@ -15,6 +15,7 @@
     "dev:worker:8787": "npm --workspace worker run dev -- --port 8787",
     "build": "npm --workspaces run build",
     "check": "npm --workspaces run check",
+    "demo:sdk": "npm run build && node examples/sdk-demo.mjs",
     "smoke": "npm run build && concurrently -k -s first \"npm run dev:worker\" \"wait-on http://127.0.0.1:8787/health && node runner/dist/cli.js run examples/demo-task.json --governor http://127.0.0.1:8787 --tx-hash 0xstub\"",
     "deploy:worker": "npm --workspace worker run deploy",
     "tail:worker": "cd worker && npx wrangler tail",
