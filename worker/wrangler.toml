@@ -28,7 +28,8 @@ X402_PRICE_DEFAULT = "0.004 USDC"
 X402_CHAIN = "Base"
 X402_RECIPIENT = "0xYourWalletAddress"
 PROCEED_TOKEN_TTL_SECONDS = "45"
-PAYMENT_VERIFY_MODE = "stub"
+PAYMENT_VERIFY_MODE = "facilitator"
+FACILITATOR_URL = "https://governor.proceedgate.dev/x402/verify"
 
 [[env.prod.analytics_engine_datasets]]
 binding = "METRICS"
