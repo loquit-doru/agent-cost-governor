@@ -27,3 +27,5 @@ export type {
   WithProceedGateGateOptions,
   X402Headers,
 } from './types.js';
+
+export type { ProceedGateFrictionErrorParams, ProceedGateFrictionInfo } from './errors.js';

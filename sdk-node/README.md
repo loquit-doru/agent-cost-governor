@@ -26,6 +26,18 @@ await requireGateStepOk(client, {
   txHash: process.env.PROCEEDGATE_TX_HASH,
 });
 
+// Typical catch pattern (no regrets v1):
+// import { ProceedGateFrictionError } from '@proceedgate/node';
+// try { ... } catch (e) {
+//   if (e instanceof ProceedGateFrictionError) {
+//     console.log('Decision blocked:', e.decisionId);
+//     console.log('Friction:', e.friction);
+//     console.log('Stable code:', e.code);
+//   } else {
+//     throw e;
+//   }
+// }
+
 // If you need raw payloads for debugging/observability:
 // import { requireGateStepOkWithRaw } from '@proceedgate/node';
 ```

@@ -127,19 +127,24 @@ async function gateStepInternal(
 export async function requireGateStepOk(client: ProceedGateClient, input: GateStepInput) {
   const res = await gateStep(client, input);
   if (res.kind === 'ok') return res;
-  throw new ProceedGateFrictionError(res);
+  throw new ProceedGateFrictionError({
+    decisionId: res.decisionId,
+    policyId: input.policyId,
+    action: input.action,
+    reason: res.reasonCode,
+    x402: res.x402,
+  });
 }
 
 export async function requireGateStepOkWithRaw(client: ProceedGateClient, input: GateStepInput) {
   const res = await gateStepWithRaw(client, input);
   if (res.kind === 'ok') return res;
-  // Deliberately drop raw in the error payload to keep default error shape stable.
+  // Explicit raw is returned only from the `*WithRaw` helpers, not through the error.
   throw new ProceedGateFrictionError({
-    kind: 'friction',
     decisionId: res.decisionId,
-    reasonCode: res.reasonCode,
-    policyId: res.policyId,
+    policyId: input.policyId,
+    action: input.action,
+    reason: res.reasonCode,
     x402: res.x402,
-    redeemUrl: res.redeemUrl,
   });
 }
