@@ -11,6 +11,8 @@
   --warn:#fbbf24;
   --shadow: 0 20px 60px rgba(0,0,0,.45);
   --radius: 16px;
+  --radius2: 22px;
+  --ring: 0 0 0 4px rgba(96,165,250,.22);
 }
 
 *{ box-sizing:border-box; }
@@ -28,6 +30,11 @@ body{
 }
 
 a{ color:inherit; text-decoration:none; }
+a:focus-visible{
+  outline: none;
+  box-shadow: var(--ring);
+  border-radius: 12px;
+}
 code{
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   font-size: .95em;
@@ -38,6 +45,19 @@ code{
 }
 pre{ margin:0; }
 pre code{ display:block; padding:16px; border-radius:12px; background: rgba(0,0,0,.28); border: 1px solid rgba(255,255,255,.10); overflow:auto; }
+
+.skip{
+  position:absolute;
+  left:-999px;
+  top:12px;
+  padding:10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.18);
+  background: rgba(0,0,0,.45);
+  color: var(--text);
+  z-index: 100;
+}
+.skip:focus{ left: 12px; }
 
 .container{ width:min(1120px, calc(100% - 40px)); margin:0 auto; }
 
@@ -82,6 +102,15 @@ pre code{ display:block; padding:16px; border-radius:12px; background: rgba(0,0,
 .hero{ padding:72px 0 26px; }
 .hero-grid{ display:grid; grid-template-columns: 1.15fr .85fr; gap:28px; align-items:start; }
 
+.eyebrow{
+  margin:0 0 10px;
+  color: rgba(229,231,235,.78);
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
 h1{ font-size:48px; line-height:1.05; letter-spacing:-.02em; margin:0 0 14px; }
 .accent{ background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip:text; background-clip:text; color:transparent; }
 .lead{ font-size:18px; color: rgba(229,231,235,.92); margin:0 0 18px; }
@@ -108,11 +137,31 @@ h1{ font-size:48px; line-height:1.05; letter-spacing:-.02em; margin:0 0 14px; }
 .fineprint{ margin: 10px 0 0; padding-left: 18px; color: var(--muted); }
 .fineprint li{ margin: 8px 0; }
 
+.statrow{
+  display:grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap:10px;
+  margin: 12px 0 8px;
+}
+.stat{
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.04);
+  border-radius: 14px;
+  padding: 10px 12px;
+}
+.stat-k{ color: var(--muted); font-weight: 800; font-size: 12px; letter-spacing:.02em; }
+.stat-v{ font-weight: 800; margin-top: 2px; }
+
 .section{ padding: 56px 0; }
 .section h2{ font-size:30px; margin:0 0 12px; letter-spacing:-.01em; }
 .section p{ margin: 8px 0; }
 
+section{ scroll-margin-top: 90px; }
+
 .cards{ display:grid; grid-template-columns: repeat(3, 1fr); gap:14px; margin-top:16px; }
+.cards.docs{
+  grid-template-columns: repeat(3, 1fr);
+}
 .card{
   border: 1px solid rgba(255,255,255,.10);
   background: rgba(255,255,255,.05);
@@ -123,6 +172,21 @@ h1{ font-size:48px; line-height:1.05; letter-spacing:-.02em; margin:0 0 14px; }
 .card h3{ margin:0 0 6px; font-size:16px; }
 .card p{ margin:0; color: rgba(229,231,235,.88); }
 
+.card-link{ display:block; transition: transform .12s ease, background .12s ease, border-color .12s ease; }
+.card-link:hover{ transform: translateY(-2px); background: rgba(255,255,255,.07); border-color: rgba(255,255,255,.14); }
+
+.chip{
+  display:inline-flex;
+  margin-top: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.06);
+  color: rgba(229,231,235,.92);
+  font-weight: 800;
+  font-size: 12px;
+}
+
 .callout{
   margin-top:18px;
   padding: 14px 16px;
@@ -130,6 +194,16 @@ h1{ font-size:48px; line-height:1.05; letter-spacing:-.02em; margin:0 0 14px; }
   border: 1px solid rgba(255,255,255,.14);
   background: linear-gradient(135deg, rgba(96,165,250,.12), rgba(167,139,250,.10));
 }
+
+.note{
+  margin-top: 16px;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(0,0,0,.18);
+}
+.note-title{ font-weight: 900; letter-spacing: -.01em; }
+.note-body{ margin-top: 6px; color: rgba(229,231,235,.88); }
 
 .codecard{
   border: 1px solid rgba(255,255,255,.12);
@@ -211,4 +285,5 @@ h1{ font-size:48px; line-height:1.05; letter-spacing:-.02em; margin:0 0 14px; }
   .cards{ grid-template-columns: 1fr; }
   .steps{ grid-template-columns: 1fr; }
   .two{ grid-template-columns: 1fr; }
+  .statrow{ grid-template-columns: 1fr; }
 }

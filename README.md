@@ -94,11 +94,23 @@ cd worker
 npx wrangler secret put GOVERNOR_SIGNING_JWK
 ```
 
-### Deploy
+### Deploy Worker
 
 ```bash
 npm run deploy:worker
 ```
+
+## Website (static)
+
+The landing page lives in `site/`.
+
+### Deploy with GitHub Pages
+
+This repo includes a workflow that deploys `site/` to GitHub Pages on every push to `main`.
+
+1. In GitHub: Settings → Pages → set Source to **GitHub Actions**.
+2. Push changes to `site/` on `main`.
+3. The workflow publishes the site and exposes the URL in the Actions run.
 
 ## Docs
 

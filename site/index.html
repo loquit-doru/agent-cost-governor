@@ -4,11 +4,17 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="ProceedGate — Stop runaway agents. Enforce cost caps and sane behavior." />
-    <title>ProceedGate — Stop runaway agents</title>
+    <meta name="theme-color" content="#0b1020" />
+    <meta property="og:title" content="ProceedGate — Stop runaway agents" />
+    <meta property="og:description" content="Enforce cost caps and sane behavior with a hard proceed_token gate." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary" />
+    <title>ProceedGate — Enforceable cost control for agents</title>
     <link rel="stylesheet" href="./styles.css" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='%23111827' d='M0 0h64v64H0z'/%3E%3Cpath fill='%23ffffff' d='M14 16h36v6H14zm0 13h36v6H14zm0 13h24v6H14z'/%3E%3C/svg%3E" />
   </head>
   <body>
+    <a class="skip" href="#main">Skip to content</a>
     <header class="topbar">
       <div class="container topbar-inner">
         <a class="brand" href="#top" aria-label="ProceedGate">
@@ -19,16 +25,18 @@
         <nav class="nav">
           <a href="#how">How it works</a>
           <a href="#integration">Integrate</a>
-          <a href="#observability">Observability</a>
+          <a href="#docs">Docs</a>
           <a class="nav-cta" href="#cta">Get started</a>
         </nav>
       </div>
     </header>
 
-    <main id="top">
+    <main id="main">
+      <div id="top"></div>
       <section class="hero">
         <div class="container hero-grid">
           <div>
+            <p class="eyebrow">Economic governor for agents</p>
             <h1>Stop runaway agents. <span class="accent">Enforce cost caps</span> and sane behavior.</h1>
             <p class="lead">
               ProceedGate is an <strong>economic governor for AI agents</strong>: a hard gate that blocks expensive steps
@@ -38,6 +46,21 @@
             <div class="cta-row">
               <a class="btn primary" href="#integration">Integrate in 30 minutes</a>
               <a class="btn" href="#demo">Run a demo</a>
+            </div>
+
+            <div class="statrow" role="list">
+              <div class="stat" role="listitem">
+                <div class="stat-k">Two outcomes</div>
+                <div class="stat-v"><code>200</code> or <code>402</code></div>
+              </div>
+              <div class="stat" role="listitem">
+                <div class="stat-k">Hard enforcement</div>
+                <div class="stat-v">No token, no step</div>
+              </div>
+              <div class="stat" role="listitem">
+                <div class="stat-k">Thin boundary</div>
+                <div class="stat-v">Runner / middleware</div>
+              </div>
             </div>
 
             <ul class="fineprint">
@@ -136,6 +159,11 @@ No token, no step.</code></pre>
               </div>
             </div>
           </div>
+
+          <div class="note">
+            <div class="note-title">Design principle</div>
+            <div class="note-body">ProceedGate lives outside the agent loop. It’s enforceable because the runner won’t execute a costly step without a valid token.</div>
+          </div>
         </div>
       </section>
 
@@ -196,26 +224,26 @@ PROCEEDGATE_TX_HASH=0xstub npm run demo:sdk</code></pre>
         </div>
       </section>
 
-      <section class="section" id="observability">
+      <section class="section" id="docs">
         <div class="container">
-          <h2>Observability</h2>
-          <p class="muted">Visibility without logging raw PII.</p>
-          <div class="two">
-            <div class="card">
-              <h3>Built-in</h3>
-              <ul class="bullets">
-                <li>Structured JSON logs per decision</li>
-                <li>Optional response headers (<code>X-Proceedgate-*</code>)</li>
-                <li>Optional Analytics Engine metrics (counters + latency)</li>
-              </ul>
-            </div>
-            <div class="card">
-              <h3>Docs</h3>
-              <div class="links">
-                <a class="link" href="https://github.com/loquit-doru/agent-cost-governor/blob/main/OBSERVABILITY.md" target="_blank" rel="noreferrer">OBSERVABILITY.md</a>
-                <a class="link" href="https://github.com/loquit-doru/agent-cost-governor/blob/main/OPERATIONS.md" target="_blank" rel="noreferrer">OPERATIONS.md</a>
-              </div>
-            </div>
+          <h2>Docs</h2>
+          <p class="muted">Everything you need to integrate and operate ProceedGate.</p>
+          <div class="cards docs">
+            <a class="card card-link" href="https://github.com/loquit-doru/agent-cost-governor/blob/main/SPEC.md" target="_blank" rel="noreferrer">
+              <h3>SPEC.md</h3>
+              <p>Frozen v1 contract: endpoints, headers, semantics.</p>
+              <span class="chip">Contract</span>
+            </a>
+            <a class="card card-link" href="https://github.com/loquit-doru/agent-cost-governor/blob/main/INTEGRATION.md" target="_blank" rel="noreferrer">
+              <h3>INTEGRATION.md</h3>
+              <p>Framework-agnostic integration via runner or SDK.</p>
+              <span class="chip">Integration</span>
+            </a>
+            <a class="card card-link" href="https://github.com/loquit-doru/agent-cost-governor/blob/main/OBSERVABILITY.md" target="_blank" rel="noreferrer">
+              <h3>OBSERVABILITY.md</h3>
+              <p>Logs, headers, and metrics for decisions and latency.</p>
+              <span class="chip">Ops</span>
+            </a>
           </div>
         </div>
       </section>
@@ -258,4 +286,5 @@ npm run deploy:worker</code></pre>
       </div>
     </footer>
   </body>
+</html>
 </html>
