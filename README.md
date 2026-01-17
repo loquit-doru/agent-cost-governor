@@ -38,7 +38,42 @@ node runner/dist/cli.js run examples/demo-task.json --governor http://127.0.0.1:
 
 ## Domain / deploy
 
-This repo is designed to be deployed to a separate domain (e.g. `governor.<yourdomain>`). You’ll configure routes in `worker/wrangler.toml`.
+This repo is designed to be deployed to a separate domain.
+
+Chosen v1 hostname:
+
+- `governor.proceedgate.dev`
+
+Routes are configured in `worker/wrangler.toml`.
+
+Important: ensure the hostname resolves in DNS.
+
+- In Cloudflare DNS for `proceedgate.dev`, create `governor` as a proxied record (CNAME is fine).
+- Point it to your Workers hostname (e.g. `agent-cost-governor.<your-account>.workers.dev`) or any placeholder target while proxied.
+
+### Deploy
+
+Prereqs:
+
+- `wrangler` authenticated (`npx wrangler login`)
+
+Recommended secrets (prod):
+
+- `GOVERNOR_SIGNING_JWK` (stable ES256 private JWK JSON)
+
+Set secrets:
+
+```bash
+cd worker
+npx wrangler secret put GOVERNOR_SIGNING_JWK
+```
+
+Deploy:
+
+```bash
+cd worker
+npx wrangler deploy
+```
 
 ## Spec
 

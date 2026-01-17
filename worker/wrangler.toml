@@ -2,19 +2,19 @@ name = "agent-cost-governor"
 main = "src/index.ts"
 compatibility_date = "2025-07-18"
 
+# Routes (production)
+# Domain: proceedgate.dev
+routes = [
+	{ pattern = "governor.proceedgate.dev/*", zone_name = "proceedgate.dev" }
+]
+
 [[durable_objects.bindings]]
 name = "DECISIONS"
 class_name = "DecisionStoreDO"
 
 [[migrations]]
 tag = "v1"
-new_classes = ["DecisionStoreDO"]
-
-# Configure your separate domain here once you have it.
-# Example (Cloudflare routes):
-# routes = [
-#   { pattern = "governor.example.com/*", zone_name = "example.com" }
-# ]
+new_sqlite_classes = ["DecisionStoreDO"]
 
 [vars]
 # Pricing / payment headers (x402-style)
