@@ -84,6 +84,30 @@ async function rpcCall<T>(rpcUrl: string, method: string, params: unknown[]): Pr
   return body.result;
 }
 
+function sleepMs(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function rpcCallWithRetry<T>(
+  rpcUrl: string,
+  method: string,
+  params: unknown[],
+  opts: { attempts: number; baseDelayMs: number },
+): Promise<T> {
+  let lastErr: unknown = null;
+  for (let i = 0; i < opts.attempts; i++) {
+    try {
+      return await rpcCall<T>(rpcUrl, method, params);
+    } catch (e) {
+      lastErr = e;
+      // small exponential backoff with cap
+      const delay = Math.min(1500, opts.baseDelayMs * Math.pow(2, i));
+      await sleepMs(delay);
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error('rpc_call_failed');
+}
+
 function getBaseUsdcAddress(env: Env): string {
   // Default: USDC on Base (Circle native USDC)
   const fallback = '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913';
@@ -130,7 +154,11 @@ export async function facilitatorVerifyPayment(
     logs?: RpcReceiptLog[];
   };
 
-  const receipt = await rpcCall<RpcReceipt | null>(rpcUrl, 'eth_getTransactionReceipt', [txHash]).catch(() => null);
+  // Public RPCs can be eventually consistent for a short window. Retry a few times.
+  const receipt = await rpcCallWithRetry<RpcReceipt | null>(rpcUrl, 'eth_getTransactionReceipt', [txHash], {
+    attempts: 4,
+    baseDelayMs: 200,
+  }).catch(() => null);
   if (!receipt) return { ok: false, status: 404, error: 'tx_not_found' };
   if (String(receipt.status || '').toLowerCase() !== '0x1') return { ok: false, status: 422, error: 'tx_failed' };
 
@@ -166,7 +194,10 @@ export async function facilitatorVerifyPayment(
   let paidAt = nowIso();
   if (receipt.blockHash) {
     type RpcBlock = { timestamp?: string };
-    const block = await rpcCall<RpcBlock | null>(rpcUrl, 'eth_getBlockByHash', [receipt.blockHash, false]).catch(() => null);
+    const block = await rpcCallWithRetry<RpcBlock | null>(rpcUrl, 'eth_getBlockByHash', [receipt.blockHash, false], {
+      attempts: 3,
+      baseDelayMs: 100,
+    }).catch(() => null);
     const tsHex = block?.timestamp ? String(block.timestamp) : '';
     if (/^0x[0-9a-f]+$/i.test(tsHex)) {
       const seconds = Number.parseInt(tsHex, 16);
