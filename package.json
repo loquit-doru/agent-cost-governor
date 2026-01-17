@@ -17,7 +17,9 @@
     "check": "npm --workspaces run check",
     "deploy:site": "npx wrangler pages deploy site --project-name proceedgate --branch main",
     "demo:sdk": "npm run build && node examples/sdk-demo.mjs",
-    "smoke": "npm run build && concurrently -k -s first \"npm run dev:worker\" \"wait-on http://127.0.0.1:8787/health && node runner/dist/cli.js run examples/demo-task.json --governor http://127.0.0.1:8787 --tx-hash 0xstub\"",
+    "demo:storm:block": "npm run build && node scripts/run-storm-demo.mjs block",
+    "demo:storm:redeem": "npm run build && node scripts/run-storm-demo.mjs redeem",
+    "smoke": "npm run build && node scripts/run-storm-demo.mjs smoke",
     "deploy:worker": "npm --workspace worker run deploy",
     "tail:worker": "cd worker && npx wrangler tail",
     "tail:prod": "cd worker && npx wrangler tail --env prod"

@@ -111,6 +111,14 @@ async function runTask(params: { taskPath: string; governor: string; mode: 'fail
       console.log(`  x402-recipient: ${res.x402.recipient}`);
       console.log(`  x402-chain: ${res.x402.chain}`);
 
+      if ((params as any).abortOn402) {
+        console.log(`[BLOCKED] hard gate engaged (abort-on-402)`);
+        console.log('---');
+        console.log(`friction_events=${frictionEvents}`);
+        console.log(`friction_paid_usdc~=${frictionPaid.toFixed(6)}`);
+        return;
+      }
+
       const tx = params.txHash ?? (await promptLine('Paste x402 tx hash (or empty to abort): '));
       if (!tx) throw new Error('aborted by user (no tx hash)');
 
@@ -151,10 +159,17 @@ program
   .requiredOption('--governor <url>', 'Governor base URL')
   .option('--mode <mode>', 'fail-open or fail-closed', 'fail-closed')
   .option('--tx-hash <hash>', 'Non-interactive x402 tx hash (MVP/stub)', '')
+  .option('--abort-on-402', 'Exit after the first 402 (demo mode)', false)
   .action(async (taskPath: string, opts: any) => {
     const mode = String(opts.mode || 'fail-closed') === 'fail-open' ? 'fail-open' : 'fail-closed';
     const txHash = String(opts.txHash || '').trim();
-    await runTask({ taskPath, governor: String(opts.governor), mode, txHash: txHash || undefined });
+    await runTask({
+      taskPath,
+      governor: String(opts.governor),
+      mode,
+      txHash: txHash || undefined,
+      abortOn402: Boolean(opts.abortOn402),
+    } as any);
   });
 
 await program.parseAsync(process.argv);

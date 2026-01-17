@@ -1,0 +1,29 @@
+{
+  "project": "demo",
+  "steps": [
+    {
+      "name": "tool-call storm (simulated)",
+      "policy_id": "retry_friction_v1",
+      "action": "tool_call",
+      "tool": "paid_api",
+      "attempts": 25,
+      "window_seconds": 30
+    },
+    {
+      "name": "browsing storm (simulated)",
+      "policy_id": "retry_friction_v1",
+      "action": "tool_call",
+      "tool": "browser",
+      "attempts": 40,
+      "window_seconds": 60
+    },
+    {
+      "name": "low-confidence loop (simulated)",
+      "policy_id": "low_confidence_loop_v1",
+      "action": "model_call",
+      "confidence": 0.2,
+      "attempts": 8,
+      "window_seconds": 60
+    }
+  ]
+}
