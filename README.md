@@ -78,3 +78,8 @@ npx wrangler deploy
 ## Spec
 
 See `SPEC.md` for the frozen v1 contract.
+
+## Operations
+
+- Live tail (prod): `npm run tail:prod`
+- Metrics + example queries: see `OPERATIONS.md`
