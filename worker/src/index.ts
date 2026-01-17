@@ -4,6 +4,7 @@ import { exportJWK, importJWK, SignJWT } from 'jose';
 
 import { DecisionStoreDO, type DecisionRecord } from './decisionStoreDO.js';
 import { verifyPayment } from './paymentVerify.js';
+import { actorKey, logEvent, txKey } from './observability.js';
 
 type Env = {
   // x402-style pricing headers
@@ -91,6 +92,16 @@ const checkSchema = z.object({
 const redeemSchema = z.object({
   decision_id: z.string().min(1).max(200),
 });
+
+function setProceedgateHeaders(
+  c: any,
+  params: { decisionId: string; policyId?: string; reasonCode?: string; frictionPrice?: string },
+): void {
+  c.header('X-Proceedgate-Decision-Id', params.decisionId);
+  if (params.policyId) c.header('X-Proceedgate-Policy-Id', params.policyId);
+  if (params.reasonCode) c.header('X-Proceedgate-Reason', params.reasonCode);
+  if (params.frictionPrice) c.header('X-Proceedgate-Friction-Price', params.frictionPrice);
+}
 
 function getTtlSeconds(env: Env): number {
   const n = Number(env.PROCEED_TOKEN_TTL_SECONDS ?? '45');
@@ -334,6 +345,24 @@ app.post('/v1/governor/check', async (c) => {
       contextHash: parsed.data.context.context_hash,
     });
 
+    setProceedgateHeaders(c, {
+      decisionId,
+      policyId: parsed.data.policy_id,
+      reasonCode: 'none',
+    });
+
+    logEvent({
+      event: 'governor_check_ok',
+      decision_id: decisionId,
+      policy_id: parsed.data.policy_id,
+      action: parsed.data.action,
+      reason_code: 'none',
+      actor_key: await actorKey(parsed.data.actor.id),
+      task_hash: parsed.data.context.task_hash ?? '',
+      step_hash: parsed.data.context.step_hash ?? '',
+      context_hash: parsed.data.context.context_hash ?? '',
+    });
+
     return c.json(
       {
         allowed: true,
@@ -377,6 +406,28 @@ app.post('/v1/governor/check', async (c) => {
     recipient,
   });
 
+  setProceedgateHeaders(c, {
+    decisionId,
+    policyId: parsed.data.policy_id,
+    reasonCode,
+    frictionPrice: x402Price,
+  });
+
+  logEvent({
+    event: 'governor_check_402',
+    decision_id: decisionId,
+    policy_id: parsed.data.policy_id,
+    action: parsed.data.action,
+    reason_code: reasonCode,
+    actor_key: await actorKey(parsed.data.actor.id),
+    task_hash: parsed.data.context.task_hash ?? '',
+    step_hash: parsed.data.context.step_hash ?? '',
+    context_hash: parsed.data.context.context_hash ?? '',
+    friction_price: x402Price,
+    chain,
+    recipient,
+  });
+
   return c.json(
     {
       allowed: false,
@@ -411,11 +462,23 @@ app.post('/v1/governor/redeem', async (c) => {
 
   const record = await getDecisionRecord(c.env, parsed.data.decision_id);
   if (!record) {
+    logEvent({
+      event: 'governor_redeem_fail',
+      decision_id: parsed.data.decision_id,
+      error: 'unknown_or_expired_decision',
+      tx: txKey(txHash),
+    });
     return c.json({ error: 'unknown_or_expired_decision' }, 404);
   }
 
   const payment = await verifyPayment(c.env, txHash, record);
   if (!payment.ok) {
+    logEvent({
+      event: 'governor_redeem_fail',
+      decision_id: parsed.data.decision_id,
+      error: payment.error,
+      tx: txKey(txHash),
+    });
     return c.json({ error: payment.error }, payment.status);
   }
 
@@ -432,6 +495,28 @@ app.post('/v1/governor/redeem', async (c) => {
     taskHash: record.taskHash,
     stepHash: record.stepHash,
     contextHash: record.contextHash,
+  });
+
+  setProceedgateHeaders(c, {
+    decisionId: parsed.data.decision_id,
+    policyId: record.policyId,
+    reasonCode: 'redeemed',
+  });
+
+  logEvent({
+    event: 'governor_redeem_ok',
+    decision_id: parsed.data.decision_id,
+    policy_id: record.policyId,
+    action: record.action,
+    reason_code: 'redeemed',
+    actor_key: await actorKey(record.actorId),
+    task_hash: record.taskHash ?? '',
+    step_hash: record.stepHash ?? '',
+    context_hash: record.contextHash ?? '',
+    friction_price: record.price,
+    chain: record.chain,
+    recipient: record.recipient,
+    tx: txKey(txHash),
   });
 
   return c.json(
