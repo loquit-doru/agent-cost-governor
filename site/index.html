@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="ProceedGate — Stop runaway agents. Enforce cost caps and sane behavior." />
+    <title>ProceedGate — Stop runaway agents</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='%23111827' d='M0 0h64v64H0z'/%3E%3Cpath fill='%23ffffff' d='M14 16h36v6H14zm0 13h36v6H14zm0 13h24v6H14z'/%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="container topbar-inner">
+        <a class="brand" href="#top" aria-label="ProceedGate">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span class="brand-name">ProceedGate</span>
+          <span class="pill">DFaaS v1</span>
+        </a>
+        <nav class="nav">
+          <a href="#how">How it works</a>
+          <a href="#integration">Integrate</a>
+          <a href="#observability">Observability</a>
+          <a class="nav-cta" href="#cta">Get started</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <div class="container hero-grid">
+          <div>
+            <h1>Stop runaway agents. <span class="accent">Enforce cost caps</span> and sane behavior.</h1>
+            <p class="lead">
+              ProceedGate is an <strong>economic governor for AI agents</strong>: a hard gate that blocks expensive steps
+              unless the agent has a short-lived <code>proceed_token</code>.
+            </p>
+
+            <div class="cta-row">
+              <a class="btn primary" href="#integration">Integrate in 30 minutes</a>
+              <a class="btn" href="#demo">Run a demo</a>
+            </div>
+
+            <ul class="fineprint">
+              <li>Works with any agent framework (you control the runner/middleware).</li>
+              <li>Two outcomes only: <code>200</code> (go) or <code>402</code> (friction).</li>
+              <li>Enforcement sits outside the agent loop.</li>
+            </ul>
+          </div>
+
+          <div class="codecard">
+            <div class="codecard-head">
+              <span>Contract</span>
+              <span class="muted">hard gate</span>
+            </div>
+            <pre><code>POST /v1/governor/check
+
+→ 200  { proceed_token }
+→ 402  { decision_id } + x402-* headers
+
+POST /v1/governor/redeem
+  x402-tx-hash: …
+
+→ 200  { proceed_token }
+
+No token, no step.</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="problem">
+        <div class="container">
+          <h2>Problem</h2>
+          <p class="muted">If you run agents in production, you’ve seen this:</p>
+          <div class="cards">
+            <div class="card">
+              <h3>LLM retry storms</h3>
+              <p>Regeneration loops quietly burn money.</p>
+            </div>
+            <div class="card">
+              <h3>Browser automation loops</h3>
+              <p>Playwright-style sessions stall and rack up runtime.</p>
+            </div>
+            <div class="card">
+              <h3>Paid API spam</h3>
+              <p>External paid APIs get hammered when the agent gets confused.</p>
+            </div>
+          </div>
+          <p class="callout">“Just add guardrails in the prompt” is not enforceable. ProceedGate makes it enforceable.</p>
+        </div>
+      </section>
+
+      <section class="section" id="what">
+        <div class="container">
+          <h2>What ProceedGate does</h2>
+          <p>
+            ProceedGate introduces a mandatory checkpoint before your agent executes a costly step.
+            If the step is within policy/budget: you get a short-lived token and proceed.
+            If not: you get friction (<code>402</code>) and the agent cannot continue until friction is resolved.
+          </p>
+          <p class="muted">This is <strong>hard gating</strong>, not “suggested behavior”.</p>
+        </div>
+      </section>
+
+      <section class="section" id="how">
+        <div class="container">
+          <h2>How it works (simple contract)</h2>
+          <div class="steps">
+            <div class="step">
+              <div class="step-n">1</div>
+              <div>
+                <h3>Check</h3>
+                <p>Before executing a step, your runner/middleware calls <code>POST /v1/governor/check</code>.</p>
+                <p class="muted">You get either <code>200</code> (allowed + token) or <code>402</code> (friction + decision id).</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-n">2</div>
+              <div>
+                <h3>Resolve friction</h3>
+                <p>If you receive <code>402</code>, you decide how to resolve friction.</p>
+                <p class="muted">Payment (x402-style) is one mechanism. Roadmap: budgets, rate limits, manual approval.</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-n">3</div>
+              <div>
+                <h3>Redeem</h3>
+                <p>When friction is resolved: <code>POST /v1/governor/redeem</code> → <code>200</code> + token.</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-n">4</div>
+              <div>
+                <h3>Enforce</h3>
+                <p>Your runner verifies the token (JWT + JWKS) and proceeds. <strong>No token, no step.</strong></p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="integration">
+        <div class="container">
+          <h2>Integrate in 30 minutes</h2>
+          <p class="muted">Framework-agnostic: you don’t change model providers or agent frameworks.</p>
+
+          <div class="two">
+            <div class="card">
+              <h3>Engineering checklist</h3>
+              <ol class="checklist">
+                <li>Identify costly steps: retries, browser actions, paid APIs.</li>
+                <li>Add a gate call before each step: <code>POST /v1/governor/check</code>.</li>
+                <li>Enforce: <code>200</code> → run step; <code>402</code> → stop + resolve + redeem.</li>
+                <li>Verify token via JWKS: <code>GET /.well-known/jwks.json</code>.</li>
+              </ol>
+              <p class="muted">Thin middleware boundary. If you hate it, you can remove it later.</p>
+            </div>
+
+            <div class="card">
+              <h3>SDK</h3>
+              <p>Use the framework-agnostic Node SDK:</p>
+              <pre><code>npm i @proceedgate/node
+
+npm run demo:sdk
+PROCEEDGATE_TX_HASH=0xstub npm run demo:sdk</code></pre>
+              <div class="links">
+                <a class="link" href="https://github.com/loquit-doru/agent-cost-governor/blob/main/INTEGRATION.md" target="_blank" rel="noreferrer">Integration guide</a>
+                <a class="link" href="https://github.com/loquit-doru/agent-cost-governor/blob/main/SPEC.md" target="_blank" rel="noreferrer">Spec</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="why">
+        <div class="container">
+          <h2>Why this works (when “policies” don’t)</h2>
+          <div class="cards">
+            <div class="card">
+              <h3>External enforcement</h3>
+              <p>Decisions are enforced in the runner/middleware, not in prompt text.</p>
+            </div>
+            <div class="card">
+              <h3>Two-outcome API</h3>
+              <p>Predictable integration: only <code>200</code> or <code>402</code>.</p>
+            </div>
+            <div class="card">
+              <h3>Context binding</h3>
+              <p>Optional canonical <code>context_hash</code> can be bound into the token to prevent reuse.</p>
+            </div>
+            <div class="card">
+              <h3>Short TTL</h3>
+              <p>Tokens expire quickly (default 45s) to reduce replay.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="observability">
+        <div class="container">
+          <h2>Observability</h2>
+          <p class="muted">Visibility without logging raw PII.</p>
+          <div class="two">
+            <div class="card">
+              <h3>Built-in</h3>
+              <ul class="bullets">
+                <li>Structured JSON logs per decision</li>
+                <li>Optional response headers (<code>X-Proceedgate-*</code>)</li>
+                <li>Optional Analytics Engine metrics (counters + latency)</li>
+              </ul>
+            </div>
+            <div class="card">
+              <h3>Docs</h3>
+              <div class="links">
+                <a class="link" href="https://github.com/loquit-doru/agent-cost-governor/blob/main/OBSERVABILITY.md" target="_blank" rel="noreferrer">OBSERVABILITY.md</a>
+                <a class="link" href="https://github.com/loquit-doru/agent-cost-governor/blob/main/OPERATIONS.md" target="_blank" rel="noreferrer">OPERATIONS.md</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="demo">
+        <div class="container">
+          <h2>Open source reference implementation</h2>
+          <p>This repo ships a working Worker + Runner: Cloudflare Worker (Governor API) + Node runner (enforcement).</p>
+          <div class="codecard">
+            <pre><code>npm install
+npm run smoke
+
+# deploy governor
+npm run deploy:worker</code></pre>
+            <div class="links">
+              <a class="link" href="https://github.com/loquit-doru/agent-cost-governor" target="_blank" rel="noreferrer">GitHub repo</a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="cta" id="cta">
+        <div class="container cta-inner">
+          <div>
+            <h2>Integrate in 30 minutes</h2>
+            <p class="muted">Keep your agent. Add enforceable cost-control.</p>
+          </div>
+          <div class="cta-row">
+            <a class="btn primary" href="https://github.com/loquit-doru/agent-cost-governor/blob/main/INTEGRATION.md" target="_blank" rel="noreferrer">Read integration guide</a>
+            <a class="btn" href="https://github.com/loquit-doru/agent-cost-governor" target="_blank" rel="noreferrer">View repo</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="container footer-inner">
+        <span class="muted">ProceedGate — DFaaS v1</span>
+        <span class="muted">Governor API: <a href="https://governor.proceedgate.dev/health" target="_blank" rel="noreferrer">governor.proceedgate.dev</a></span>
+      </div>
+    </footer>
+  </body>
+</html>
