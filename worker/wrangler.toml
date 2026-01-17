@@ -10,6 +10,10 @@ class_name = "DecisionStoreDO"
 tag = "v1"
 new_sqlite_classes = ["DecisionStoreDO"]
 
+[[analytics_engine_datasets]]
+binding = "METRICS"
+dataset = "proceedgate_metrics"
+
 [env.prod]
 # Deploy prod config into the same worker name to own the route.
 name = "agent-cost-governor"
@@ -25,6 +29,10 @@ X402_CHAIN = "Base"
 X402_RECIPIENT = "0xYourWalletAddress"
 PROCEED_TOKEN_TTL_SECONDS = "45"
 PAYMENT_VERIFY_MODE = "stub"
+
+[[env.prod.analytics_engine_datasets]]
+binding = "METRICS"
+dataset = "proceedgate_metrics"
 
 [[env.prod.durable_objects.bindings]]
 name = "DECISIONS"
