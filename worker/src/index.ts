@@ -5,6 +5,7 @@ import { exportJWK, importJWK, SignJWT } from 'jose';
 import { DecisionStoreDO, type DecisionRecord } from './decisionStoreDO.js';
 import { verifyPayment } from './paymentVerify.js';
 import { actorKey, logEvent, txKey } from './observability.js';
+import { writeMetric } from './metrics.js';
 
 type Env = {
   // x402-style pricing headers
@@ -23,6 +24,11 @@ type Env = {
 
   // Durable Objects
   DECISIONS: DurableObjectNamespace;
+
+  // Optional: Cloudflare Analytics Engine dataset binding
+  METRICS?: {
+    writeDataPoint: (point: { indexes?: string[]; doubles?: number[]; blobs?: string[] }) => void;
+  };
 };
 
 type Vars = {};
@@ -309,10 +315,15 @@ app.get('/.well-known/jwks.json', async (c) => {
 });
 
 app.post('/v1/governor/check', async (c) => {
+  const startMs = Date.now();
   const origin = new URL(c.req.url).origin;
   const body = await c.req.json().catch(() => null);
   const parsed = checkSchema.safeParse(body);
   if (!parsed.success) {
+    writeMetric(c.env, {
+      indexes: ['check_invalid', 'unknown', 'unknown', 'invalid_request'],
+      doubles: [1, Date.now() - startMs],
+    });
     return c.json({ error: 'invalid_request', issues: parsed.error.issues }, 400);
   }
 
@@ -361,6 +372,11 @@ app.post('/v1/governor/check', async (c) => {
       task_hash: parsed.data.context.task_hash ?? '',
       step_hash: parsed.data.context.step_hash ?? '',
       context_hash: parsed.data.context.context_hash ?? '',
+    });
+
+    writeMetric(c.env, {
+      indexes: ['check_ok', parsed.data.policy_id, parsed.data.action, 'none'],
+      doubles: [1, Date.now() - startMs],
     });
 
     return c.json(
@@ -428,6 +444,11 @@ app.post('/v1/governor/check', async (c) => {
     recipient,
   });
 
+  writeMetric(c.env, {
+    indexes: ['check_402', parsed.data.policy_id, parsed.data.action, reasonCode],
+    doubles: [1, Date.now() - startMs],
+  });
+
   return c.json(
     {
       allowed: false,
@@ -450,13 +471,24 @@ app.post('/v1/governor/check', async (c) => {
 });
 
 app.post('/v1/governor/redeem', async (c) => {
+  const startMs = Date.now();
   const origin = new URL(c.req.url).origin;
   const txHash = String(c.req.header('x402-tx-hash') ?? '').trim();
-  if (!txHash) return c.json({ error: 'missing_x402_tx_hash' }, 400);
+  if (!txHash) {
+    writeMetric(c.env, {
+      indexes: ['redeem_fail', 'unknown', 'unknown', 'missing_x402_tx_hash'],
+      doubles: [1, Date.now() - startMs],
+    });
+    return c.json({ error: 'missing_x402_tx_hash' }, 400);
+  }
 
   const body = await c.req.json().catch(() => null);
   const parsed = redeemSchema.safeParse(body);
   if (!parsed.success) {
+    writeMetric(c.env, {
+      indexes: ['redeem_fail', 'unknown', 'unknown', 'invalid_request'],
+      doubles: [1, Date.now() - startMs],
+    });
     return c.json({ error: 'invalid_request', issues: parsed.error.issues }, 400);
   }
 
@@ -468,6 +500,11 @@ app.post('/v1/governor/redeem', async (c) => {
       error: 'unknown_or_expired_decision',
       tx: txKey(txHash),
     });
+
+    writeMetric(c.env, {
+      indexes: ['redeem_fail', 'unknown', 'unknown', 'unknown_or_expired_decision'],
+      doubles: [1, Date.now() - startMs],
+    });
     return c.json({ error: 'unknown_or_expired_decision' }, 404);
   }
 
@@ -478,6 +515,11 @@ app.post('/v1/governor/redeem', async (c) => {
       decision_id: parsed.data.decision_id,
       error: payment.error,
       tx: txKey(txHash),
+    });
+
+    writeMetric(c.env, {
+      indexes: ['redeem_fail', record.policyId, record.action, payment.error],
+      doubles: [1, Date.now() - startMs],
     });
     return c.json({ error: payment.error }, payment.status);
   }
@@ -517,6 +559,11 @@ app.post('/v1/governor/redeem', async (c) => {
     chain: record.chain,
     recipient: record.recipient,
     tx: txKey(txHash),
+  });
+
+  writeMetric(c.env, {
+    indexes: ['redeem_ok', record.policyId, record.action, 'redeemed'],
+    doubles: [1, Date.now() - startMs],
   });
 
   return c.json(
