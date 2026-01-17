@@ -1,0 +1,18 @@
+ProceedGate Repository License
+
+This repository contains multiple components under different licenses.
+
+1) Open Source (Apache License 2.0)
+
+The following components are licensed under the Apache License, Version 2.0 (the "Apache-2.0 License"):
+- sdk-node/
+- runner/
+- examples/
+
+See the LICENSE file inside each of those directories for the full Apache-2.0 License text.
+
+2) Proprietary / Closed Source
+
+The ProceedGate Governor/Worker implementation (the "Server"), located in worker/, is proprietary and is not licensed for use, redistribution, or modification except under a separate written agreement with ProceedGate. All rights reserved.
+
+If you have a commercial license or other written agreement with ProceedGate that supersedes this notice, that agreement controls.

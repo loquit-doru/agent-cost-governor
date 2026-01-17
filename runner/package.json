@@ -1,6 +1,7 @@
 {
   "name": "agent-cost-governor-runner",
   "private": true,
+  "license": "Apache-2.0",
   "type": "module",
   "bin": {
     "agent-runner": "dist/cli.js"

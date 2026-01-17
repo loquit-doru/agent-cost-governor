@@ -140,3 +140,21 @@ Note: There is also an optional manual-only GitHub Pages workflow for previewing
 - Observability (logs/headers/metrics): `OBSERVABILITY.md`
 - Operations (tail + metrics queries): `OPERATIONS.md`
 - Buyer-friendly technical summary: `ONE_PAGER.md`
+
+## Licensing
+
+This repository is intentionally **split-licensed**:
+
+- SDK, runner, and examples are Apache-2.0:
+  - `sdk-node/`
+  - `runner/`
+  - `examples/`
+  (see each directory's `LICENSE` file)
+- The Governor server implementation is proprietary / closed source:
+  - `worker/` (see `worker/LICENSE`)
+
+See the repository-level `LICENSE` for the summary.
+
+## Hosted Service Terms
+
+For the hosted ProceedGate service, see `TERMS_OF_SERVICE.md`.
