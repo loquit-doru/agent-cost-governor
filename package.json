@@ -3,7 +3,8 @@
   "private": true,
   "workspaces": [
     "worker",
-    "runner"
+    "runner",
+    "sdk-node"
   ],
   "devDependencies": {
     "concurrently": "^9.1.2",

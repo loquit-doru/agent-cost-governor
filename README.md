@@ -103,6 +103,7 @@ npm run deploy:worker
 ## Docs
 
 - Spec (frozen v1 contract): `SPEC.md`
+- Framework-agnostic integration guide (Node SDK): `INTEGRATION.md` (`@proceedgate/node`)
 - Smoke test: `SMOKE_TEST.md`
 - Payment verification modes: `PAYMENT_VERIFICATION.md`
 - Observability (logs/headers/metrics): `OBSERVABILITY.md`
