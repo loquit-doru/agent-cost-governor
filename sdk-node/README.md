@@ -25,6 +25,9 @@ await requireGateStepOk(client, {
   // Non-interactive demo mode:
   txHash: process.env.PROCEEDGATE_TX_HASH,
 });
+
+// If you need raw payloads for debugging/observability:
+// import { requireGateStepOkWithRaw } from '@proceedgate/node';
 ```
 
 See ../../INTEGRATION.md for end-to-end examples.

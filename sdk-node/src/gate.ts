@@ -1,4 +1,10 @@
-import type { GateStepInput, GateStepResult, GovernorCheckRequest, ProceedGateClient } from './types.js';
+import type {
+  GateStepInput,
+  GateStepResult,
+  GateStepResultWithRaw,
+  GovernorCheckRequest,
+  ProceedGateClient,
+} from './types.js';
 import { ProceedGateFrictionError } from './errors.js';
 
 function envTxHash(envVar: string): string | undefined {
@@ -13,6 +19,18 @@ function envTxHash(envVar: string): string | undefined {
 }
 
 export async function gateStep(client: ProceedGateClient, input: GateStepInput): Promise<GateStepResult> {
+  return gateStepInternal(client, input, { withRaw: false }) as Promise<GateStepResult>;
+}
+
+export async function gateStepWithRaw(client: ProceedGateClient, input: GateStepInput): Promise<GateStepResultWithRaw> {
+  return gateStepInternal(client, input, { withRaw: true }) as Promise<GateStepResultWithRaw>;
+}
+
+async function gateStepInternal(
+  client: ProceedGateClient,
+  input: GateStepInput,
+  opts: { withRaw: boolean },
+): Promise<GateStepResult | GateStepResultWithRaw> {
   const req: GovernorCheckRequest = {
     policy_id: input.policyId,
     action: input.action,
@@ -24,8 +42,8 @@ export async function gateStep(client: ProceedGateClient, input: GateStepInput):
   const check = await client.check(req, { signal: input.signal });
 
   if (check.kind === 'ok') {
-    return {
-      kind: 'ok',
+    const normalized = {
+      kind: 'ok' as const,
       decisionId: check.value.decision_id,
       proceedToken: check.value.proceed_token,
       expiresInSeconds: check.value.expires_in_seconds,
@@ -33,6 +51,9 @@ export async function gateStep(client: ProceedGateClient, input: GateStepInput):
       policyId: check.value.policy.policy_id,
       frictionRequired: check.value.policy.friction_required,
     };
+
+    if (!opts.withRaw) return normalized;
+    return { ...normalized, raw: { check: check.value } };
   }
 
   const friction = {
@@ -44,11 +65,13 @@ export async function gateStep(client: ProceedGateClient, input: GateStepInput):
     redeemUrl: check.value.redeem.url,
   };
 
+  const rawCheck402 = check.value;
+
   const txHashFromEnv = input.txHash ?? envTxHash(input.txHashEnvVar ?? 'PROCEEDGATE_TX_HASH');
   if (txHashFromEnv) {
     const redeemed = await client.redeem(friction.decisionId, txHashFromEnv, { signal: input.signal });
-    return {
-      kind: 'ok',
+    const normalized = {
+      kind: 'ok' as const,
       decisionId: redeemed.decision_id,
       proceedToken: redeemed.proceed_token,
       expiresInSeconds: redeemed.expires_in_seconds,
@@ -58,6 +81,9 @@ export async function gateStep(client: ProceedGateClient, input: GateStepInput):
       redeemed: true,
       receipt: redeemed.receipt,
     };
+
+    if (!opts.withRaw) return normalized;
+    return { ...normalized, raw: { check402: rawCheck402, redeem: redeemed } };
   }
 
   if (input.onFriction) {
@@ -70,14 +96,15 @@ export async function gateStep(client: ProceedGateClient, input: GateStepInput):
     });
 
     if (hookResult && 'abort' in hookResult && hookResult.abort) {
-      return friction;
+      if (!opts.withRaw) return friction;
+      return { ...friction, raw: { check402: rawCheck402 } };
     }
 
     const hookTxHash = hookResult && 'txHash' in hookResult ? hookResult.txHash : undefined;
     if (hookTxHash) {
       const redeemed = await client.redeem(friction.decisionId, hookTxHash, { signal: input.signal });
-      return {
-        kind: 'ok',
+      const normalized = {
+        kind: 'ok' as const,
         decisionId: redeemed.decision_id,
         proceedToken: redeemed.proceed_token,
         expiresInSeconds: redeemed.expires_in_seconds,
@@ -87,14 +114,32 @@ export async function gateStep(client: ProceedGateClient, input: GateStepInput):
         redeemed: true,
         receipt: redeemed.receipt,
       };
+
+      if (!opts.withRaw) return normalized;
+      return { ...normalized, raw: { check402: rawCheck402, redeem: redeemed } };
     }
   }
 
-  return friction;
+  if (!opts.withRaw) return friction;
+  return { ...friction, raw: { check402: rawCheck402 } };
 }
 
 export async function requireGateStepOk(client: ProceedGateClient, input: GateStepInput) {
   const res = await gateStep(client, input);
   if (res.kind === 'ok') return res;
   throw new ProceedGateFrictionError(res);
+}
+
+export async function requireGateStepOkWithRaw(client: ProceedGateClient, input: GateStepInput) {
+  const res = await gateStepWithRaw(client, input);
+  if (res.kind === 'ok') return res;
+  // Deliberately drop raw in the error payload to keep default error shape stable.
+  throw new ProceedGateFrictionError({
+    kind: 'friction',
+    decisionId: res.decisionId,
+    reasonCode: res.reasonCode,
+    policyId: res.policyId,
+    x402: res.x402,
+    redeemUrl: res.redeemUrl,
+  });
 }

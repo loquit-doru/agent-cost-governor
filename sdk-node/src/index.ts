@@ -1,5 +1,5 @@
 export { createProceedGateClient } from './client.js';
-export { gateStep, requireGateStepOk } from './gate.js';
+export { gateStep, gateStepWithRaw, requireGateStepOk, requireGateStepOkWithRaw } from './gate.js';
 export { withProceedGateGate } from './withGate.js';
 export { verifyProceedToken } from './jwks.js';
 export { sha256Hex, sha256CanonicalJsonHex } from './hash.js';
@@ -11,9 +11,12 @@ export type {
   Actor,
   CheckContext,
   GateStepFriction,
+  GateStepFrictionWithRaw,
   GateStepInput,
   GateStepOk,
+  GateStepOkWithRaw,
   GateStepResult,
+  GateStepResultWithRaw,
   GovernorCheck402,
   GovernorCheckOk,
   GovernorCheckRequest,

@@ -128,6 +128,26 @@ export type GateStepFriction = {
 
 export type GateStepResult = GateStepOk | GateStepFriction;
 
+/**
+ * Optional "explicit raw" variants for debugging/observability.
+ * These are only returned by the `*WithRaw` helpers.
+ */
+export type GateStepOkWithRaw = GateStepOk & {
+  raw: {
+    check?: GovernorCheckOk;
+    check402?: GovernorCheck402;
+    redeem?: GovernorRedeemOk;
+  };
+};
+
+export type GateStepFrictionWithRaw = GateStepFriction & {
+  raw: {
+    check402: GovernorCheck402;
+  };
+};
+
+export type GateStepResultWithRaw = GateStepOkWithRaw | GateStepFrictionWithRaw;
+
 export type WithProceedGateGateOptions = {
   client: ProceedGateClient;
   policyId: PolicyId;
