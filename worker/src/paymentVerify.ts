@@ -1,9 +1,14 @@
 import type { DecisionRecord } from './decisionStoreDO.js';
+import { facilitatorVerifyPayment } from './facilitator.js';
 
 type Env = {
   PAYMENT_VERIFY_MODE?: string;
   FACILITATOR_URL?: string;
   FACILITATOR_KEY?: string;
+
+  // Used by the built-in in-worker facilitator verifier
+  BASE_RPC_URL?: string;
+  BASE_USDC_ADDRESS?: string;
 };
 
 type VerifyErrorStatus = 400 | 401 | 402 | 404 | 422 | 500 | 501 | 502;
@@ -40,7 +45,22 @@ export async function verifyPayment(env: Env, txHash: string, record: DecisionRe
 
   if (mode === 'facilitator') {
     const url = String(env.FACILITATOR_URL ?? '').trim();
-    if (!url) return { ok: false, status: 501, error: 'facilitator_url_missing' };
+    const urlLower = url.toLowerCase();
+
+    // Preferred for this repo: keep the verifier inside the same worker.
+    // This avoids edge self-calls and allows running without an indexer.
+    if (!url || urlLower === 'internal') {
+      const verified = await facilitatorVerifyPayment(env, {
+        tx_hash: txHash,
+        decision_id: record.decisionId,
+        required_price: record.price,
+        required_chain: record.chain,
+        required_recipient: record.recipient,
+      });
+
+      if (verified.ok) return { ok: true, receipt: verified.receipt };
+      return { ok: false, status: verified.status, error: verified.error };
+    }
 
     const key = String(env.FACILITATOR_KEY ?? '').trim();
     const headers: Record<string, string> = { 'content-type': 'application/json' };
