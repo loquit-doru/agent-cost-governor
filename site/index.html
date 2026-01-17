@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="ProceedGate — Stop runaway agents. Enforce cost caps and sane behavior." />
-    <meta name="theme-color" content="#0b1020" />
+    <meta name="theme-color" content="#f6f7fb" />
     <meta property="og:title" content="ProceedGate — Stop runaway agents" />
     <meta property="og:description" content="Enforce cost caps and sane behavior with a hard proceed_token gate." />
     <meta property="og:type" content="website" />
@@ -41,6 +41,7 @@
             <p class="lead">
               ProceedGate is an <strong>economic governor for AI agents</strong>: a hard gate that blocks expensive steps
               unless the agent has a short-lived <code>proceed_token</code>.
+              It’s built for production teams: predictable integration, auditable decisions, and clear failure modes.
             </p>
 
             <div class="cta-row">
@@ -66,7 +67,8 @@
             <ul class="fineprint">
               <li>Works with any agent framework (you control the runner/middleware).</li>
               <li>Two outcomes only: <code>200</code> (go) or <code>402</code> (friction).</li>
-              <li>Enforcement sits outside the agent loop.</li>
+              <li>Enforcement sits outside the agent loop (and survives prompt failures).</li>
+              <li><strong>Micro-proof:</strong> Used in early production setups to stop retry storms and runaway tool calls before they burn budget.</li>
             </ul>
           </div>
 
@@ -167,6 +169,33 @@ No token, no step.</code></pre>
         </div>
       </section>
 
+      <section class="section" id="production">
+        <div class="container">
+          <h2>Built for production teams</h2>
+          <p class="muted">Developer-first integration, with the operational clarity larger teams need.</p>
+
+          <div class="cards">
+            <div class="card">
+              <h3>Auditable decisions</h3>
+              <p>Every check produces a decision record you can log, trace, and reason about. No “hidden policy in prompts”.</p>
+            </div>
+            <div class="card">
+              <h3>Operable by default</h3>
+              <p>Built-in observability hooks (headers, logs, metrics) so you can debug why a step was blocked—without dumping raw data.</p>
+            </div>
+            <div class="card">
+              <h3>Low-friction rollout</h3>
+              <p>Thin middleware boundary: start by gating the most expensive steps, then expand coverage as confidence grows.</p>
+            </div>
+          </div>
+
+          <div class="note">
+            <div class="note-title">Good for technical buyers</div>
+            <div class="note-body">Clear contract. Clear enforcement point. Clear failure mode. That’s what makes it deployable across teams.</div>
+          </div>
+        </div>
+      </section>
+
       <section class="section" id="integration">
         <div class="container">
           <h2>Integrate in 30 minutes</h2>
@@ -243,6 +272,12 @@ PROCEEDGATE_TX_HASH=0xstub npm run demo:sdk</code></pre>
               <h3>OBSERVABILITY.md</h3>
               <p>Logs, headers, and metrics for decisions and latency.</p>
               <span class="chip">Ops</span>
+            </a>
+
+            <a class="card card-link" href="https://github.com/loquit-doru/agent-cost-governor/blob/main/ONE_PAGER.md" target="_blank" rel="noreferrer">
+              <h3>ONE_PAGER.md</h3>
+              <p>Technical summary for review, rollout planning, and internal alignment.</p>
+              <span class="chip">Buyer</span>
             </a>
           </div>
         </div>
