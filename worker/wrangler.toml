@@ -11,10 +11,24 @@ tag = "v1"
 new_sqlite_classes = ["DecisionStoreDO"]
 
 [env.prod]
+# Deploy prod config into the same worker name to own the route.
+name = "agent-cost-governor"
 # Production routes
 routes = [
 	{ pattern = "governor.proceedgate.dev/*", zone_name = "proceedgate.dev" }
 ]
+
+[env.prod.vars]
+# Keep prod behavior consistent with dev defaults (override in dashboard if needed)
+X402_PRICE_DEFAULT = "0.004 USDC"
+X402_CHAIN = "Base"
+X402_RECIPIENT = "0xYourWalletAddress"
+PROCEED_TOKEN_TTL_SECONDS = "45"
+PAYMENT_VERIFY_MODE = "stub"
+
+[[env.prod.durable_objects.bindings]]
+name = "DECISIONS"
+class_name = "DecisionStoreDO"
 
 [vars]
 # Pricing / payment headers (x402-style)
