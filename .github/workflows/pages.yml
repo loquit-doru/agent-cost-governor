@@ -1,11 +1,6 @@
-name: Deploy site to GitHub Pages
+name: Deploy site to GitHub Pages (optional preview)
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "site/**"
-      - ".github/workflows/pages.yml"
   workflow_dispatch:
 
 permissions:

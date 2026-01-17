@@ -104,13 +104,26 @@ npm run deploy:worker
 
 The landing page lives in `site/`.
 
-### Deploy with GitHub Pages
+### Deploy to `https://proceedgate.dev` (Cloudflare Pages)
 
-This repo includes a workflow that deploys `site/` to GitHub Pages on every push to `main`.
+This repo includes a GitHub Actions workflow that deploys `site/` to **Cloudflare Pages**.
 
-1. In GitHub: Settings → Pages → set Source to **GitHub Actions**.
-2. Push changes to `site/` on `main`.
-3. The workflow publishes the site and exposes the URL in the Actions run.
+One-time setup:
+
+1. In Cloudflare Pages, create a project (no build step) and connect it to this repo, or create an empty project with the same name.
+2. Add the custom domain `proceedgate.dev` to that Pages project.
+3. In GitHub repo settings:
+   - Secrets:
+     - `CLOUDFLARE_API_TOKEN`
+     - `CLOUDFLARE_ACCOUNT_ID`
+   - Variables:
+     - `CLOUDFLARE_PAGES_PROJECT` (the Pages project name)
+
+Deploy:
+
+- Push changes to `site/` on `main`, or run the workflow manually.
+
+Note: There is also an optional manual-only GitHub Pages workflow for previewing, but the production domain should be Cloudflare Pages.
 
 ## Docs
 
