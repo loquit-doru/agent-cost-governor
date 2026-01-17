@@ -1,11 +1,6 @@
 name: Deploy site to Cloudflare Pages (proceedgate.dev)
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "site/**"
-      - ".github/workflows/cloudflare-pages.yml"
   workflow_dispatch:
 
 jobs:
