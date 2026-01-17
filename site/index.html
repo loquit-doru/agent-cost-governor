@@ -25,6 +25,7 @@
         <nav class="nav">
           <a href="#how">How it works</a>
           <a href="#integration">Integrate</a>
+          <a href="#pricing">Pricing</a>
           <a href="#docs">Docs</a>
           <a class="nav-cta" href="#cta">Get started</a>
         </nav>
@@ -253,6 +254,113 @@ PROCEEDGATE_TX_HASH=0xstub npm run demo:sdk</code></pre>
         </div>
       </section>
 
+      <section class="section" id="pricing">
+        <div class="container">
+          <h2>Pricing</h2>
+          <p class="muted">Developer-first. Self-serve. No sales calls. No “enterprise” plans.</p>
+
+          <div class="pricing">
+            <div class="price-card">
+              <div class="price-head">
+                <div>
+                  <div class="price-plan">Free</div>
+                  <div class="price-tag muted">POC / demo</div>
+                </div>
+                <div class="price">$0</div>
+              </div>
+              <div class="price-sub muted">Includes enough volume to hit the 402 “hard stop” and validate auditability.</div>
+              <ul class="bullets">
+                <li><strong>10k checks / month</strong> (calls to <code>/v1/governor/check</code>)</li>
+                <li><strong>1 project</strong></li>
+                <li><strong>7-day</strong> log retention</li>
+                <li>Preset policies</li>
+                <li>Basic dashboard: OK vs 402 + top offenders</li>
+              </ul>
+              <div class="price-actions">
+                <a class="btn" href="#demo">Run a demo</a>
+              </div>
+            </div>
+
+            <div class="price-card featured">
+              <div class="price-head">
+                <div>
+                  <div class="price-plan">Pro</div>
+                  <div class="price-tag muted">Indie / startup</div>
+                </div>
+                <div>
+                  <div class="price">$59</div>
+                  <div class="price-bill muted">per month</div>
+                </div>
+              </div>
+              <div class="price-sub muted">For production usage with custom policies and practical ops hooks.</div>
+              <ul class="bullets">
+                <li><strong>1M checks / month</strong></li>
+                <li><strong>5 projects</strong></li>
+                <li><strong>30-day</strong> log retention</li>
+                <li>Up to <strong>5 custom policies</strong></li>
+                <li><strong>1 webhook</strong> (alerts)</li>
+                <li>CSV export (manual)</li>
+              </ul>
+              <div class="price-actions">
+                <a class="btn primary" href="#cta">Get started</a>
+              </div>
+            </div>
+
+            <div class="price-card">
+              <div class="price-head">
+                <div>
+                  <div class="price-plan">Scale</div>
+                  <div class="price-tag muted">Serious prod</div>
+                </div>
+                <div>
+                  <div class="price">$199</div>
+                  <div class="price-bill muted">per month</div>
+                </div>
+              </div>
+              <div class="price-sub muted">Higher volume and deeper visibility for teams shipping agents.</div>
+              <ul class="bullets">
+                <li><strong>5M checks / month</strong></li>
+                <li><strong>25 projects</strong></li>
+                <li><strong>90-day</strong> log retention</li>
+                <li>Unlimited custom policies</li>
+                <li>Multiple webhooks + scheduled exports</li>
+                <li>Advanced analytics (storms, offenders, trend)</li>
+              </ul>
+              <div class="price-actions">
+                <a class="btn" href="https://github.com/loquit-doru/agent-cost-governor/blob/main/INTEGRATION.md" target="_blank" rel="noreferrer">Integration guide</a>
+              </div>
+            </div>
+          </div>
+
+          <div class="note">
+            <div class="note-title">How billing works</div>
+            <div class="note-body">
+              A “check” is a call to <code>POST /v1/governor/check</code>. Overage is simple and predictable: Pro is <strong>$10 / +1M checks</strong>, Scale is <strong>$8 / +1M checks</strong>. You can enable an optional hard cap to stop at your limit.
+            </div>
+          </div>
+
+          <div class="faq">
+            <h3>FAQ</h3>
+            <details open>
+              <summary>Is x402 payment how ProceedGate makes money?</summary>
+              <p class="muted">No. Payment is an enforcement primitive (pass-through). ProceedGate is priced as SaaS on policy decisions, auditability, and ops features.</p>
+            </details>
+            <details>
+              <summary>How much do I need to evaluate it?</summary>
+              <p class="muted">You can validate the core promise in minutes: 3 allowed attempts followed by a deterministic <code>402</code> hard stop. Run <code>npm run demo:storm:block</code> for the proof.</p>
+            </details>
+            <details>
+              <summary>Do I need to change my agent framework or model provider?</summary>
+              <p class="muted">No. You add a small enforcement boundary (runner/middleware) that calls ProceedGate before costly steps.</p>
+            </details>
+            <details>
+              <summary>What happens when the governor is unavailable?</summary>
+              <p class="muted">Your runner chooses the failure mode: fail-open (proceed) or fail-closed (block). The reference runner supports both.</p>
+            </details>
+          </div>
+        </div>
+      </section>
+
       <section class="section" id="docs">
         <div class="container">
           <h2>Docs</h2>
@@ -321,5 +429,4 @@ npm run deploy:worker</code></pre>
       </div>
     </footer>
   </body>
-</html>
 </html>
