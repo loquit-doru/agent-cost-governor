@@ -2,12 +2,6 @@ name = "agent-cost-governor"
 main = "src/index.ts"
 compatibility_date = "2025-07-18"
 
-# Routes (production)
-# Domain: proceedgate.dev
-routes = [
-	{ pattern = "governor.proceedgate.dev/*", zone_name = "proceedgate.dev" }
-]
-
 [[durable_objects.bindings]]
 name = "DECISIONS"
 class_name = "DecisionStoreDO"
@@ -15,6 +9,12 @@ class_name = "DecisionStoreDO"
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["DecisionStoreDO"]
+
+[env.prod]
+# Production routes
+routes = [
+	{ pattern = "governor.proceedgate.dev/*", zone_name = "proceedgate.dev" }
+]
 
 [vars]
 # Pricing / payment headers (x402-style)
