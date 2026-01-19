@@ -7,6 +7,7 @@
 import { Hono } from 'hono';
 import type { Env, Vars } from '../types.js';
 import { getSupportedProviders } from '../lib/providerPricing.js';
+import { generateOpenApiSpec } from '../lib/openapi.js';
 
 const mcpRoutes = new Hono<{ Bindings: Env; Variables: Vars }>();
 
@@ -210,6 +211,45 @@ mcpRoutes.get('/mcp', (c) => {
 // Health check
 mcpRoutes.get('/health', (c) => {
   return c.json({ ok: true });
+});
+
+// OpenAPI spec
+mcpRoutes.get('/openapi.json', (c) => {
+  const origin = new URL(c.req.url).origin;
+  return c.json(generateOpenApiSpec(origin));
+});
+
+// OpenAPI UI (Swagger)
+mcpRoutes.get('/openapi', (c) => {
+  const origin = new URL(c.req.url).origin;
+  return c.html(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ProceedGate API Documentation</title>
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
+  <style>
+    body { margin: 0; background: #1a1a2e; }
+    .swagger-ui .topbar { display: none; }
+    .swagger-ui { max-width: 1200px; margin: 0 auto; padding: 20px; }
+    .swagger-ui .info .title { color: #2dd4bf; }
+  </style>
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+  <script>
+    SwaggerUIBundle({
+      url: '${origin}/openapi.json',
+      dom_id: '#swagger-ui',
+      deepLinking: true,
+      presets: [SwaggerUIBundle.presets.apis, SwaggerUIBundle.SwaggerUIStandalonePreset],
+      layout: 'StandaloneLayout'
+    });
+  </script>
+</body>
+</html>`);
 });
 
 export { mcpRoutes };

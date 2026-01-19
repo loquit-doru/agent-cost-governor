@@ -1,7 +1,7 @@
 /**
  * LLM Provider Pricing Database
  * 
- * Costs per 1K tokens in USD (as of Jan 2025)
+ * Costs per 1K tokens in USD (as of Jan 2026)
  * Updated regularly - check provider docs for latest pricing
  */
 
