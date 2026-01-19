@@ -1,0 +1,95 @@
+### ProceedGate Billing + Governor (local)
+### Assumes worker running at http://127.0.0.1:8788 with BILLING_MODE=credits
+### Optional auth:
+### - API_AUTH_MODE=off (default): no headers required
+### - API_AUTH_MODE=shared: set API_SHARED_KEY and use Authorization: Bearer <key>
+### - API_AUTH_MODE=workspace: set API_ADMIN_KEY to create workspace keys, then use Authorization: Bearer <workspaceKey>
+@baseUrl = http://127.0.0.1:8788
+@workspaceId = w1
+@apiKey = PASTE_API_KEY_HERE
+@adminKey = PASTE_ADMIN_KEY_HERE
+
+### Health
+GET {{baseUrl}}/health
+
+### Create a credits top-up quote
+POST {{baseUrl}}/v1/billing/quote
+content-type: application/json
+# authorization: Bearer {{apiKey}}
+
+{
+  "workspace_id": "{{workspaceId}}",
+  "credits": 1000
+}
+
+### Check balance
+GET {{baseUrl}}/v1/billing/balance?workspace_id={{workspaceId}}
+# authorization: Bearer {{apiKey}}
+
+### Admin: create a workspace API key (only used when API_AUTH_MODE=workspace)
+POST {{baseUrl}}/v1/workspaces/create
+content-type: application/json
+x-admin-key: {{adminKey}}
+
+{
+  "workspace_id": "{{workspaceId}}"
+}
+
+### Admin: rotate workspace API key
+POST {{baseUrl}}/v1/workspaces/rotate_key
+content-type: application/json
+x-admin-key: {{adminKey}}
+
+{
+  "workspace_id": "{{workspaceId}}"
+}
+
+### Admin: revoke workspace API key
+POST {{baseUrl}}/v1/workspaces/revoke_key
+content-type: application/json
+x-admin-key: {{adminKey}}
+
+{
+  "workspace_id": "{{workspaceId}}"
+}
+
+### Admin: workspace key status
+GET {{baseUrl}}/v1/workspaces/status?workspace_id={{workspaceId}}
+x-admin-key: {{adminKey}}
+
+### Redeem a quote after paying USDC on Base
+### 1) Paste quote_id from the quote response
+### 2) Paste tx_hash from your wallet (Base mainnet)
+@quoteId = q_PASTE_QUOTE_ID
+@txHash = 0xPASTE_TX_HASH
+# Dev shortcut (no real transaction): make it unique per quote
+# @txHash = 0xstub:{{quoteId}}
+POST {{baseUrl}}/v1/billing/redeem
+content-type: application/json
+# authorization: Bearer {{apiKey}}
+
+{
+  "quote_id": "{{quoteId}}",
+  "tx_hash": "{{txHash}}"
+}
+
+### Governor check (uses actor.project as workspace id; consumes 1 credit)
+POST {{baseUrl}}/v1/governor/check
+content-type: application/json
+# authorization: Bearer {{apiKey}}
+
+{
+  "policy_id": "retry_friction_v1",
+  "action": "model_call",
+  "actor": {
+    "id": "demo-actor",
+    "project": "{{workspaceId}}"
+  },
+  "context": {
+    "attempt_in_window": 1,
+    "window_seconds": 600,
+    "task_hash": "t1",
+    "step_hash": "s1",
+    "context_hash": "c1"
+  }
+}

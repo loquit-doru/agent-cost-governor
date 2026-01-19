@@ -89,9 +89,45 @@ Recommended:
 
 - `GOVERNOR_SIGNING_JWK` (stable ES256 private JWK JSON)
 
+Auth (recommended):
+
+- `API_ADMIN_KEY` (required when `API_AUTH_MODE=workspace` in prod)
+
 ```bash
 cd worker
 npx wrangler secret put GOVERNOR_SIGNING_JWK
+```
+
+Set the admin key (used to provision per-workspace API keys):
+
+```bash
+cd worker
+npx wrangler secret put API_ADMIN_KEY
+```
+
+Notes:
+
+- Production is configured for `API_AUTH_MODE=workspace` in `worker/wrangler.toml`.
+- All billing endpoints and credit-based `/v1/governor/check` require `Authorization: Bearer <workspace_api_key>`.
+- Create workspace keys via `POST /v1/workspaces/create` with header `x-admin-key: <API_ADMIN_KEY>`.
+
+Example (create a workspace key):
+
+```bash
+curl -sS -X POST https://governor.proceedgate.dev/v1/workspaces/create \
+  -H "content-type: application/json" \
+  -H "x-admin-key: $API_ADMIN_KEY" \
+  -d '{"workspace_id":"acme"}'
+```
+
+Then use it:
+
+```bash
+export PROCEEDGATE_API_KEY="<workspace_api_key>"
+node runner/dist/cli.js run examples/demo-task.json \
+  --governor https://governor.proceedgate.dev \
+  --tx-hash 0xstub \
+  --api-key "$PROCEEDGATE_API_KEY"
 ```
 
 ### Deploy Worker

@@ -4,7 +4,9 @@
   "workspaces": [
     "worker",
     "runner",
-    "sdk-node"
+    "sdk-node",
+    "mcp-server",
+    "sdk/langchain"
   ],
   "devDependencies": {
     "concurrently": "^9.1.2",
@@ -15,8 +17,12 @@
     "dev:worker:8787": "npm --workspace worker run dev -- --port 8787",
     "build": "npm --workspaces run build",
     "check": "npm --workspaces run check",
+    "test": "npm --workspace worker run test",
+    "test:watch": "npm --workspace worker run test:watch",
+    "test:coverage": "npm --workspace worker run test:coverage",
     "deploy:site": "npx wrangler pages deploy site --project-name proceedgate --branch main",
     "demo:sdk": "npm run build && node examples/sdk-demo.mjs",
+    "demo:billing": "node scripts/demo-billing.mjs",
     "demo:storm:block": "npm run build && node scripts/run-storm-demo.mjs block",
     "demo:storm:redeem": "npm run build && node scripts/run-storm-demo.mjs redeem",
     "smoke": "npm run build && node scripts/run-storm-demo.mjs smoke",

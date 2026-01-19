@@ -8,11 +8,16 @@ export type CheckResult =
       x402: { price: string; recipient: string; chain: string };
     };
 
-export async function governorCheck(baseUrl: string, req: GovernorCheckRequest): Promise<CheckResult> {
+export async function governorCheck(baseUrl: string, req: GovernorCheckRequest, opts?: { apiKey?: string }): Promise<CheckResult> {
   const url = new URL('/v1/governor/check', baseUrl);
+  const apiKey = String(opts?.apiKey ?? '').trim();
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', accept: 'application/json' },
+    headers: {
+      'content-type': 'application/json',
+      accept: 'application/json',
+      ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}),
+    },
     body: JSON.stringify(req),
   });
 
@@ -34,14 +39,21 @@ export async function governorCheck(baseUrl: string, req: GovernorCheckRequest):
   return { kind: 'ok', value: body };
 }
 
-export async function governorRedeem(baseUrl: string, decisionId: string, txHash: string): Promise<GovernorRedeemOk> {
+export async function governorRedeem(
+  baseUrl: string,
+  decisionId: string,
+  txHash: string,
+  opts?: { apiKey?: string },
+): Promise<GovernorRedeemOk> {
   const url = new URL('/v1/governor/redeem', baseUrl);
+  const apiKey = String(opts?.apiKey ?? '').trim();
   const res = await fetch(url, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
       accept: 'application/json',
       'x402-tx-hash': txHash,
+      ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}),
     },
     body: JSON.stringify({ decision_id: decisionId }),
   });

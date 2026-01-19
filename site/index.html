@@ -22,11 +22,15 @@
           <span class="brand-name">ProceedGate</span>
           <span class="pill">DFaaS v1</span>
         </a>
-        <nav class="nav">
+        <button class="nav-toggle" id="navToggle" aria-label="Toggle menu" aria-expanded="false">
+          <span></span><span></span><span></span>
+        </button>
+        <nav class="nav" id="navMenu">
           <a href="#how">How it works</a>
           <a href="#integration">Integrate</a>
           <a href="#pricing">Pricing</a>
           <a href="#docs">Docs</a>
+          <a href="./pay.html">💳 Pay</a>
           <a class="nav-cta" href="#cta">Get started</a>
         </nav>
       </div>
@@ -93,7 +97,7 @@ No token, no step.</code></pre>
         </div>
       </section>
 
-      <section class="section" id="problem">
+      <section class="section fade-in" id="problem">
         <div class="container">
           <h2>Problem</h2>
           <p class="muted">If you run agents in production, you’ve seen this:</p>
@@ -115,7 +119,7 @@ No token, no step.</code></pre>
         </div>
       </section>
 
-      <section class="section" id="what">
+      <section class="section fade-in" id="what">
         <div class="container">
           <h2>What ProceedGate does</h2>
           <p>
@@ -127,7 +131,7 @@ No token, no step.</code></pre>
         </div>
       </section>
 
-      <section class="section" id="how">
+      <section class="section fade-in" id="how">
         <div class="container">
           <h2>How it works (simple contract)</h2>
           <div class="steps">
@@ -170,7 +174,7 @@ No token, no step.</code></pre>
         </div>
       </section>
 
-      <section class="section" id="production">
+      <section class="section fade-in" id="production">
         <div class="container">
           <h2>Built for production teams</h2>
           <p class="muted">Developer-first integration, with the operational clarity larger teams need.</p>
@@ -197,7 +201,7 @@ No token, no step.</code></pre>
         </div>
       </section>
 
-      <section class="section" id="integration">
+      <section class="section fade-in" id="integration">
         <div class="container">
           <h2>Integrate in 30 minutes</h2>
           <p class="muted">Framework-agnostic: you don’t change model providers or agent frameworks.</p>
@@ -230,7 +234,7 @@ PROCEEDGATE_TX_HASH=0xstub npm run demo:sdk</code></pre>
         </div>
       </section>
 
-      <section class="section" id="why">
+      <section class="section fade-in" id="why">
         <div class="container">
           <h2>Why this works (when “policies” don’t)</h2>
           <div class="cards">
@@ -254,7 +258,7 @@ PROCEEDGATE_TX_HASH=0xstub npm run demo:sdk</code></pre>
         </div>
       </section>
 
-      <section class="section" id="pricing">
+      <section class="section fade-in" id="pricing">
         <div class="container">
           <h2>Pricing</h2>
           <p class="muted">Developer-first. Self-serve. No sales calls. No “enterprise” plans.</p>
@@ -361,7 +365,7 @@ PROCEEDGATE_TX_HASH=0xstub npm run demo:sdk</code></pre>
         </div>
       </section>
 
-      <section class="section" id="docs">
+      <section class="section fade-in" id="docs">
         <div class="container">
           <h2>Docs</h2>
           <p class="muted">Everything you need to integrate and operate ProceedGate.</p>
@@ -391,7 +395,7 @@ PROCEEDGATE_TX_HASH=0xstub npm run demo:sdk</code></pre>
         </div>
       </section>
 
-      <section class="section" id="demo">
+      <section class="section fade-in" id="demo">
         <div class="container">
           <h2>Open source reference implementation</h2>
           <p>This repo ships a working Worker + Runner: Cloudflare Worker (Governor API) + Node runner (enforcement).</p>
@@ -423,10 +427,79 @@ npm run deploy:worker</code></pre>
     </main>
 
     <footer class="footer">
-      <div class="container footer-inner">
-        <span class="muted">ProceedGate — DFaaS v1</span>
-        <span class="muted">Governor API: <a href="https://governor.proceedgate.dev/health" target="_blank" rel="noreferrer">governor.proceedgate.dev</a></span>
+      <div class="container">
+        <div class="footer-grid">
+          <div class="footer-brand">
+            <div class="brand">
+              <span class="brand-mark" aria-hidden="true"></span>
+              <span class="brand-name">ProceedGate</span>
+            </div>
+            <p class="muted" style="margin-top: 8px; font-size: 14px;">Economic governor for AI agents.<br>Stop runaway costs before they happen.</p>
+          </div>
+          <div class="footer-links">
+            <div class="footer-col">
+              <div class="footer-title">Product</div>
+              <a href="#how">How it works</a>
+              <a href="#pricing">Pricing</a>
+              <a href="./pay.html">💳 Pay & Add Credits</a>
+            </div>
+            <div class="footer-col">
+              <div class="footer-title">Resources</div>
+              <a href="https://github.com/loquit-doru/agent-cost-governor" target="_blank" rel="noreferrer">GitHub</a>
+              <a href="https://github.com/loquit-doru/agent-cost-governor/blob/main/SPEC.md" target="_blank" rel="noreferrer">API Spec</a>
+              <a href="https://github.com/loquit-doru/agent-cost-governor/blob/main/INTEGRATION.md" target="_blank" rel="noreferrer">Integration</a>
+            </div>
+            <div class="footer-col">
+              <div class="footer-title">Status</div>
+              <a href="https://governor.proceedgate.dev/health" target="_blank" rel="noreferrer" class="status-link">
+                <span class="status-dot"></span> API Status
+              </a>
+              <a href="https://governor.proceedgate.dev/v1/status" target="_blank" rel="noreferrer">System Status</a>
+            </div>
+          </div>
+        </div>
+        <div class="footer-bottom">
+          <span class="muted">© 2024-2026 ProceedGate. All rights reserved.</span>
+          <div class="footer-badges">
+            <span class="badge">🔒 TLS 1.3</span>
+            <span class="badge">⚡ Edge-deployed</span>
+            <span class="badge">🛡️ JWT signed</span>
+          </div>
+        </div>
       </div>
     </footer>
+
+    <script>
+      // Mobile nav toggle
+      const toggle = document.getElementById('navToggle');
+      const menu = document.getElementById('navMenu');
+      if (toggle && menu) {
+        toggle.addEventListener('click', () => {
+          const expanded = toggle.getAttribute('aria-expanded') === 'true';
+          toggle.setAttribute('aria-expanded', !expanded);
+          menu.classList.toggle('open');
+          toggle.classList.toggle('open');
+        });
+        // Close menu when clicking a link
+        menu.querySelectorAll('a').forEach(link => {
+          link.addEventListener('click', () => {
+            menu.classList.remove('open');
+            toggle.classList.remove('open');
+            toggle.setAttribute('aria-expanded', 'false');
+          });
+        });
+      }
+
+      // Scroll animations
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+          }
+        });
+      }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+
+      document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+    </script>
   </body>
 </html>

@@ -79,6 +79,12 @@ export type ProceedGateClientOptions = {
   actor: Actor;
   fetchImpl?: typeof fetch;
   defaultHeaders?: Record<string, string>;
+
+  /** Optional API key for API_AUTH_MODE=shared|workspace. */
+  apiKey?: string;
+
+  /** Where to send apiKey; defaults to Authorization: Bearer <key>. */
+  apiKeyHeader?: 'authorization' | 'x-api-key';
 };
 
 export type GateStepInput = {

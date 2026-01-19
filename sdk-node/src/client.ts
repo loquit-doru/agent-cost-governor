@@ -25,6 +25,14 @@ export function createProceedGateClient(opts: ProceedGateClientOptions): Proceed
   const fetchImpl = opts.fetchImpl ?? fetch;
   const defaultHeaders = opts.defaultHeaders ?? {};
 
+  const apiKey = String(opts.apiKey ?? '').trim();
+  const apiKeyHeader = (opts.apiKeyHeader ?? 'authorization') as 'authorization' | 'x-api-key';
+  const authHeaders: Record<string, string> = apiKey
+    ? apiKeyHeader === 'x-api-key'
+      ? { 'x-api-key': apiKey }
+      : { authorization: `Bearer ${apiKey}` }
+    : {};
+
   return {
     baseUrl,
     actor: opts.actor,
@@ -35,6 +43,7 @@ export function createProceedGateClient(opts: ProceedGateClientOptions): Proceed
         method: 'POST',
         headers: {
           ...defaultHeaders,
+          ...authHeaders,
           'content-type': 'application/json',
           accept: 'application/json',
         },
@@ -64,6 +73,7 @@ export function createProceedGateClient(opts: ProceedGateClientOptions): Proceed
         method: 'POST',
         headers: {
           ...defaultHeaders,
+          ...authHeaders,
           'content-type': 'application/json',
           accept: 'application/json',
           'x402-tx-hash': txHash,

@@ -1,6 +1,8 @@
 import { spawn } from "node:child_process";
 
-const GOVERNOR_URL = process.env.GOVERNOR_URL ?? "http://127.0.0.1:8787";
+const DEFAULT_PORT = 8800 + Math.floor(Math.random() * 1000);
+const PORT = Number.parseInt(process.env.STORM_DEMO_PORT ?? String(DEFAULT_PORT), 10);
+const GOVERNOR_URL = process.env.GOVERNOR_URL ?? `http://127.0.0.1:${PORT}`;
 const HEALTH_URL = `${GOVERNOR_URL}/health`;
 
 function getNpmCommand() {
@@ -90,10 +92,19 @@ async function main() {
     process.exit(2);
   }
 
+  if (!Number.isFinite(PORT) || PORT <= 0) {
+    console.error("Invalid STORM_DEMO_PORT");
+    process.exit(2);
+  }
+
   const npm = getNpmCommand();
-  const worker = spawnLogged(npm, ["run", "dev:worker"], {
-    env: process.env,
-  });
+  const worker = spawnLogged(
+    npm,
+    ["--workspace", "worker", "run", "dev", "--", "--local", "--port", String(PORT)],
+    {
+      env: process.env,
+    },
+  );
 
   try {
     await waitForHealth(HEALTH_URL);

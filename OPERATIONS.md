@@ -1,5 +1,13 @@
 # Operations
 
+## Workspace auth (prod)
+
+Prod runs with `API_AUTH_MODE=workspace`.
+
+- Set secret: `cd worker && npx wrangler secret put API_ADMIN_KEY`
+- Provision a workspace key: `POST /v1/workspaces/create` with header `x-admin-key: <API_ADMIN_KEY>`
+- Clients must send `Authorization: Bearer <workspace_api_key>` (or set `PROCEEDGATE_API_KEY` for the runner)
+
 ## Live tail (prod)
 
 ```bash

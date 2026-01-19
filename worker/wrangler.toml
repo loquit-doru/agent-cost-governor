@@ -6,9 +6,17 @@ compatibility_date = "2025-07-18"
 name = "DECISIONS"
 class_name = "DecisionStoreDO"
 
+[[durable_objects.bindings]]
+name = "BILLING"
+class_name = "BillingStoreDO"
+
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["DecisionStoreDO"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["BillingStoreDO"]
 
 [[analytics_engine_datasets]]
 binding = "METRICS"
@@ -31,6 +39,20 @@ PROCEED_TOKEN_TTL_SECONDS = "45"
 PAYMENT_VERIFY_MODE = "facilitator"
 FACILITATOR_URL = "internal"
 
+# Never allow stub tx hashes in production.
+ALLOW_STUB_TX = "false"
+
+# Production auth: per-workspace API keys (stored hashed in the BILLING DO).
+API_AUTH_MODE = "workspace"
+
+# Production billing: prepaid credits.
+BILLING_MODE = "credits"
+# Price per check in microUSDC (1e-6 USDC). Default is 10 if unset.
+BILLING_CREDIT_COST_MICROUSDC = "10"
+
+# Billing recipient (credits top-ups)
+BILLING_RECIPIENT = "0x607Fc9D41858Aa23065275043698a9262F8f9bf9"
+
 [[env.prod.analytics_engine_datasets]]
 binding = "METRICS"
 dataset = "proceedgate_metrics"
@@ -39,15 +61,63 @@ dataset = "proceedgate_metrics"
 name = "DECISIONS"
 class_name = "DecisionStoreDO"
 
+[[env.prod.durable_objects.bindings]]
+name = "BILLING"
+class_name = "BillingStoreDO"
+
 [vars]
 # Pricing / payment headers (x402-style)
 X402_PRICE_DEFAULT = "0.004 USDC"
 X402_CHAIN = "Base"
-X402_RECIPIENT = "0xYourWalletAddress"
+X402_RECIPIENT = "0x607Fc9D41858Aa23065275043698a9262F8f9bf9"
+
+# Billing recipient (credits top-ups)
+BILLING_RECIPIENT = "0x607Fc9D41858Aa23065275043698a9262F8f9bf9"
 
 # JWT settings
 PROCEED_TOKEN_TTL_SECONDS = "45"
 
-# In MVP, payment verification is stubbed (accepts any x402-tx-hash).
-# For production, implement real verification or a facilitator.
-PAYMENT_VERIFY_MODE = "stub"
+# Default local behavior: verify via the in-worker facilitator verifier.
+# Dev shortcut: tx_hash starting with 0xstub is accepted without an RPC (only when ALLOW_STUB_TX=true).
+PAYMENT_VERIFY_MODE = "facilitator"
+FACILITATOR_URL = "internal"
+
+# Dev-only escape hatch for local demos. Do NOT set in prod.
+ALLOW_STUB_TX = "true"
+
+# API auth defaults (off by default; enable per env)
+API_AUTH_MODE = "off"
+
+[env.billing]
+# Convenience environment for local demos: enables credits billing.
+# Run with: wrangler dev --env billing
+
+[env.billing.vars]
+# Inherit core vars (wrangler envs do NOT inherit top-level [vars])
+X402_PRICE_DEFAULT = "0.004 USDC"
+X402_CHAIN = "Base"
+X402_RECIPIENT = "0x607Fc9D41858Aa23065275043698a9262F8f9bf9"
+BILLING_RECIPIENT = "0x607Fc9D41858Aa23065275043698a9262F8f9bf9"
+PROCEED_TOKEN_TTL_SECONDS = "45"
+
+BILLING_MODE = "credits"
+PAYMENT_VERIFY_MODE = "facilitator"
+FACILITATOR_URL = "internal"
+ALLOW_STUB_TX = "true"
+
+# Local demo: enable per-workspace API keys
+API_AUTH_MODE = "workspace"
+# Local-only convenience. Change/override when needed.
+API_ADMIN_KEY = "dev-admin-key"
+
+[[env.billing.analytics_engine_datasets]]
+binding = "METRICS"
+dataset = "proceedgate_metrics"
+
+[[env.billing.durable_objects.bindings]]
+name = "DECISIONS"
+class_name = "DecisionStoreDO"
+
+[[env.billing.durable_objects.bindings]]
+name = "BILLING"
+class_name = "BillingStoreDO"

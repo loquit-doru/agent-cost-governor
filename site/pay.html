@@ -1,0 +1,718 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="ProceedGate — Add credits to your workspace with USDC payment" />
+    <meta name="theme-color" content="#0c1220" />
+    <title>ProceedGate — Pay & Add Credits</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <style>
+      .step-indicator { display: flex; gap: 8px; margin-bottom: 20px; }
+      .step-badge { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; background: rgba(45,212,191,.15); border: 2px solid rgba(45,212,191,.3); color: var(--accent); font-weight: 800; font-size: 14px; }
+      .step-badge.active { background: var(--accent); color: #0b1020; border-color: var(--accent); }
+      .step-badge.done { background: #22c55e; border-color: #22c55e; color: white; }
+      .step-line { flex: 1; height: 2px; background: rgba(255,255,255,.12); align-self: center; }
+      .how-it-works { background: linear-gradient(135deg, rgba(45,212,191,.08), rgba(251,146,60,.05)); border: 1px solid rgba(45,212,191,.2); border-radius: 14px; padding: 20px; margin-bottom: 24px; }
+      .how-it-works h2 { margin: 0 0 12px; font-size: 18px; }
+      .how-it-works ol { margin: 0; padding-left: 20px; }
+      .how-it-works li { margin: 8px 0; color: rgba(233,237,245,.9); }
+      .amount-preview { background: rgba(0,0,0,.2); border: 1px solid rgba(255,255,255,.1); border-radius: 12px; padding: 16px; margin-top: 16px; text-align: center; }
+      .amount-big { font-size: 32px; font-weight: 800; color: var(--accent); }
+      .amount-sub { color: var(--muted); font-size: 14px; margin-top: 4px; }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="container topbar-inner">
+        <a class="brand" href="./index.html" aria-label="ProceedGate">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span class="brand-name">ProceedGate</span>
+          <span class="pill">💳 Pay</span>
+        </a>
+        <button class="nav-toggle" id="navToggle" aria-label="Toggle menu" aria-expanded="false">
+          <span></span><span></span><span></span>
+        </button>
+        <nav class="nav" id="navMenu">
+          <a href="./index.html">← Back to home</a>
+          <a href="./index.html#pricing">Pricing</a>
+          <a href="./index.html#docs">Docs</a>
+          <a class="nav-cta" href="./index.html#cta">Get started</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="section" style="padding-top: 40px">
+        <div class="container">
+          <h1 style="margin-top: 0">💳 Add Credits to Your Workspace</h1>
+          <p class="lead" style="max-width: 72ch; margin-bottom: 24px;">
+            Pay with <strong>USDC on Base</strong> to add credits to your ProceedGate workspace. Credits are used for governor checks.
+          </p>
+
+          <div class="how-it-works">
+            <h2>📋 How payment works</h2>
+            <ol>
+              <li><strong>Enter your workspace ID and API key</strong> — you got these when you created the workspace</li>
+              <li><strong>Create a quote</strong> — this generates a payment request with amount and recipient address</li>
+              <li><strong>Pay with your wallet</strong> — send USDC on Base network (MetaMask, Coinbase Wallet, etc.)</li>
+              <li><strong>Redeem the transaction</strong> — paste the tx hash to credit your account instantly</li>
+            </ol>
+          </div>
+
+          <div class="step-indicator">
+            <div class="step-badge active" id="step1">1</div>
+            <div class="step-line"></div>
+            <div class="step-badge" id="step2">2</div>
+            <div class="step-line"></div>
+            <div class="step-badge" id="step3">3</div>
+          </div>
+
+          <div class="cards" style="grid-template-columns: 1fr">
+            <div class="card" style="max-width: 920px">
+              <h3>Step 1: Enter Workspace Details</h3>
+              <p class="muted">
+                Your API key stays in your browser only (never sent to our servers except for API calls). <strong>Don't use the admin key here</strong> — use the workspace key.
+              </p>
+
+              <label for="apiBase">API Endpoint</label>
+              <input id="apiBase" style="width: 100%" value="https://governor.proceedgate.dev" />
+
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px">
+                <div>
+                  <label for="workspaceId">Workspace ID <span class="muted">(e.g. "acme")</span></label>
+                  <input id="workspaceId" style="width: 100%" placeholder="your-workspace-id" />
+                </div>
+                <div>
+                  <label for="credits">Credits to buy <span class="muted">(1 credit ≈ 1 check)</span></label>
+                  <input id="credits" style="width: 100%" value="1000" type="number" min="100" step="100" />
+                </div>
+              </div>
+
+              <label for="apiKey" style="margin-top: 12px">Workspace API Key</label>
+              <input id="apiKey" style="width: 100%" placeholder="pg_ws_xxxxx..." type="password" />
+              <p class="muted" style="font-size: 13px; margin-top: 6px;">🔒 Key is only used for API calls, never stored</p>
+
+              <div class="cta-row" style="margin-top: 16px">
+                <button class="btn primary" id="btnQuote">📝 Create Payment Quote</button>
+                <button class="btn" id="btnBalance">Check Balance</button>
+              </div>
+
+              <div class="amount-preview" id="quotePreview" style="display: none;">
+                <div class="amount-big" id="quoteAmount">—</div>
+                <div class="amount-sub">USDC to pay for <span id="quoteCredits">—</span> credits</div>
+              </div>
+
+              <pre class="muted" id="out1" style="margin-top: 12px; white-space: pre-wrap"></pre>
+            </div>
+
+            <div class="card" style="max-width: 920px">
+              <h3>Step 2: Pay with USDC on Base</h3>
+              <p class="muted">
+                Connect your wallet (MetaMask, Coinbase Wallet, Rainbow, etc.) and send USDC on <strong>Base network</strong>.
+                <br>Alternatively, send manually and paste the transaction hash below.
+              </p>
+
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px">
+                <div>
+                  <label for="chainId">Network Chain ID</label>
+                  <input id="chainId" style="width: 100%" value="8453" readonly />
+                  <p class="muted" style="font-size: 12px; margin-top: 4px;">Base Mainnet (8453)</p>
+                </div>
+                <div>
+                  <label for="usdc">USDC Contract</label>
+                  <input id="usdc" style="width: 100%" value="0x833589fCD6eDb6E08f4c7C32D4f71b54bda02913" readonly />
+                  <p class="muted" style="font-size: 12px; margin-top: 4px;">Official USDC on Base</p>
+                </div>
+              </div>
+
+              <label for="recipient" style="margin-top: 12px">Payment Recipient Address</label>
+              <input id="recipient" style="width: 100%" placeholder="← Will be filled when you create a quote" readonly />
+
+              <label for="price" style="margin-top: 12px">Amount to Pay (USDC)</label>
+              <input id="price" style="width: 100%" placeholder="← Will be filled when you create a quote" readonly />
+
+              <div class="cta-row" style="margin-top: 16px">
+                <button class="btn" id="btnConnect">🔗 Connect Wallet</button>
+                <button class="btn primary" id="btnPay" disabled>💸 Pay USDC</button>
+              </div>
+
+              <pre class="muted" id="out2" style="margin-top: 12px; white-space: pre-wrap"></pre>
+            </div>
+
+            <div class="card" style="max-width: 920px">
+              <h3>Step 3: Confirm & Redeem</h3>
+              <p class="muted">
+                After payment, paste the transaction hash below and click Redeem to credit your workspace instantly.
+              </p>
+
+              <label for="txHash">Transaction Hash</label>
+              <input id="txHash" style="width: 100%" placeholder="0x..." />
+              <p class="muted" style="font-size: 13px; margin-top: 6px;">Find this in your wallet or on <a href="https://basescan.org" target="_blank" rel="noreferrer" style="color: var(--accent);">BaseScan</a></p>
+
+              <div class="cta-row" style="margin-top: 16px">
+                <button class="btn primary" id="btnRedeem" disabled>✅ Redeem Credits</button>
+              </div>
+
+              <pre class="muted" id="out3" style="margin-top: 12px; white-space: pre-wrap"></pre>
+            </div>
+          </div>
+
+          <div class="note" style="margin-top: 18px">
+            <div class="note-title">💡 Tips</div>
+            <div class="note-body">
+              <ul style="margin: 0; padding-left: 18px;">
+                <li>Make sure you have USDC on <strong>Base network</strong>, not Ethereum mainnet</li>
+                <li>The recipient address is ProceedGate's treasury — verify it matches the quote</li>
+                <li>Credits are added instantly after successful redemption</li>
+                <li>Need help? Check the <a href="./index.html#docs" style="color: var(--accent);">documentation</a></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div
+      id="walletModal"
+      style="
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.6);
+        padding: 24px;
+        z-index: 9999;
+      "
+      aria-hidden="true"
+    >
+      <div
+        style="
+          width: 100%;
+          max-width: 560px;
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          background: #0c1220;
+          border-radius: 14px;
+          padding: 18px;
+          box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
+        "
+      >
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px">
+          <div>
+            <div style="font-weight: 650">Choose a wallet</div>
+            <div class="muted" style="font-size: 0.95rem">Select which injected wallet to connect.</div>
+          </div>
+          <button class="btn" id="btnWalletClose" type="button">Close</button>
+        </div>
+
+        <div id="walletList" style="display: grid; gap: 10px; margin-top: 14px"></div>
+
+        <div class="muted" style="margin-top: 12px; font-size: 0.95rem">
+          Tip: if you only have one wallet installed, it will connect automatically.
+        </div>
+      </div>
+    </div>
+
+    <script type="module">
+      const $ = (id) => document.getElementById(id);
+
+      const state = {
+        quoteId: null,
+        workspaceId: null,
+        apiBase: null,
+        apiKey: null,
+        provider: null,
+        signer: null,
+        ethereum: null,
+      };
+
+      function getAuthHeader() {
+        const apiKey = String($("apiKey").value || "").trim();
+        if (!apiKey) return null;
+        return `Bearer ${apiKey}`;
+      }
+
+      function getApiBase() {
+        return String($("apiBase").value || "").trim().replace(/\/$/, "");
+      }
+
+      function getWorkspaceId() {
+        return String($("workspaceId").value || "").trim();
+      }
+
+      function write(outEl, msg) {
+        outEl.textContent = String(msg ?? "");
+      }
+
+      // Surface JS errors directly in the UI (users often don't open DevTools).
+      window.addEventListener("error", (ev) => {
+        const out = $("out2");
+        const msg = ev && ev.message ? ev.message : "Unknown script error";
+        write(out, `Error: ${msg}`);
+      });
+      window.addEventListener("unhandledrejection", (ev) => {
+        const out = $("out2");
+        const reason = ev && ev.reason ? ev.reason : "Unknown rejection";
+        const msg = reason && reason.message ? reason.message : String(reason);
+        write(out, `Error: ${msg}`);
+      });
+
+      async function apiFetch(path, init = {}) {
+        const base = getApiBase();
+        const url = `${base}${path}`;
+        const auth = getAuthHeader();
+        const headers = new Headers(init.headers || {});
+        headers.set("content-type", "application/json");
+        if (auth) headers.set("authorization", auth);
+        const res = await fetch(url, { ...init, headers });
+        const text = await res.text();
+        let body = null;
+        try {
+          body = text ? JSON.parse(text) : null;
+        } catch {
+          body = text;
+        }
+        return { ok: res.ok, status: res.status, body };
+      }
+
+      function parseUsdcPrice(requiredPrice) {
+        const s = String(requiredPrice || "").trim();
+        const m = s.match(/^([0-9]+(?:\.[0-9]+)?)\s*USDC$/i);
+        if (!m) return null;
+        return m[1];
+      }
+
+      function getEthereumProvider() {
+        return state.ethereum || window.ethereum || null;
+      }
+
+      function showWalletModal() {
+        const el = $("walletModal");
+        el.style.display = "flex";
+        el.setAttribute("aria-hidden", "false");
+      }
+
+      function hideWalletModal() {
+        const el = $("walletModal");
+        el.style.display = "none";
+        el.setAttribute("aria-hidden", "true");
+        $("walletList").innerHTML = "";
+      }
+
+      function normalizeWalletInfo(info) {
+        const name = info && typeof info.name === "string" ? info.name : "Wallet";
+        const rdns = info && typeof info.rdns === "string" ? info.rdns : "";
+        const icon = info && typeof info.icon === "string" ? info.icon : "";
+        return { name, rdns, icon };
+      }
+
+      function providerInfoFromProvider(provider) {
+        if (!provider) return { name: "Wallet", rdns: "", icon: "" };
+        if (provider.isMetaMask) return { name: "MetaMask", rdns: "io.metamask", icon: "" };
+        if (provider.isCoinbaseWallet) return { name: "Coinbase Wallet", rdns: "com.coinbase.wallet", icon: "" };
+        if (provider.isBraveWallet) return { name: "Brave Wallet", rdns: "com.brave.wallet", icon: "" };
+        return { name: "Injected Wallet", rdns: "", icon: "" };
+      }
+
+      async function discoverWalletProviders(timeoutMs = 600) {
+        // EIP-6963: multi-wallet discovery in the browser.
+        const found = [];
+        const onAnnounce = (event) => {
+          const detail = event && event.detail ? event.detail : null;
+          if (!detail || !detail.provider) return;
+          found.push({ info: detail.info || {}, provider: detail.provider });
+        };
+
+        window.addEventListener("eip6963:announceProvider", onAnnounce);
+        try {
+          window.dispatchEvent(new Event("eip6963:requestProvider"));
+          await new Promise((r) => setTimeout(r, timeoutMs));
+        } finally {
+          window.removeEventListener("eip6963:announceProvider", onAnnounce);
+        }
+
+        // Also support legacy multi-injected wallets via window.ethereum.providers.
+        const legacy = [];
+        try {
+          const eth = window.ethereum;
+          if (eth && Array.isArray(eth.providers)) {
+            for (const p of eth.providers) {
+              legacy.push({ info: providerInfoFromProvider(p), provider: p });
+            }
+          }
+          if (eth) legacy.push({ info: providerInfoFromProvider(eth), provider: eth });
+        } catch {
+          // ignore
+        }
+
+        // Merge + de-dupe by provider reference first, then by rdns+name.
+        const byRef = new Set();
+        const merged = [];
+        for (const src of [...found, ...legacy]) {
+          if (!src || !src.provider) continue;
+          if (byRef.has(src.provider)) continue;
+          byRef.add(src.provider);
+          merged.push(src);
+        }
+
+        const seen = new Set();
+        const uniq = [];
+        for (const p of merged) {
+          const n = normalizeWalletInfo(p.info);
+          const key = `${n.rdns}::${n.name}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          uniq.push({ info: n, provider: p.provider });
+        }
+
+        return uniq;
+      }
+
+      async function ensureBaseChain(ethereumProvider) {
+        const chainIdDec = Number($("chainId").value || "8453");
+        if (!Number.isFinite(chainIdDec) || chainIdDec <= 0) throw new Error("invalid chainId");
+        const chainIdHex = "0x" + chainIdDec.toString(16);
+
+        const ethereum = ethereumProvider;
+        if (!ethereum) throw new Error("No injected wallet found");
+
+        try {
+          await ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: chainIdHex }] });
+        } catch (e) {
+          const code = e && typeof e === "object" ? e.code : undefined;
+          if (code === 4902) {
+            await ethereum.request({
+              method: "wallet_addEthereumChain",
+              params: [
+                {
+                  chainId: chainIdHex,
+                  chainName: "Base",
+                  nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+                  rpcUrls: ["https://mainnet.base.org"],
+                  blockExplorerUrls: ["https://basescan.org"],
+                },
+              ],
+            });
+            await ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: chainIdHex }] });
+          } else {
+            throw e;
+          }
+        }
+      }
+
+      async function loadEthers() {
+        return await import("https://cdn.jsdelivr.net/npm/ethers@6.13.4/+esm");
+      }
+
+      function connectWalletWith(ethereumProvider) {
+        const ethereum = ethereumProvider;
+        if (!ethereum) return Promise.reject(new Error("No injected wallet found"));
+        state.ethereum = ethereum;
+
+        // IMPORTANT: call request() synchronously from the user click.
+        const req = ethereum.request({ method: "eth_requestAccounts", params: [] });
+
+        return Promise.resolve(req)
+          .then(async (accounts) => {
+            const addr = Array.isArray(accounts) && accounts.length ? String(accounts[0]) : "";
+            // Some wallets refuse chain switching before the site is connected.
+            await ensureBaseChain(ethereum);
+
+            // Ethers is only used for signing/tx helpers; connection should still succeed without it.
+            try {
+              const { ethers } = await loadEthers();
+              state.provider = new ethers.BrowserProvider(ethereum);
+              state.signer = await state.provider.getSigner();
+              return await state.signer.getAddress();
+            } catch {
+              return addr || "(connected)";
+            }
+          })
+          .catch((e) => {
+            throw e;
+          });
+      }
+
+      async function sendUsdcTransfer() {
+        const { ethers } = await loadEthers();
+        if (!state.signer) throw new Error("wallet not connected");
+
+        const recipient = String($("recipient").value || "").trim();
+        if (!recipient) throw new Error("missing recipient");
+
+        const usdc = String($("usdc").value || "").trim();
+        if (!usdc) throw new Error("missing USDC address");
+
+        const priceStr = String($("price").value || "").trim();
+        const amountStr = parseUsdcPrice(priceStr);
+        if (!amountStr) throw new Error("invalid required_price (expected like: 0.001 USDC)");
+
+        const erc20 = new ethers.Contract(
+          usdc,
+          ["function transfer(address to, uint256 amount) returns (bool)"],
+          state.signer,
+        );
+
+        const units = ethers.parseUnits(amountStr, 6);
+        const tx = await erc20.transfer(recipient, units);
+        return tx;
+      }
+
+      async function refreshBalance() {
+        const workspaceId = getWorkspaceId();
+        const out1 = $("out1");
+
+        if (!workspaceId) {
+          write(out1, "missing workspace_id");
+          return;
+        }
+
+        const res = await apiFetch(`/v1/billing/balance?workspace_id=${encodeURIComponent(workspaceId)}`, {
+          method: "GET",
+        });
+
+        write(out1, JSON.stringify(res, null, 2));
+      }
+
+      $("btnQuote").addEventListener("click", async () => {
+        const out1 = $("out1");
+        write(out1, "Creating quote…");
+
+        try {
+          const workspaceId = getWorkspaceId();
+          const credits = Number($("credits").value || "0");
+          if (!workspaceId) throw new Error("missing workspace_id");
+          if (!Number.isFinite(credits) || credits <= 0) throw new Error("invalid credits");
+
+          const res = await apiFetch("/v1/billing/quote", {
+            method: "POST",
+            body: JSON.stringify({ workspace_id: workspaceId, credits }),
+          });
+
+          write(out1, JSON.stringify(res, null, 2));
+
+          if (res.ok && res.body && res.body.quote_id) {
+            state.quoteId = res.body.quote_id;
+            state.workspaceId = res.body.workspace_id;
+            $("recipient").value = res.body.required_recipient || "";
+            $("price").value = res.body.required_price || "";
+            $("btnPay").disabled = false;
+            $("btnRedeem").disabled = false;
+            
+            // Update step indicator
+            $('step1').classList.remove('active');
+            $('step1').classList.add('done');
+            $('step2').classList.add('active');
+            
+            // Show quote preview
+            const preview = $('quotePreview');
+            if (preview) {
+              preview.style.display = 'block';
+              $('quoteAmount').textContent = res.body.required_price || '—';
+              $('quoteCredits').textContent = res.body.credits || '—';
+            }
+            
+            write(out1, '✅ Quote created! Scroll down to pay.');
+          } else {
+            write(out1, '❌ ' + JSON.stringify(res.body, null, 2));
+          }
+        } catch (e) {
+          write(out1, String(e && e.message ? e.message : e));
+        }
+      });
+
+      $("btnBalance").addEventListener("click", async () => {
+        await refreshBalance();
+      });
+
+      $("btnConnect").addEventListener("click", async () => {
+        const out2 = $("out2");
+        write(out2, "Choose wallet…");
+
+        try {
+          const providers = await discoverWalletProviders();
+
+          // If not discoverable or only one wallet, connect directly.
+          if (providers.length <= 1) {
+            const eth = providers.length === 1 ? providers[0].provider : window.ethereum;
+            if (!eth) throw new Error("No injected wallet found (install MetaMask/Coinbase Wallet)");
+            write(out2, "Requesting wallet connection…");
+            const addr = await connectWalletWith(eth);
+            write(out2, `Wallet connected: ${addr}`);
+            $("btnPay").disabled = false;
+            return;
+          }
+
+          // Multiple wallets found: show a chooser.
+          const list = $("walletList");
+          list.innerHTML = "";
+
+          const dbg = document.createElement("div");
+          dbg.className = "muted";
+          dbg.style.fontSize = "0.95rem";
+          dbg.textContent = `Detected ${providers.length} wallet providers.`;
+          list.appendChild(dbg);
+
+          for (const p of providers) {
+            const info = normalizeWalletInfo(p.info);
+            const row = document.createElement("button");
+            row.type = "button";
+            row.className = "btn";
+            row.style.display = "flex";
+            row.style.alignItems = "center";
+            row.style.justifyContent = "space-between";
+            row.style.gap = "10px";
+            row.style.width = "100%";
+
+            const left = document.createElement("div");
+            left.style.display = "flex";
+            left.style.alignItems = "center";
+            left.style.gap = "10px";
+
+            if (info.icon) {
+              const img = document.createElement("img");
+              img.src = info.icon;
+              img.alt = "";
+              img.width = 24;
+              img.height = 24;
+              img.style.borderRadius = "6px";
+              left.appendChild(img);
+            }
+
+            const label = document.createElement("div");
+            label.style.display = "grid";
+            label.style.gap = "2px";
+            const name = document.createElement("div");
+            name.textContent = info.name;
+            name.style.fontWeight = "650";
+            const sub = document.createElement("div");
+            sub.textContent = info.rdns || "Injected provider";
+            sub.className = "muted";
+            sub.style.fontSize = "0.92rem";
+            label.appendChild(name);
+            label.appendChild(sub);
+            left.appendChild(label);
+
+            const right = document.createElement("div");
+            right.className = "muted";
+            right.textContent = "Connect";
+
+            row.appendChild(left);
+            row.appendChild(right);
+
+            row.addEventListener("click", async () => {
+              hideWalletModal();
+              write(out2, `Requesting connection in ${info.name}…`);
+              try {
+                const addr = await connectWalletWith(p.provider);
+                write(out2, `Wallet connected: ${addr}`);
+                $("btnPay").disabled = false;
+              } catch (e) {
+                write(out2, String(e && e.message ? e.message : e));
+              }
+            });
+
+            list.appendChild(row);
+          }
+
+          showWalletModal();
+        } catch (e) {
+          write(out2, String(e && e.message ? e.message : e));
+        }
+      });
+
+      $("btnWalletClose").addEventListener("click", () => {
+        hideWalletModal();
+      });
+
+      $("walletModal").addEventListener("click", (ev) => {
+        // Click outside the dialog closes.
+        if (ev.target && ev.target.id === "walletModal") hideWalletModal();
+      });
+
+      $("btnPay").addEventListener("click", async () => {
+        const out2 = $("out2");
+        write(out2, "Sending USDC transfer…");
+
+        try {
+          if (!state.quoteId) throw new Error("Create a quote first");
+          const tx = await sendUsdcTransfer();
+          write(out2, `Submitted tx: ${tx.hash}\nWaiting for confirmation…`);
+          $("txHash").value = tx.hash;
+
+          const receipt = await tx.wait();
+          write(out2, `Confirmed in block ${receipt.blockNumber}\nTx: ${tx.hash}`);
+        } catch (e) {
+          write(out2, String(e && e.message ? e.message : e));
+        }
+      });
+
+      $('btnRedeem').addEventListener('click', async () => {
+        const out3 = $('out3');
+        write(out3, 'Redeeming credits…');
+
+        // Update step indicator
+        $('step2').classList.remove('active');
+        $('step2').classList.add('done');
+        $('step3').classList.add('active');
+
+        try {
+          const quoteId = state.quoteId;
+          const txHash = String($('txHash').value || '').trim();
+          if (!quoteId) throw new Error('Create a quote first');
+          if (!txHash) throw new Error('Missing tx_hash');
+
+          const res = await apiFetch('/v1/billing/redeem', {
+            method: 'POST',
+            body: JSON.stringify({ quote_id: quoteId, tx_hash: txHash }),
+          });
+
+          if (res.ok) {
+            $('step3').classList.remove('active');
+            $('step3').classList.add('done');
+            write(out3, '✅ Credits added successfully!\n\n' + JSON.stringify(res.body, null, 2));
+          } else {
+            write(out3, '❌ Error: ' + JSON.stringify(res.body, null, 2));
+          }
+          await refreshBalance();
+        } catch (e) {
+          write(out3, '❌ ' + String(e && e.message ? e.message : e));
+        }
+      });
+
+      // Mobile nav toggle
+      const toggle = document.getElementById('navToggle');
+      const menu = document.getElementById('navMenu');
+      if (toggle && menu) {
+        toggle.addEventListener('click', () => {
+          const expanded = toggle.getAttribute('aria-expanded') === 'true';
+          toggle.setAttribute('aria-expanded', !expanded);
+          menu.classList.toggle('open');
+          toggle.classList.toggle('open');
+        });
+        menu.querySelectorAll('a').forEach(link => {
+          link.addEventListener('click', () => {
+            menu.classList.remove('open');
+            toggle.classList.remove('open');
+            toggle.setAttribute('aria-expanded', 'false');
+          });
+        });
+      }
+    </script>
+
+    <footer class="footer" style="margin-top: 48px;">
+      <div class="container">
+        <div class="footer-bottom" style="border-top: none; padding-top: 0;">
+          <span class="muted">© 2024-2026 ProceedGate. All rights reserved.</span>
+          <div class="footer-badges">
+            <a href="https://governor.proceedgate.dev/health" target="_blank" rel="noreferrer" class="badge" style="text-decoration: none;">
+              <span class="status-dot" style="display: inline-block; width: 6px; height: 6px; margin-right: 4px;"></span> API Status
+            </a>
+            <span class="badge">🔐 USDC on Base</span>
+          </div>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

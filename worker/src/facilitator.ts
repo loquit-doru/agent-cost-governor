@@ -15,6 +15,10 @@ export type FacilitatorVerifyResponse =
 type Env = {
   BASE_RPC_URL?: string;
   BASE_USDC_ADDRESS?: string;
+
+  // Dev-only escape hatch: allow "0xstub" tx hashes.
+  // MUST NOT be enabled in production.
+  ALLOW_STUB_TX?: string;
 };
 
 type VerifyErrorStatus = 400 | 401 | 402 | 404 | 422 | 500 | 501 | 502;
@@ -131,8 +135,10 @@ export async function facilitatorVerifyPayment(
   const requiredUnits = parseUsdcToUnits(req.required_price);
   if (requiredUnits === null) return { ok: false, status: 400, error: 'invalid_required_price' };
 
-  // Local/dev convenience: allow a sentinel tx hash.
-  if (txHash === '0xstub') {
+  // Local/dev convenience: allow stub tx hashes when explicitly enabled.
+  // Accepts any tx hash that starts with "0xstub" to support idempotent demos.
+  const allowStub = String(env.ALLOW_STUB_TX ?? '').trim().toLowerCase() === 'true';
+  if (allowStub && txHash.startsWith('0xstub')) {
     return {
       ok: true,
       receipt: {

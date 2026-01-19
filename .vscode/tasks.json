@@ -1,0 +1,168 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "ACG: check",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"--workspaces",
+				"run",
+				"check"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "ACG: demo:billing",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"demo:billing"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "ACG: demo:billing (auth)",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"demo:billing"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "ACG: check",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"--workspaces",
+				"run",
+				"check"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "ACG: check",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"--workspaces",
+				"run",
+				"check"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "ACG: check",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"--workspaces",
+				"run",
+				"check"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "ACG: check",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"--workspaces",
+				"run",
+				"check"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "ACG: check",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"--workspaces",
+				"run",
+				"check"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "ACG: check",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"--workspaces",
+				"run",
+				"check"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "ACG: deploy:worker",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"deploy:worker"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "ACG: deploy:worker (prod)",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"deploy:worker"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "ACG: deploy:worker (prod)",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"deploy:worker"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "ACG: deploy:worker (prod) - full",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"deploy:worker"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		}
+	]
+}

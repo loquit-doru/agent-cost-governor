@@ -5,9 +5,9 @@ import { stdin as input, stdout as output } from 'node:process';
 import * as readline from 'node:readline/promises';
 
 import type { GovernorCheckRequest, TaskFile } from './types.js';
-import { canonicalJsonStringify } from './canonicalJson.js';
+// Use SDK as single source of truth for shared utilities
+import { canonicalJsonStringify, verifyProceedToken } from '@proceedgate/node';
 import { governorCheck, governorRedeem } from './governorClient.js';
-import { verifyProceedToken } from './jwks.js';
 
 function sha256Hex(s: string): string {
   return createHash('sha256').update(s).digest('hex');
@@ -32,7 +32,13 @@ function normalizeBaseUrl(raw: string): string {
   return u.origin;
 }
 
-async function runTask(params: { taskPath: string; governor: string; mode: 'fail-open' | 'fail-closed'; txHash?: string }) {
+async function runTask(params: {
+  taskPath: string;
+  governor: string;
+  mode: 'fail-open' | 'fail-closed';
+  txHash?: string;
+  apiKey?: string;
+}) {
   const governor = normalizeBaseUrl(params.governor);
   const taskRaw = await readFile(params.taskPath, 'utf-8');
   const task = JSON.parse(taskRaw) as TaskFile;
@@ -81,7 +87,7 @@ async function runTask(params: { taskPath: string; governor: string; mode: 'fail
 
       let res;
       try {
-        res = await governorCheck(governor, req);
+        res = await governorCheck(governor, req, { apiKey: params.apiKey });
       } catch (e: any) {
         if (params.mode === 'fail-open') {
           console.warn(`governor unavailable; fail-open; continuing. err=${String(e?.message ?? e)}`);
@@ -122,7 +128,7 @@ async function runTask(params: { taskPath: string; governor: string; mode: 'fail
       const tx = params.txHash ?? (await promptLine('Paste x402 tx hash (or empty to abort): '));
       if (!tx) throw new Error('aborted by user (no tx hash)');
 
-      const redeemed = await governorRedeem(governor, res.value.decision_id, tx);
+      const redeemed = await governorRedeem(governor, res.value.decision_id, tx, { apiKey: params.apiKey });
 
       await verifyProceedToken(redeemed.proceed_token, {
         issuer: governor,
@@ -159,15 +165,18 @@ program
   .requiredOption('--governor <url>', 'Governor base URL')
   .option('--mode <mode>', 'fail-open or fail-closed', 'fail-closed')
   .option('--tx-hash <hash>', 'Non-interactive x402 tx hash (MVP/stub)', '')
+  .option('--api-key <key>', 'API key (Authorization: Bearer ...). Fallback env: PROCEEDGATE_API_KEY', '')
   .option('--abort-on-402', 'Exit after the first 402 (demo mode)', false)
   .action(async (taskPath: string, opts: any) => {
     const mode = String(opts.mode || 'fail-closed') === 'fail-open' ? 'fail-open' : 'fail-closed';
     const txHash = String(opts.txHash || '').trim();
+    const apiKey = String(opts.apiKey || process.env.PROCEEDGATE_API_KEY || '').trim();
     await runTask({
       taskPath,
       governor: String(opts.governor),
       mode,
       txHash: txHash || undefined,
+      apiKey: apiKey || undefined,
       abortOn402: Boolean(opts.abortOn402),
     } as any);
   });
