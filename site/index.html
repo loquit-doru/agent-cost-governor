@@ -26,12 +26,14 @@
           <span></span><span></span><span></span>
         </button>
         <nav class="nav" id="navMenu">
+          <a class="nav-demo" href="./demo.html">🎬 Demo</a>
           <a href="#how">How it works</a>
           <a href="#integration">Integrate</a>
           <a href="#pricing">Pricing</a>
           <a href="#docs">Docs</a>
           <a href="./pay.html">💳 Pay</a>
-          <a class="nav-cta" href="#cta">Get started</a>
+          <a href="./dashboard.html">📊 Dashboard</a>
+          <a class="nav-cta" href="#signup">Get started</a>
         </nav>
       </div>
     </header>
@@ -51,7 +53,7 @@
 
             <div class="cta-row">
               <a class="btn primary" href="#integration">Integrate in 30 minutes</a>
-              <a class="btn" href="#demo">Run a demo</a>
+              <a class="btn demo" href="./demo.html">🎬 Watch Demo</a>
             </div>
 
             <div class="statrow" role="list">
@@ -261,27 +263,51 @@ PROCEEDGATE_TX_HASH=0xstub npm run demo:sdk</code></pre>
       <section class="section fade-in" id="pricing">
         <div class="container">
           <h2>Pricing</h2>
-          <p class="muted">Developer-first. Self-serve. No sales calls. No “enterprise” plans.</p>
+          <p class="muted">Simple, predictable pricing. Start free, upgrade when you need more.</p>
 
-          <div class="pricing">
+          <div class="pricing four-cols">
             <div class="price-card">
               <div class="price-head">
                 <div>
                   <div class="price-plan">Free</div>
-                  <div class="price-tag muted">POC / demo</div>
+                  <div class="price-tag muted">Try it out</div>
                 </div>
                 <div class="price">$0</div>
               </div>
-              <div class="price-sub muted">Includes enough volume to hit the 402 “hard stop” and validate auditability.</div>
+              <div class="price-sub muted">Test the hard-stop behavior. See if ProceedGate fits.</div>
               <ul class="bullets">
-                <li><strong>10k checks / month</strong> (calls to <code>/v1/governor/check</code>)</li>
+                <li><strong>2k checks / month</strong></li>
                 <li><strong>1 project</strong></li>
-                <li><strong>7-day</strong> log retention</li>
-                <li>Preset policies</li>
-                <li>Basic dashboard: OK vs 402 + top offenders</li>
+                <li>3-day log retention</li>
+                <li>Preset policies only</li>
+                <li>Community support</li>
               </ul>
               <div class="price-actions">
-                <a class="btn" href="#demo">Run a demo</a>
+                <a class="btn" href="#signup">Start free</a>
+              </div>
+            </div>
+
+            <div class="price-card">
+              <div class="price-head">
+                <div>
+                  <div class="price-plan">Starter</div>
+                  <div class="price-tag muted">Side projects</div>
+                </div>
+                <div>
+                  <div class="price">$19</div>
+                  <div class="price-bill muted">per month</div>
+                </div>
+              </div>
+              <div class="price-sub muted">For indie developers and small projects going to production.</div>
+              <ul class="bullets">
+                <li><strong>25k checks / month</strong></li>
+                <li><strong>3 projects</strong></li>
+                <li>14-day log retention</li>
+                <li>Basic analytics</li>
+                <li>Email support</li>
+              </ul>
+              <div class="price-actions">
+                <a class="btn" href="#signup">Get started</a>
               </div>
             </div>
 
@@ -289,24 +315,24 @@ PROCEEDGATE_TX_HASH=0xstub npm run demo:sdk</code></pre>
               <div class="price-head">
                 <div>
                   <div class="price-plan">Pro</div>
-                  <div class="price-tag muted">Indie / startup</div>
+                  <div class="price-tag muted">Production</div>
                 </div>
                 <div>
                   <div class="price">$59</div>
                   <div class="price-bill muted">per month</div>
                 </div>
               </div>
-              <div class="price-sub muted">For production usage with custom policies and practical ops hooks.</div>
+              <div class="price-sub muted">For teams shipping agents to production with real traffic.</div>
               <ul class="bullets">
                 <li><strong>1M checks / month</strong></li>
                 <li><strong>5 projects</strong></li>
-                <li><strong>30-day</strong> log retention</li>
-                <li>Up to <strong>5 custom policies</strong></li>
-                <li><strong>1 webhook</strong> (alerts)</li>
-                <li>CSV export (manual)</li>
+                <li>30-day log retention</li>
+                <li>Custom policies (up to 10)</li>
+                <li>Webhooks + alerts</li>
+                <li>Priority support</li>
               </ul>
               <div class="price-actions">
-                <a class="btn primary" href="#cta">Get started</a>
+                <a class="btn primary" href="#signup">Get started</a>
               </div>
             </div>
 
@@ -314,32 +340,33 @@ PROCEEDGATE_TX_HASH=0xstub npm run demo:sdk</code></pre>
               <div class="price-head">
                 <div>
                   <div class="price-plan">Scale</div>
-                  <div class="price-tag muted">Serious prod</div>
+                  <div class="price-tag muted">High volume</div>
                 </div>
                 <div>
                   <div class="price">$199</div>
                   <div class="price-bill muted">per month</div>
                 </div>
               </div>
-              <div class="price-sub muted">Higher volume and deeper visibility for teams shipping agents.</div>
+              <div class="price-sub muted">For teams with serious agent traffic and compliance needs.</div>
               <ul class="bullets">
                 <li><strong>5M checks / month</strong></li>
                 <li><strong>25 projects</strong></li>
-                <li><strong>90-day</strong> log retention</li>
+                <li>90-day log retention</li>
                 <li>Unlimited custom policies</li>
-                <li>Multiple webhooks + scheduled exports</li>
-                <li>Advanced analytics (storms, offenders, trend)</li>
+                <li>Team API keys (10) + IP allowlist</li>
+                <li>Audit logs + dedicated support</li>
               </ul>
               <div class="price-actions">
-                <a class="btn" href="https://github.com/loquit-doru/agent-cost-governor/blob/main/INTEGRATION.md" target="_blank" rel="noreferrer">Integration guide</a>
+                <a class="btn" href="#signup">Contact us</a>
               </div>
             </div>
           </div>
 
           <div class="note">
-            <div class="note-title">How billing works</div>
+            <div class="note-title">💡 Overage & Annual billing</div>
             <div class="note-body">
-              A “check” is a call to <code>POST /v1/governor/check</code>. Overage is simple and predictable: Pro is <strong>$10 / +1M checks</strong>, Scale is <strong>$8 / +1M checks</strong>. You can enable an optional hard cap to stop at your limit.
+              <strong>Overage:</strong> Starter +$0.50/1k, Pro +$0.04/1k, Scale +$0.03/1k — or enable hard cap to stop at limit.<br>
+              <strong>Annual:</strong> Pay yearly and get <strong>2 months free</strong> (17% off).
             </div>
           </div>
 
@@ -412,6 +439,99 @@ npm run deploy:worker</code></pre>
         </div>
       </section>
 
+      <!-- Sign up / Contact section -->
+      <section class="section" id="signup" style="background: linear-gradient(135deg, rgba(45,212,191,.08), rgba(251,146,60,.05)); border-top: 1px solid rgba(45,212,191,.2); border-bottom: 1px solid rgba(45,212,191,.2);">
+        <div class="container" style="text-align: center; max-width: 640px;">
+          <h2 style="margin-bottom: 12px;">🚀 Ready to get started?</h2>
+          <p class="muted" style="margin-bottom: 24px;">
+            Start free with 2,000 checks/month. No credit card required.
+          </p>
+          
+          <!-- Free Signup Form -->
+          <div id="freeSignup" style="background: rgba(0,0,0,.2); border: 1px solid rgba(255,255,255,.1); border-radius: 12px; padding: 24px; margin-bottom: 20px;">
+            <div style="font-size: 18px; font-weight: 700; margin-bottom: 16px;">✨ Get Free API Key</div>
+            <form id="freeSignupForm" style="display: flex; flex-direction: column; gap: 12px;">
+              <input type="email" id="freeEmail" placeholder="your@email.com" required
+                style="padding: 14px 16px; background: rgba(0,0,0,.3); border: 1px solid rgba(255,255,255,.15); border-radius: 10px; color: white; font-size: 15px; text-align: center;">
+              <button type="submit" class="btn primary" style="padding: 14px; font-size: 16px;">
+                🎉 Create Free Account
+              </button>
+            </form>
+            <div id="freeSignupResult" style="display: none; margin-top: 16px;"></div>
+          </div>
+          
+          <p class="muted" style="margin-bottom: 16px; font-size: 13px;">
+            — or —
+          </p>
+          <div class="cta-row" style="justify-content: center;">
+            <a class="btn" href="./pay.html">💳 Subscribe to Paid Plan</a>
+          </div>
+          <p class="muted" style="margin-top: 20px; font-size: 13px;">
+            Paid plans: USDC on Base • Instant activation
+          </p>
+        </div>
+      </section>
+
+      <script>
+        // Free signup form handler
+        document.getElementById('freeSignupForm')?.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const email = document.getElementById('freeEmail').value;
+          const resultDiv = document.getElementById('freeSignupResult');
+          const form = document.getElementById('freeSignupForm');
+          
+          try {
+            form.querySelector('button').disabled = true;
+            form.querySelector('button').textContent = '⏳ Creating...';
+            
+            const res = await fetch('https://governor.proceedgate.dev/v1/billing/free', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email })
+            });
+            
+            const data = await res.json();
+            
+            if (data.ok) {
+              form.style.display = 'none';
+              resultDiv.style.display = 'block';
+              resultDiv.innerHTML = `
+                <div style="background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.3); border-radius: 10px; padding: 20px;">
+                  <div style="font-size: 24px; margin-bottom: 12px;">🎉</div>
+                  <div style="font-weight: 700; font-size: 16px; margin-bottom: 8px;">Account Created!</div>
+                  <div style="font-size: 13px; color: var(--muted); margin-bottom: 16px;">
+                    Your API key has been sent to <strong>${email}</strong>
+                  </div>
+                  <div style="background: rgba(0,0,0,.3); border-radius: 8px; padding: 12px; font-family: monospace; font-size: 12px; word-break: break-all; margin-bottom: 12px;">
+                    <div style="color: var(--muted); font-size: 11px; margin-bottom: 4px;">API Key:</div>
+                    <div id="apiKeyDisplay">${data.api_key}</div>
+                  </div>
+                  <button onclick="navigator.clipboard.writeText('${data.api_key}')" class="btn" style="padding: 10px 16px; font-size: 13px;">
+                    📋 Copy API Key
+                  </button>
+                  <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,.1);">
+                    <div style="font-size: 13px; color: var(--muted); margin-bottom: 8px;">Quick test:</div>
+                    <code style="display: block; background: rgba(0,0,0,.4); padding: 12px; border-radius: 8px; font-size: 11px; text-align: left; overflow-x: auto;">curl https://governor.proceedgate.dev/v1/me \\
+  -H "Authorization: Bearer ${data.api_key}"</code>
+                  </div>
+                </div>
+              `;
+            } else {
+              throw new Error(data.error || 'Signup failed');
+            }
+          } catch (err) {
+            form.querySelector('button').disabled = false;
+            form.querySelector('button').textContent = '🎉 Create Free Account';
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = `
+              <div style="background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3); border-radius: 8px; padding: 12px; color: #ef4444;">
+                Error: ${err.message}. Please try again.
+              </div>
+            `;
+          }
+        });
+      </script>
+
       <section class="cta" id="cta">
         <div class="container cta-inner">
           <div>
@@ -445,16 +565,17 @@ npm run deploy:worker</code></pre>
             </div>
             <div class="footer-col">
               <div class="footer-title">Resources</div>
-              <a href="https://github.com/loquit-doru/agent-cost-governor" target="_blank" rel="noreferrer">GitHub</a>
-              <a href="https://github.com/loquit-doru/agent-cost-governor/blob/main/SPEC.md" target="_blank" rel="noreferrer">API Spec</a>
-              <a href="https://github.com/loquit-doru/agent-cost-governor/blob/main/INTEGRATION.md" target="_blank" rel="noreferrer">Integration</a>
+              <a href="https://github.com/user/agent-cost-governor" target="_blank" rel="noreferrer">GitHub</a>
+              <a href="https://github.com/user/agent-cost-governor/blob/main/SPEC.md" target="_blank" rel="noreferrer">API Spec</a>
+              <a href="https://github.com/user/agent-cost-governor/blob/main/INTEGRATION.md" target="_blank" rel="noreferrer">Integration</a>
             </div>
             <div class="footer-col">
-              <div class="footer-title">Status</div>
+              <div class="footer-title">Support</div>
+              <a href="mailto:support@proceedgate.dev">📧 support@proceedgate.dev</a>
               <a href="https://governor.proceedgate.dev/health" target="_blank" rel="noreferrer" class="status-link">
                 <span class="status-dot"></span> API Status
               </a>
-              <a href="https://governor.proceedgate.dev/v1/status" target="_blank" rel="noreferrer">System Status</a>
+              <a href="./dashboard.html">📊 Dashboard</a>
             </div>
           </div>
         </div>
