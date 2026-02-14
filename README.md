@@ -17,6 +17,7 @@ ProceedGate sits **outside** the agent loop and blocks expensive/risky steps unl
 | Full setup guide | [`docs/TECHNICAL.md`](docs/TECHNICAL.md) |
 | Project overview | [`docs/PROJECT.md`](docs/PROJECT.md) |
 | AI build log | [`AI_BUILD_LOG.md`](AI_BUILD_LOG.md) |
+| OpenClaw setup | [`OPENCLAW_SETUP.md`](OPENCLAW_SETUP.md) |
 | Competition runbook | [`HACKATHON.md`](HACKATHON.md) |
 
 ### Reproduce in 3 commands
@@ -40,7 +41,27 @@ The quickest path is to adopt ProceedGate as a **runner/middleware gate**:
 3. If you get `402`, your system must resolve friction (payment is one option) then call `POST /v1/governor/redeem` and proceed.
 
 This repo includes a reference runner to demonstrate *hard enforcement*.
+## 🦞 OpenClaw Integration
 
+ProceedGate ships as a native [OpenClaw skill](https://docs.openclaw.ai/tools/skills). Install it and your AI assistant autonomously gates expensive actions through onchain verification on BNB Chain.
+
+```bash
+npm install -g openclaw@latest
+openclaw onboard --install-daemon
+cp openclaw/openclaw.json.example ~/.openclaw/openclaw.json
+openclaw agent --message "Gate my next API call"
+```
+
+Key files:
+
+| File | Purpose |
+|------|---------|
+| `skills/onchain-cost-governor/SKILL.md` | AgentSkills-compatible skill definition |
+| `openclaw/SOUL.md` | Agent identity and safety policies |
+| `openclaw/AGENTS.md` | Multi-agent coordination (Governor ↔ Coordinator ↔ Executor) |
+| `openclaw/openclaw.json.example` | Configuration template |
+
+See [`OPENCLAW_SETUP.md`](OPENCLAW_SETUP.md) for the full integration guide.
 ## What “costly steps” means (canonical v1 examples)
 
 - LLM retries / regeneration loops

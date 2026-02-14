@@ -31,6 +31,7 @@
           <a href="#hackathon">Hackathon</a>
           <a href="#how">How it works</a>
           <a href="#integration">Integrate</a>
+          <a href="#openclaw">🦞 OpenClaw</a>
           <a href="#pricing">Pricing</a>
           <a href="#docs">Docs</a>
           <a href="./pay.html">💳 Pay</a>
@@ -300,6 +301,49 @@ PROCEEDGATE_TX_HASH=0xstub npm run demo:sdk</code></pre>
         </div>
       </section>
 
+      <section class="section fade-in" id="openclaw">
+        <div class="container">
+          <h2>🦞 OpenClaw Skill</h2>
+          <p class="muted">ProceedGate ships as a native <a class="link" href="https://docs.openclaw.ai/tools/skills" target="_blank" rel="noreferrer">OpenClaw skill</a>. Install it and your AI assistant autonomously gates expensive actions through onchain verification.</p>
+
+          <div class="two">
+            <div class="card">
+              <h3>Quick setup</h3>
+              <pre><code style="font-size: 13px;"># Install OpenClaw (Node ≥22)
+npm install -g openclaw@latest
+openclaw onboard --install-daemon
+
+# Register ProceedGate skill
+cp openclaw/openclaw.json.example ~/.openclaw/openclaw.json
+
+# Talk to the agent
+openclaw agent --message "Gate my next API call"</code></pre>
+              <div class="links" style="margin-top: 10px;">
+                <a class="link" href="https://github.com/loquit-doru/agent-cost-governor/blob/main/OPENCLAW_SETUP.md" target="_blank" rel="noreferrer">Full setup guide</a>
+              </div>
+            </div>
+
+            <div class="card">
+              <h3>What you get</h3>
+              <ul class="bullets">
+                <li><strong>AgentSkills-compatible</strong> <code>SKILL.md</code> — loaded automatically by OpenClaw</li>
+                <li><strong>SOUL.md</strong> — agent identity with cost governance safety policies</li>
+                <li><strong>AGENTS.md</strong> — multi-agent coordination protocol (Governor ↔ Coordinator ↔ Executor)</li>
+                <li><strong>Onchain gating</strong> — BSC/opBNB/Base payment verification via smart contract</li>
+                <li><strong>Channel-ready</strong> — works with Discord, Telegram, Slack, WhatsApp</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="note" style="margin-top: 16px;">
+            <div class="note-title">Multi-agent architecture</div>
+            <div class="note-body">
+              ProceedGate's OpenClaw skill enables a 3-agent setup: <strong>Coordinator</strong> receives tasks and estimates costs → <strong>Governor</strong> (ProceedGate) gates via the API → <strong>Executor</strong> runs only with a valid <code>proceed_token</code>. Agent-to-agent communication uses OpenClaw's <code>sessions_send</code> protocol.
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section class="section fade-in" id="why">
         <div class="container">
           <h2>Why this works (when “policies” don’t)</h2>
@@ -514,6 +558,11 @@ PROCEEDGATE_TX_HASH=0xstub npm run demo:sdk</code></pre>
               <h3>SECURITY_AUDIT.md</h3>
               <p>Security review: replay prevention, key management, access control.</p>
               <span class="chip">Security</span>
+            </a>
+            <a class="card card-link" href="https://github.com/loquit-doru/agent-cost-governor/blob/main/OPENCLAW_SETUP.md" target="_blank" rel="noreferrer">
+              <h3>OPENCLAW_SETUP.md</h3>
+              <p>Full OpenClaw integration guide: skill setup, config, multi-agent coordination.</p>
+              <span class="chip">OpenClaw</span>
             </a>
           </div>
         </div>

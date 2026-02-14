@@ -82,8 +82,11 @@ openclaw configure --section skills
 
 Reference docs:
 
-- `OPENCLAW_SETUP.md`
-- `skills/onchain-cost-governor/SKILL.md`
+- `OPENCLAW_SETUP.md` — full integration guide
+- `skills/onchain-cost-governor/SKILL.md` — AgentSkills-compatible skill definition
+- `openclaw/AGENTS.md` — multi-agent coordination protocol
+- `openclaw/SOUL.md` — agent identity and safety policies
+- `openclaw/openclaw.json.example` — configuration template
 
 ## If you don't have a deploy key
 
@@ -132,7 +135,9 @@ Output includes `contractAddress` and deploy `txHash` for submission proof.
 
 ## Stand-Out Additions Included
 
-- Multi-agent role design in `openclaw/SOUL.md`.
-- OpenClaw custom skill in `openclaw/skills/OnchainCostGovernor.yaml`.
+- Multi-agent role design in `openclaw/SOUL.md` + `openclaw/AGENTS.md`.
+- OpenClaw custom skill in `skills/onchain-cost-governor/SKILL.md` (proper AgentSkills format).
+- Configuration example in `openclaw/openclaw.json.example`.
 - Onchain stake contract in `contracts/AICostGovernor.sol`.
 - AI usage evidence in `AI_BUILD_LOG.md`.
+- Full setup guide in `OPENCLAW_SETUP.md`.
