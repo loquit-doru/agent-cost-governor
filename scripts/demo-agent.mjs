@@ -112,14 +112,14 @@ async function stopWorker(worker) {
 }
 
 // ─── Mock Exchange API ────────────────────────────────────────────────────────
-// Simulates real exchange REST APIs. CoinMarketCap is "broken" (503).
+// Simulates real exchange REST APIs. CoinMarketCap returns 429 (rate limited).
 
 const EXCHANGE_DATA = {
-  coingecko:      { name: "CoinGecko",      latency: 200, working: true },
-  binance:        { name: "Binance",         latency: 150, working: true },
-  kraken:         { name: "Kraken",          latency: 180, working: true },
-  coinmarketcap:  { name: "CoinMarketCap",   latency: 300, working: false }, // 🐛 broken!
-  messari:        { name: "Messari",         latency: 250, working: true },
+  coingecko:      { name: "CoinGecko",      latency: 200, error: null },
+  binance:        { name: "Binance",         latency: 150, error: null },
+  kraken:         { name: "Kraken",          latency: 180, error: null },
+  coinmarketcap:  { name: "CoinMarketCap",   latency: 100, error: "429" }, // 🐛 rate limited!
+  messari:        { name: "Messari",         latency: 250, error: null },
 };
 
 const COIN_PRICES = {
@@ -133,8 +133,11 @@ const COIN_PRICES = {
 async function mockScrape(exchange, coin) {
   const ex = EXCHANGE_DATA[exchange];
   await sleep(ex.latency);
-  if (!ex.working) {
-    throw new Error(`503 Service Unavailable — ${ex.name} API is down`);
+  if (ex.error === "429") {
+    throw new Error(`429 Too Many Requests — ${ex.name} daily credit limit exceeded (free tier: 10K credits/day)`);
+  }
+  if (ex.error) {
+    throw new Error(`${ex.error} — ${ex.name} API error`);
   }
   const price = COIN_PRICES[coin] * (1 + (Math.random() - 0.5) * 0.002); // ±0.1% jitter
   return { exchange: ex.name, coin, price: price.toFixed(2), timestamp: new Date().toISOString() };
@@ -158,7 +161,7 @@ class MockLLM {
           { exchange: "coingecko",     coin: "BTC", reason: "CoinGecko is the most reliable free API for BTC" },
           { exchange: "binance",       coin: "ETH", reason: "Binance has the highest volume for ETH" },
           { exchange: "kraken",        coin: "SOL", reason: "Kraken has good SOL liquidity" },
-          { exchange: "coinmarketcap", coin: "AVAX", reason: "CMC aggregates AVAX prices across DEXes" },
+          { exchange: "coinmarketcap", coin: "AVAX", reason: "CMC has the widest AVAX coverage — aggregates 50+ exchanges" },
           { exchange: "messari",       coin: "BNB", reason: "Messari provides institutional-grade BNB data" },
         ],
       };
@@ -172,13 +175,13 @@ class MockLLM {
         // ProceedGate is applying friction — count how many times
         if (frictionCount >= 3) {
           return {
-            reasoning: `ProceedGate has blocked me ${frictionCount} times with escalating prices ($${frictionPrice}). This is clearly a retry loop on a broken endpoint. Continuing would waste money. I should skip this source and move on.`,
+            reasoning: `ProceedGate has blocked me ${frictionCount} times with escalating prices ($${frictionPrice}). This is clearly a retry loop — CMC's rate limit won't reset for hours. Continuing would waste money. I should skip this source and move on.`,
             action: "skip",
           };
         }
         if (frictionCount === 2) {
           return {
-            reasoning: `ProceedGate is escalating friction to $${frictionPrice} — second time blocked. The pattern is clear: this endpoint is probably broken. One more warning and I stop.`,
+            reasoning: `ProceedGate is escalating friction to $${frictionPrice} — second time blocked. The pattern is clear: CMC rate limit won't clear by retrying. One more warning and I stop.`,
             action: "retry",
           };
         }
@@ -197,7 +200,7 @@ class MockLLM {
       }
 
       return {
-        reasoning: `Still failing after ${attempt} attempts. This endpoint appears permanently broken. I should skip it.`,
+        reasoning: `Still failing after ${attempt} attempts. Rate limit won't reset by retrying — I should skip and use another source.`,
         action: "skip",
       };
     }
@@ -493,7 +496,7 @@ class CryptoScrapingAgent {
               console.log();
               return;
             } catch (scrapeErr) {
-              warn(`Scrape after payment: ${scrapeErr.message} — endpoint still broken`);
+              warn(`Scrape after payment: ${scrapeErr.message} — still rate limited`);
             }
           }
           await sleep(600);
@@ -654,7 +657,7 @@ async function main() {
     const SIM_RETRIES = 500;    // simulate up to 500 retries in ~3 min
 
     console.log(`  ${c.bold}${c.red}⚠️  SIMULATION: What this agent does WITHOUT ProceedGate${c.reset}`);
-    console.log(`  ${c.dim}(CoinMarketCap is down — agent retries endlessly at 400ms intervals)${c.reset}\n`);
+    console.log(`  ${c.dim}(CMC returns 429 rate limit — agent retries endlessly thinking it's transient)${c.reset}\n`);
     await sleep(1200);
 
     // Rapid visual counter — shows retries + cost climbing
@@ -663,7 +666,7 @@ async function main() {
     for (let i = 1; i <= SIM_RETRIES; i++) {
       if (i === milestones[mIdx]) {
         const cost = (i * COST_PER_CALL).toFixed(2);
-        const perHour = Math.floor(3600 / (RETRY_DELAY_MS / 1000));
+        const perHour = Math.floor(3600 / RETRY_DELAY_S);
         const bar = "█".repeat(Math.min(Math.floor(i / 10), 40));
         const color = i <= 50 ? c.yellow : i <= 200 ? c.red : `${c.bold}${c.red}`;
         process.stdout.write(`\r     ${color}🔄 ${String(i).padStart(3)} retries │ $${cost.padStart(7)} wasted │ ${bar}${c.reset}`);
@@ -676,7 +679,7 @@ async function main() {
     const totalNoCost = (SIM_RETRIES * COST_PER_CALL).toFixed(2);
     const overnightCost = Math.floor(8 * 3600 / RETRY_DELAY_S * COST_PER_CALL);
     console.log();
-    console.log(`  ${c.bold}${c.bgRed}${c.white} 💸 500 retries in ~3 min = $${totalNoCost} burned on a DEAD endpoint ${c.reset}`);
+    console.log(`  ${c.bold}${c.bgRed}${c.white} 💸 500 retries in ~3 min = $${totalNoCost} burned on a rate-limited endpoint ${c.reset}`);
     console.log(`  ${c.red}     Overnight (8h): ~$${overnightCost} wasted. Weekend: ~$${(overnightCost * 6).toLocaleString()} gone.${c.reset}`);
     await sleep(2500);
 
@@ -702,7 +705,7 @@ async function main() {
     const stats = guard.stats;
     console.log(`  ${c.bold}Agent Performance:${c.reset}`);
     console.log(`     ${c.green}✅ Successful scrapes:  ${outcome.results.length}/5${c.reset}`);
-    console.log(`     ${c.red}🚫 Skipped (broken):   ${outcome.skipped.length}/5${c.reset}`);
+    console.log(`     ${c.red}🚫 Skipped (rate-limited): ${outcome.skipped.length}/5${c.reset}`);
     console.log(`     ${c.yellow}🔄 Total retries:      ${outcome.retries}${c.reset}`);
     console.log(`     ${c.dim}⏱  Elapsed:            ${elapsed}s${c.reset}`);
     console.log();
