@@ -111,36 +111,87 @@ async function stopWorker(worker) {
   try { worker.kill("SIGTERM"); } catch { /* ignore */ }
 }
 
-// ─── Mock Exchange API ────────────────────────────────────────────────────────
-// Simulates real exchange REST APIs. CoinMarketCap returns 429 (rate limited).
+// ─── Real Exchange APIs ───────────────────────────────────────────────────────
+// LIVE HTTP calls to real public APIs. No mocks, no fake data.
+// CoinMarketCap requires an API key — without one, it returns 401.
+// This is EXACTLY what happens in production when API keys expire.
 
-const EXCHANGE_DATA = {
-  coingecko:      { name: "CoinGecko",      latency: 200, error: null },
-  binance:        { name: "Binance",         latency: 150, error: null },
-  kraken:         { name: "Kraken",          latency: 180, error: null },
-  coinmarketcap:  { name: "CoinMarketCap",   latency: 100, error: "429" }, // 🐛 rate limited!
-  messari:        { name: "Messari",         latency: 250, error: null },
+const EXCHANGES = {
+  coingecko: {
+    name: "CoinGecko",
+    coin: "BTC",
+    url: "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd",
+    parse: (json) => json.bitcoin.usd,
+  },
+  binance: {
+    name: "Binance",
+    coin: "ETH",
+    url: "https://api.binance.com/api/v3/ticker/price?symbol=ETHUSDT",
+    parse: (json) => parseFloat(json.price),
+  },
+  kraken: {
+    name: "Kraken",
+    coin: "SOL",
+    url: "https://api.kraken.com/0/public/Ticker?pair=SOLUSD",
+    parse: (json) => parseFloat(Object.values(json.result)[0].c[0]),
+  },
+  coinmarketcap: {
+    name: "CoinMarketCap",
+    coin: "AVAX",
+    url: "https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest?symbol=AVAX&convert=USD",
+    // 🐛 No API key → real 401 Unauthorized! Exactly like expired keys in production.
+    parse: (json) => json.data.AVAX.quote.USD.price,
+  },
+  coinpaprika: {
+    name: "CoinPaprika",
+    coin: "BNB",
+    url: "https://api.coinpaprika.com/v1/tickers/bnb-binance-coin",
+    parse: (json) => json.quotes.USD.price,
+  },
 };
 
-const COIN_PRICES = {
-  BTC:  97_432.50,
-  ETH:  3_812.40,
-  SOL:  198.75,
-  AVAX: 42.18,
-  BNB:  612.30,
-};
+async function scrapeExchange(exchange) {
+  const ex = EXCHANGES[exchange];
+  if (!ex) throw new Error(`Unknown exchange: ${exchange}`);
 
-async function mockScrape(exchange, coin) {
-  const ex = EXCHANGE_DATA[exchange];
-  await sleep(ex.latency);
-  if (ex.error === "429") {
-    throw new Error(`429 Too Many Requests — ${ex.name} daily credit limit exceeded (free tier: 10K credits/day)`);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10_000);
+  let res;
+
+  try {
+    res = await fetch(ex.url, {
+      headers: { "User-Agent": "CryptoScraper-Agent/1.0", Accept: "application/json" },
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+  } catch (err) {
+    clearTimeout(timeout);
+    if (err.name === "AbortError") throw new Error(`Timeout — ${ex.name} didn't respond within 10s`);
+    throw new Error(`Network error — ${ex.name}: ${err.message}`);
   }
-  if (ex.error) {
-    throw new Error(`${ex.error} — ${ex.name} API error`);
+
+  if (!res.ok) {
+    const raw = await res.text().catch(() => "");
+    let detail = "";
+    try {
+      const body = JSON.parse(raw);
+      detail = body.status?.error_message || body.error?.message || body.message || body.error || "";
+    } catch {
+      detail = raw.slice(0, 100);
+    }
+    throw new Error(`${res.status} ${res.statusText}${detail ? " — " + detail : ""}`);
   }
-  const price = COIN_PRICES[coin] * (1 + (Math.random() - 0.5) * 0.002); // ±0.1% jitter
-  return { exchange: ex.name, coin, price: price.toFixed(2), timestamp: new Date().toISOString() };
+
+  const json = await res.json();
+  const price = ex.parse(json);
+
+  return {
+    exchange: ex.name,
+    coin: ex.coin,
+    price: typeof price === "number" ? price.toFixed(2) : String(price),
+    timestamp: new Date().toISOString(),
+    live: true,
+  };
 }
 
 // ─── Mock LLM ─────────────────────────────────────────────────────────────────
@@ -156,13 +207,13 @@ class MockLLM {
     // Planning phase
     if (context.type === "plan") {
       return {
-        reasoning: `Loaded OpenClaw skill "onchain-cost-governor" — I must gate every expensive action through ProceedGate before executing. Planning 5 exchange scrapes with cost governance.`,
+        reasoning: `Loaded OpenClaw skill "onchain-cost-governor" — I must gate every expensive action through ProceedGate before executing. Planning 5 LIVE exchange API calls with cost governance.`,
         plan: [
-          { exchange: "coingecko",     coin: "BTC", reason: "CoinGecko is the most reliable free API for BTC" },
-          { exchange: "binance",       coin: "ETH", reason: "Binance has the highest volume for ETH" },
-          { exchange: "kraken",        coin: "SOL", reason: "Kraken has good SOL liquidity" },
-          { exchange: "coinmarketcap", coin: "AVAX", reason: "CMC has the widest AVAX coverage — aggregates 50+ exchanges" },
-          { exchange: "messari",       coin: "BNB", reason: "Messari provides institutional-grade BNB data" },
+          { exchange: "coingecko",     coin: "BTC", reason: "CoinGecko free API — no key needed, reliable" },
+          { exchange: "binance",       coin: "ETH", reason: "Binance public ticker — highest ETH volume" },
+          { exchange: "kraken",        coin: "SOL", reason: "Kraken public API — good SOL liquidity" },
+          { exchange: "coinmarketcap", coin: "AVAX", reason: "CMC Pro API — best AVAX aggregation" },
+          { exchange: "coinpaprika",   coin: "BNB", reason: "CoinPaprika free API — reliable BNB data" },
         ],
       };
     }
@@ -175,13 +226,13 @@ class MockLLM {
         // ProceedGate is applying friction — count how many times
         if (frictionCount >= 3) {
           return {
-            reasoning: `ProceedGate has blocked me ${frictionCount} times with escalating prices ($${frictionPrice}). This is clearly a retry loop — CMC's rate limit won't reset for hours. Continuing would waste money. I should skip this source and move on.`,
+            reasoning: `ProceedGate has blocked me ${frictionCount} times with escalating prices ($${frictionPrice}). This is clearly a retry loop — the API key error won't resolve by retrying. Continuing would waste money. I should skip this source and move on.`,
             action: "skip",
           };
         }
         if (frictionCount === 2) {
           return {
-            reasoning: `ProceedGate is escalating friction to $${frictionPrice} — second time blocked. The pattern is clear: CMC rate limit won't clear by retrying. One more warning and I stop.`,
+            reasoning: `ProceedGate is escalating friction to $${frictionPrice} — second time blocked. The pattern is clear: this is an auth error, not transient. One more warning and I stop.`,
             action: "retry",
           };
         }
@@ -200,7 +251,7 @@ class MockLLM {
       }
 
       return {
-        reasoning: `Still failing after ${attempt} attempts. Rate limit won't reset by retrying — I should skip and use another source.`,
+        reasoning: `Still failing after ${attempt} attempts. This error is persistent — I should skip and use another source.`,
         action: "skip",
       };
     }
@@ -427,7 +478,7 @@ class CryptoScrapingAgent {
 
   async executeStep(taskNum, exchange, coin) {
     const taskHash = `scrape-${exchange}-${coin}`;
-    const exchangeName = EXCHANGE_DATA[exchange]?.name ?? exchange;
+    const exchangeName = EXCHANGES[exchange]?.name ?? exchange;
     let attempt = 0;
     let frictionCount = 0; // how many times ProceedGate applied friction
     const MAX_AGENT_RETRIES = 10; // agent would retry up to 10 times without ProceedGate
@@ -490,13 +541,13 @@ class CryptoScrapingAgent {
             }
             // Now execute the scrape with the redeemed token
             try {
-              const result = await mockScrape(exchange, coin);
+              const result = await scrapeExchange(exchange);
               ok(`Result: ${c.bold}${coin} = $${result.price}${c.reset} via ${result.exchange}`);
               this.results.push(result);
               console.log();
               return;
             } catch (scrapeErr) {
-              warn(`Scrape after payment: ${scrapeErr.message} — still rate limited`);
+              warn(`Scrape after payment: ${scrapeErr.message} — still failing`);
             }
           }
           await sleep(600);
@@ -512,7 +563,7 @@ class CryptoScrapingAgent {
       ok(`Gate: ${c.green}200 OK${c.reset} — proceed_token issued`);
 
       try {
-        const result = await mockScrape(exchange, coin);
+        const result = await scrapeExchange(exchange);
         ok(`Result: ${c.bold}${coin} = $${result.price}${c.reset} via ${result.exchange}`);
 
         // LLM acknowledges success
@@ -569,8 +620,9 @@ async function main() {
   console.clear();
   banner("🤖 CryptoScraper — AI Agent with ProceedGate");
 
-  console.log(`  ${c.bold}An autonomous AI agent that scrapes crypto prices,${c.reset}`);
-  console.log(`  ${c.bold}protected by ProceedGate cost governance.${c.reset}\n`);
+  console.log(`  ${c.bold}An autonomous AI agent that scrapes LIVE crypto prices${c.reset}`);
+  console.log(`  ${c.bold}from real exchange APIs, protected by ProceedGate.${c.reset}\n`);
+  console.log(`  ${c.dim}APIs: CoinGecko, Binance, Kraken, CoinMarketCap, CoinPaprika${c.reset}`);
   console.log(`  ${c.dim}LLM: ${USE_REAL_LLM ? "OpenAI GPT-4o-mini (real)" : "Mock LLM (deterministic demo)"}${c.reset}`);
   console.log(`  ${c.dim}Skill: ${SKILL_PROMPT ? "skills/onchain-cost-governor/SKILL.md (OpenClaw)" : "hardcoded fallback"}${c.reset}`);
   console.log(`  ${c.dim}Onchain: BSC Testnet (chain 97) — real signed transactions${c.reset}`);
@@ -657,7 +709,7 @@ async function main() {
     const SIM_RETRIES = 500;    // simulate up to 500 retries in ~3 min
 
     console.log(`  ${c.bold}${c.red}⚠️  SIMULATION: What this agent does WITHOUT ProceedGate${c.reset}`);
-    console.log(`  ${c.dim}(CMC returns 429 rate limit — agent retries endlessly thinking it's transient)${c.reset}\n`);
+    console.log(`  ${c.dim}(CMC returns 401 — expired API key. Agent retries endlessly thinking it's transient)${c.reset}\n`);
     await sleep(1200);
 
     // Rapid visual counter — shows retries + cost climbing
@@ -679,7 +731,7 @@ async function main() {
     const totalNoCost = (SIM_RETRIES * COST_PER_CALL).toFixed(2);
     const overnightCost = Math.floor(8 * 3600 / RETRY_DELAY_S * COST_PER_CALL);
     console.log();
-    console.log(`  ${c.bold}${c.bgRed}${c.white} 💸 500 retries in ~3 min = $${totalNoCost} burned on a rate-limited endpoint ${c.reset}`);
+    console.log(`  ${c.bold}${c.bgRed}${c.white} 💸 500 retries in ~3 min = $${totalNoCost} burned on a broken API key ${c.reset}`);
     console.log(`  ${c.red}     Overnight (8h): ~$${overnightCost} wasted. Weekend: ~$${(overnightCost * 6).toLocaleString()} gone.${c.reset}`);
     await sleep(2500);
 
@@ -705,7 +757,7 @@ async function main() {
     const stats = guard.stats;
     console.log(`  ${c.bold}Agent Performance:${c.reset}`);
     console.log(`     ${c.green}✅ Successful scrapes:  ${outcome.results.length}/5${c.reset}`);
-    console.log(`     ${c.red}🚫 Skipped (rate-limited): ${outcome.skipped.length}/5${c.reset}`);
+    console.log(`     ${c.red}🚫 Skipped (API error):  ${outcome.skipped.length}/5${c.reset}`);
     console.log(`     ${c.yellow}🔄 Total retries:      ${outcome.retries}${c.reset}`);
     console.log(`     ${c.dim}⏱  Elapsed:            ${elapsed}s${c.reset}`);
     console.log();
@@ -718,9 +770,10 @@ async function main() {
     console.log();
 
     if (outcome.results.length > 0) {
-      console.log(`  ${c.bold}Price Snapshot:${c.reset}`);
+      console.log(`  ${c.bold}Live Price Snapshot:${c.reset}`);
       for (const r of outcome.results) {
-        console.log(`     ${c.cyan}${r.coin.padEnd(5)}${c.reset} $${r.price.padStart(12)} ${c.dim}via ${r.exchange}${c.reset}`);
+        const liveTag = r.live ? `${c.green} LIVE` : "";
+        console.log(`     ${c.cyan}${r.coin.padEnd(5)}${c.reset} $${r.price.padStart(12)} ${c.dim}via ${r.exchange}${liveTag}${c.reset}`);
       }
       console.log();
     }
