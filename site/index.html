@@ -28,6 +28,7 @@
         <nav class="nav" id="navMenu">
           <a class="nav-demo" href="./demo.html">🎬 Demo</a>
           <a href="./scraping.html" style="color: #ef4444;">🔥 Scraping</a>
+          <a href="#hackathon">Hackathon</a>
           <a href="#how">How it works</a>
           <a href="#integration">Integrate</a>
           <a href="#pricing">Pricing</a>
@@ -45,6 +46,7 @@
         <div class="container hero-grid">
           <div>
             <p class="eyebrow">Prevent runaway AI costs</p>
+            <p class="muted" style="margin-top: -8px; margin-bottom: 14px;">Good Vibes Only: OpenClaw Edition · Track: Agent</p>
             <h1>Stop runaway agents. <span class="accent">Enforce cost caps</span> and sane behavior.</h1>
             <p class="lead">
               ProceedGate is a <strong>hard gate that blocks expensive AI agent steps</strong>
@@ -96,6 +98,37 @@ POST /v1/governor/redeem
 → 200  { proceed_token }
 
 No token, no step.</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <section class="section fade-in" id="hackathon">
+        <div class="container">
+          <h2>Hackathon proof (OpenClaw Edition)</h2>
+          <p class="muted">Submission-ready verification artifacts for judges.</p>
+
+          <div class="cards">
+            <div class="card">
+              <h3>Live endpoint</h3>
+              <p><a class="link" href="https://agent-cost-governor-hackathon.apiworkersdev.workers.dev" target="_blank" rel="noreferrer">agent-cost-governor-hackathon.apiworkersdev.workers.dev</a></p>
+              <p class="muted">Configured with non-stub verification flow (<code>ALLOW_STUB_TX=false</code>).</p>
+            </div>
+            <div class="card">
+              <h3>BSC proof tx</h3>
+              <p><a class="link" href="https://bscscan.com/tx/0xd97039268c048cafd45c0f3b870111b1dcd22f3fdfd62a47e75ae843eb13b548" target="_blank" rel="noreferrer">0xd97039268c048cafd45c0f3b870111b1dcd22f3fdfd62a47e75ae843eb13b548</a></p>
+              <p class="muted">Used in live check → 402 → redeem → proceed_token flow.</p>
+            </div>
+            <div class="card">
+              <h3>Contract address</h3>
+              <p><a class="link" href="https://testnet.bscscan.com/address/0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA" target="_blank" rel="noreferrer">0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA</a></p>
+              <p class="muted">AICostGovernor deployed on BSC Testnet.</p>
+            </div>
+          </div>
+
+          <div class="links" style="margin-top: 14px;">
+            <a class="link" href="https://github.com/loquit-doru/agent-cost-governor/blob/main/docs/TECHNICAL.md" target="_blank" rel="noreferrer">Repro steps</a>
+            <a class="link" href="https://github.com/loquit-doru/agent-cost-governor/blob/main/bsc.address" target="_blank" rel="noreferrer">Address index</a>
+            <a class="link" href="https://github.com/loquit-doru/agent-cost-governor/blob/main/AI_BUILD_LOG.md" target="_blank" rel="noreferrer">AI build log</a>
           </div>
         </div>
       </section>
