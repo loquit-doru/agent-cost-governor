@@ -15,13 +15,13 @@ Use this before uploading to DoraHacks.
 
 ## 1) Chain & verification (mandatory)
 
-- [ ] `worker/wrangler.toml` uses the `hackathon` env (or equivalent) with `X402_CHAIN` set to `BSC` or `opBNB`.
-- [ ] `ALLOW_STUB_TX=false` in the environment used for judging.
-- [ ] `PAYMENT_VERIFY_MODE=facilitator` (or `onchain` if implemented).
-- [ ] RPC URL is configured for the selected chain:
-  - [ ] `BSC_RPC_URL` for BSC, or
+- [x] `worker/wrangler.toml` uses the `hackathon` env (or equivalent) with `X402_CHAIN` set to `BSC` or `opBNB`.
+- [x] `ALLOW_STUB_TX=false` in the environment used for judging.
+- [x] `PAYMENT_VERIFY_MODE=facilitator` (or `onchain` if implemented).
+- [x] RPC URL is configured for the selected chain:
+  - [x] `BSC_RPC_URL` for BSC, or
   - [ ] `OPBNB_RPC_URL` for opBNB.
-- [ ] `GOVERNOR_SIGNING_JWK` secret is set (no ephemeral key in judge demo).
+- [x] `GOVERNOR_SIGNING_JWK` secret is set (no ephemeral key in judge demo).
 
 ## 2) Reproducibility (mandatory)
 
@@ -34,10 +34,10 @@ Use this before uploading to DoraHacks.
 
 ## 3) Onchain proof (mandatory)
 
-- [ ] At least one real tx hash on BSC/opBNB is included in submission.
-- [ ] Tx explorer links are included and public.
-- [ ] Demo shows tx hash used in `/v1/governor/redeem` and successful token issuance.
-- [ ] Submission includes contract address if applicable.
+- [x] At least one real tx hash on BSC/opBNB is included in submission.
+- [x] Tx explorer links are included and public.
+- [x] Demo shows tx hash used in `/v1/governor/redeem` and successful token issuance.
+- [x] Submission includes contract address if applicable.
 
 ## 4) Demo quality (high impact)
 
@@ -72,8 +72,14 @@ npm run demo:storm:redeem
 
 ## Suggested judging payload snippets
 
-- Chain: `opBNB` (or `BSC`)
-- Tx hashes: `<tx1>`, `<tx2>`, `<tx3>`
+- Chain: `BSC` (testnet in current demo)
+- Tx hashes:
+  - `0xd97039268c048cafd45c0f3b870111b1dcd22f3fdfd62a47e75ae843eb13b548` (proof flow)
+  - `0x0c695608865e5cad89d9b86d0041c3ca1caf142da77cbcb08febc682567c91a7` (contract deploy)
+- Contract address: `0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA`
+- Explorer links:
+  - `https://testnet.bscscan.com/address/0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA`
+  - `https://testnet.bscscan.com/tx/0x0c695608865e5cad89d9b86d0041c3ca1caf142da77cbcb08febc682567c91a7`
 - Demo URL: `<video_or_live_demo_url>`
 - Repo URL: `<public_repo_url>`
 - Repro steps: "Install -> check -> run worker -> run runner -> verify redeem"

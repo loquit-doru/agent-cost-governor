@@ -18,6 +18,13 @@ This repo is prepared for a **non-stub, real onchain proof flow** for the OpenCl
 - `0xd97039268c048cafd45c0f3b870111b1dcd22f3fdfd62a47e75ae843eb13b548`
 - Explorer: `https://bscscan.com/tx/0xd97039268c048cafd45c0f3b870111b1dcd22f3fdfd62a47e75ae843eb13b548`
 
+## Deployed contract (BSC Testnet)
+
+- Contract: `0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA`
+- Deploy tx: `0x0c695608865e5cad89d9b86d0041c3ca1caf142da77cbcb08febc682567c91a7`
+- Explorer (contract): `https://testnet.bscscan.com/address/0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA`
+- Explorer (tx): `https://testnet.bscscan.com/tx/0x0c695608865e5cad89d9b86d0041c3ca1caf142da77cbcb08febc682567c91a7`
+
 ## One-command proof run
 
 Set admin key (already configured in the hackathon worker), then run:
@@ -77,6 +84,33 @@ Reference docs:
 
 - `OPENCLAW_SETUP.md`
 - `skills/onchain-cost-governor/SKILL.md`
+
+## If you don't have a deploy key
+
+Generate a fresh BSC testnet deploy wallet:
+
+```bash
+npm run wallet:generate:testnet
+```
+
+This creates `.secrets/bsc-testnet-deployer.json` with:
+
+- deployer address
+- private key
+
+Then:
+
+1. Fund the generated address from a BSC testnet faucet.
+2. Export key and token address:
+
+```bash
+# PowerShell
+$env:DEPLOYER_PRIVATE_KEY="0x..."
+$env:USDC_TOKEN_ADDRESS="0x..."
+npm run deploy:contract:testnet
+```
+
+Output includes `contractAddress` and deploy `txHash` for submission proof.
 
 ## Judging Strategy Alignment
 

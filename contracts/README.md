@@ -27,6 +27,13 @@ This folder contains the reference contract used by ProceedGate's OpenClaw compe
    - deployment tx hash
    - one sample `stakeForAction` tx hash
 
+## Current deploy artifact (BSC Testnet)
+
+- contract address: `0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA`
+- deployment tx hash: `0x0c695608865e5cad89d9b86d0041c3ca1caf142da77cbcb08febc682567c91a7`
+- explorer (contract): `https://testnet.bscscan.com/address/0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA`
+- explorer (tx): `https://testnet.bscscan.com/tx/0x0c695608865e5cad89d9b86d0041c3ca1caf142da77cbcb08febc682567c91a7`
+
 ## Judge artifacts
 
 Include all below in submission:

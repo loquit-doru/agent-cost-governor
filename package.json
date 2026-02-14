@@ -9,8 +9,11 @@
     "sdk/langchain"
   ],
   "devDependencies": {
+    "@openzeppelin/contracts": "^5.4.0",
     "concurrently": "^9.1.2",
+    "ethers": "^6.16.0",
     "openai": "^6.16.0",
+    "solc": "^0.8.33",
     "wait-on": "^7.2.0"
   },
   "scripts": {
@@ -25,6 +28,8 @@
     "demo:sdk": "npm run build && node examples/sdk-demo.mjs",
     "demo:billing": "node scripts/demo-billing.mjs",
     "demo:hackathon:proof": "node scripts/hackathon-proof.mjs",
+    "wallet:generate:testnet": "node scripts/generate-deploy-wallet.mjs",
+    "deploy:contract:testnet": "node scripts/deploy-cost-governor-testnet.mjs",
     "demo:storm:block": "npm run build && node scripts/run-storm-demo.mjs block",
     "demo:storm:redeem": "npm run build && node scripts/run-storm-demo.mjs redeem",
     "smoke": "npm run build && node scripts/run-storm-demo.mjs smoke",
