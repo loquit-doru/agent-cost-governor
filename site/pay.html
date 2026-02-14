@@ -747,23 +747,43 @@
           }
         }
         
-        // Render wallet items
+        // Render wallet items (DOM-safe — no innerHTML with untrusted data)
         wallets.forEach(wallet => {
           const item = document.createElement('div');
           item.className = 'wallet-item';
           
-          const iconHtml = wallet.isIcon 
-            ? `<img src="${wallet.icon}" alt="" style="width: 32px; height: 32px; border-radius: 8px;">`
-            : `<div class="wallet-item-icon">${wallet.icon}</div>`;
+          // Build icon safely
+          const iconContainer = document.createElement('div');
+          if (wallet.isIcon) {
+            const img = document.createElement('img');
+            img.src = wallet.icon;
+            img.alt = '';
+            img.style.cssText = 'width: 32px; height: 32px; border-radius: 8px;';
+            iconContainer.appendChild(img);
+          } else {
+            iconContainer.className = 'wallet-item-icon';
+            iconContainer.textContent = wallet.icon;
+          }
           
-          item.innerHTML = `
-            ${iconHtml}
-            <div class="wallet-item-info">
-              <div class="wallet-item-name">${wallet.name}</div>
-              <div class="wallet-item-desc">Click to connect</div>
-            </div>
-            <div class="wallet-item-arrow">→</div>
-          `;
+          // Build info safely
+          const info = document.createElement('div');
+          info.className = 'wallet-item-info';
+          const nameEl = document.createElement('div');
+          nameEl.className = 'wallet-item-name';
+          nameEl.textContent = wallet.name;
+          const descEl = document.createElement('div');
+          descEl.className = 'wallet-item-desc';
+          descEl.textContent = 'Click to connect';
+          info.appendChild(nameEl);
+          info.appendChild(descEl);
+          
+          const arrow = document.createElement('div');
+          arrow.className = 'wallet-item-arrow';
+          arrow.textContent = '→';
+          
+          item.appendChild(iconContainer);
+          item.appendChild(info);
+          item.appendChild(arrow);
           
           const providerRef = wallet.provider;
           const nameRef = wallet.name;

@@ -83,7 +83,8 @@ PAYMENT_VERIFY_MODE = "facilitator"
 FACILITATOR_URL = "internal"
 
 # Dev-only escape hatch for local demos. Do NOT set in prod.
-ALLOW_STUB_TX = "true"
+# Defaults to false — billing/hackathon envs override as needed.
+ALLOW_STUB_TX = "false"
 
 # API auth defaults (off by default; enable per env)
 API_AUTH_MODE = "off"
@@ -107,7 +108,7 @@ ALLOW_STUB_TX = "true"
 
 # Local demo: enable per-workspace API keys
 API_AUTH_MODE = "workspace"
-# Local-only convenience. Change/override when needed.
+# ⚠ Local-only — NEVER use in prod. Override via wrangler secret.
 API_ADMIN_KEY = "dev-admin-key"
 
 [[env.billing.analytics_engine_datasets]]

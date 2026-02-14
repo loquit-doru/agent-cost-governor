@@ -3,6 +3,7 @@ import type { Env, Vars } from '../types.js';
 import {
   billingQuoteSchema,
   billingRedeemSchema,
+  budgetSetSchema,
 } from '../lib/schemas.js';
 import {
   getBillingMode,
@@ -230,10 +231,12 @@ billingRoutes.put('/v1/billing/budget', async (c) => {
   }
 
   const body = await c.req.json().catch(() => null);
-  const workspaceId = String(body?.workspace_id ?? '').trim();
-  if (!workspaceId) {
-    return c.json({ ok: false, error: 'missing_workspace_id' }, 400);
+  const parsed = budgetSetSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json({ ok: false, error: 'invalid_request', issues: parsed.error.issues }, 400);
   }
+
+  const { workspace_id: workspaceId, daily_limit, weekly_limit, monthly_limit, alert_threshold, webhook_url } = parsed.data;
 
   const authErr = await requireWorkspaceAuth(c, workspaceId);
   if (authErr) return authErr;
@@ -243,11 +246,11 @@ billingRoutes.put('/v1/billing/budget', async (c) => {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      daily_limit: body?.daily_limit,
-      weekly_limit: body?.weekly_limit,
-      monthly_limit: body?.monthly_limit,
-      alert_threshold: body?.alert_threshold,
-      webhook_url: body?.webhook_url,
+      daily_limit,
+      weekly_limit,
+      monthly_limit,
+      alert_threshold,
+      webhook_url,
     }),
   });
 

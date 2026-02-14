@@ -83,17 +83,13 @@ export async function timingSafeCompare(a: string, b: string): Promise<boolean> 
   const aBytes = encoder.encode(a);
   const bBytes = encoder.encode(b);
   
-  // Always compute both hashes to maintain constant time
+  // Always compute both hashes to maintain constant time.
+  // SHA-256 output is always 32 bytes, so hash comparison is constant-time
+  // regardless of input lengths (no early return on length mismatch).
   const [aHash, bHash] = await Promise.all([
     crypto.subtle.digest('SHA-256', aBytes),
     crypto.subtle.digest('SHA-256', bBytes),
   ]);
-  
-  // If lengths differ, we still need constant-time comparison
-  // The hash comparison will fail anyway
-  if (aBytes.length !== bBytes.length) {
-    return false;
-  }
   
   // Compare hashes byte by byte (constant time)
   const aArr = new Uint8Array(aHash);

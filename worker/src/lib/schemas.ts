@@ -18,7 +18,7 @@ export const checkSchema = z.object({
       step_hash: z.string().max(200).optional(),
       context_hash: z.string().max(200).optional(),
     })
-    .passthrough(),
+    .strict(),
   idempotency_key: z.string().max(200).optional(),
 });
 
@@ -52,6 +52,15 @@ export const facilitatorVerifySchema = z.object({
   decision_id: z.string().min(1).max(200).optional(),
 });
 
+export const budgetSetSchema = z.object({
+  workspace_id: z.string().min(1).max(200),
+  daily_limit: z.number().min(0).max(100_000_000).optional(),
+  weekly_limit: z.number().min(0).max(100_000_000).optional(),
+  monthly_limit: z.number().min(0).max(100_000_000).optional(),
+  alert_threshold: z.number().min(0).max(1).optional(),
+  webhook_url: z.string().url().max(2048).optional(),
+});
+
 export type CheckInput = z.infer<typeof checkSchema>;
 export type RedeemInput = z.infer<typeof redeemSchema>;
 export type BillingQuoteInput = z.infer<typeof billingQuoteSchema>;
@@ -59,3 +68,4 @@ export type BillingRedeemInput = z.infer<typeof billingRedeemSchema>;
 export type WorkspaceCreateInput = z.infer<typeof workspaceCreateSchema>;
 export type WorkspaceAdminInput = z.infer<typeof workspaceAdminSchema>;
 export type FacilitatorVerifyInput = z.infer<typeof facilitatorVerifySchema>;
+export type BudgetSetInput = z.infer<typeof budgetSetSchema>;

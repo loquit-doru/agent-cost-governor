@@ -363,7 +363,7 @@
 
     // Check for saved session
     document.addEventListener('DOMContentLoaded', () => {
-      const saved = localStorage.getItem('pg_dashboard_key');
+      const saved = sessionStorage.getItem('pg_dashboard_key');
       if (saved) {
         currentApiKey = saved;
         showDashboard();
@@ -396,8 +396,8 @@
         currentApiKey = apiKey;
         workspaceData = data;
         
-        // Save to localStorage
-        localStorage.setItem('pg_dashboard_key', apiKey);
+        // Save to sessionStorage (cleared when tab closes — safer than localStorage)
+        sessionStorage.setItem('pg_dashboard_key', apiKey);
         
         showDashboard();
         renderDashboard(data);
@@ -502,7 +502,7 @@
     }
 
     function logout() {
-      localStorage.removeItem('pg_dashboard_key');
+      sessionStorage.removeItem('pg_dashboard_key');
       currentApiKey = null;
       workspaceData = null;
       document.getElementById('loginSection').classList.remove('hidden');

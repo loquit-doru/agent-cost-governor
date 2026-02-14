@@ -12,6 +12,7 @@ import type { Env, Vars } from './types.js';
 import { corsMiddleware } from './middleware/cors.js';
 import { createRateLimiter } from './middleware/rateLimit.js';
 import { requestIdMiddleware } from './middleware/requestId.js';
+import { securityHeadersMiddleware } from './middleware/securityHeaders.js';
 
 // Routes
 import { checkRoutes } from './routes/check.js';
@@ -33,6 +34,7 @@ const app = new Hono<{ Bindings: Env; Variables: Vars }>();
 // Apply global middleware
 app.use('*', requestIdMiddleware);  // Add request ID first for correlation
 app.use('*', corsMiddleware);
+app.use('*', securityHeadersMiddleware); // Security headers on every response
 
 // Rate limiting for billing/subscribe endpoints (prevent spam)
 const billingRateLimiter = createRateLimiter({

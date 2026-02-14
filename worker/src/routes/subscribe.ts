@@ -301,10 +301,10 @@ subscribeRoutes.get('/v1/billing/subscribe/:id', async (c) => {
     total_usdc: invoice.totalUsdc,
     chain: invoice.chain,
     expires_at: new Date(invoice.expiresAtMs).toISOString(),
-    // Only include credentials if confirmed
+    // Only include credentials if confirmed — redact api_key for unauthenticated polling
     ...(invoice.status === 'confirmed' && {
       workspace_id: invoice.workspaceId,
-      api_key: invoice.apiKey,
+      api_key_prefix: invoice.apiKey ? invoice.apiKey.slice(0, 12) + '...' : undefined,
     }),
   }, 200);
 });
