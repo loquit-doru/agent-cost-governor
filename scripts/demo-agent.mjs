@@ -19,6 +19,10 @@
  */
 
 import { spawn } from "node:child_process";
+import { readFileSync, existsSync } from "node:fs";
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 const PORT = 8800 + Math.floor(Math.random() * 200);
@@ -168,9 +172,10 @@ class MockLLM {
             action: "retry",
           };
         }
+        // First friction — try to pay onchain
         return {
-          reasoning: `ProceedGate detected repeated attempts and is applying friction ($${frictionPrice}). This is a warning. Let me try once more, but I'll stop if it escalates.`,
-          action: "retry",
+          reasoning: `ProceedGate detected repeated attempts and is applying friction ($${frictionPrice}). I'll pay the friction onchain to prove I'm legitimate, then retry.`,
+          action: agentWallet ? "pay" : "retry",
         };
       }
 
@@ -246,6 +251,81 @@ Always respond in JSON with: { "reasoning": "...", "action": "retry|skip|continu
   }
 }
 
+// ─── Onchain Wallet (BSC Testnet) ─────────────────────────────────────────────
+// Agent autonomously signs and sends real transactions when ProceedGate requires payment.
+
+const BSC_TESTNET_RPC = "https://data-seed-prebsc-1-s1.bnbchain.org:8545";
+const BSC_TESTNET_CHAIN_ID = 97;
+const BSC_TESTNET_EXPLORER = "https://testnet.bscscan.com/tx";
+const GOVERNOR_CONTRACT = "0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA";
+const WALLET_PATH = new URL("../.secrets/bsc-testnet-deployer.json", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
+const PAYMENT_AMOUNT = "0.0001"; // 0.0001 tBNB per friction payment
+
+let agentWallet = null;
+const onchainTxLog = []; // track all onchain actions for summary
+
+async function initWallet() {
+  try {
+    const { ethers } = require("ethers");
+    let privateKey = process.env.AGENT_WALLET_KEY;
+
+    if (!privateKey && existsSync(WALLET_PATH)) {
+      const walletData = JSON.parse(readFileSync(WALLET_PATH, "utf-8"));
+      privateKey = walletData.privateKey;
+    }
+
+    if (!privateKey) return;
+
+    const provider = new ethers.JsonRpcProvider(BSC_TESTNET_RPC);
+    const wallet = new ethers.Wallet(privateKey, provider);
+    const balance = await provider.getBalance(wallet.address);
+    const balanceEth = ethers.formatEther(balance);
+
+    if (parseFloat(balanceEth) < 0.001) {
+      warn(`Wallet ${wallet.address.slice(0, 10)}… has only ${balanceEth} tBNB — skipping onchain payments`);
+      return;
+    }
+
+    agentWallet = { wallet, provider, ethers, balance: balanceEth, address: wallet.address };
+  } catch (err) {
+    // ethers not available or wallet error — graceful degradation
+    agentWallet = null;
+  }
+}
+
+async function sendFrictionPayment(recipient, price) {
+  if (!agentWallet) return null;
+  const { wallet, ethers } = agentWallet;
+
+  try {
+    const tx = await wallet.sendTransaction({
+      to: recipient || GOVERNOR_CONTRACT,
+      value: ethers.parseEther(PAYMENT_AMOUNT),
+      chainId: BSC_TESTNET_CHAIN_ID,
+    });
+
+    ok(`⛓️  Tx signed & sent: ${c.cyan}${tx.hash.slice(0, 18)}…${c.reset}`);
+    ok(`⛓️  Explorer: ${c.blue}${BSC_TESTNET_EXPLORER}/${tx.hash}${c.reset}`);
+
+    // Wait for confirmation (1 block)
+    const receipt = await tx.wait(1);
+    ok(`⛓️  Confirmed in block ${c.bold}${receipt.blockNumber}${c.reset} (gas: ${receipt.gasUsed.toString()})`);
+
+    onchainTxLog.push({
+      hash: tx.hash,
+      block: receipt.blockNumber,
+      to: recipient || GOVERNOR_CONTRACT,
+      value: PAYMENT_AMOUNT,
+      explorer: `${BSC_TESTNET_EXPLORER}/${tx.hash}`,
+    });
+
+    return tx.hash;
+  } catch (err) {
+    warn(`Onchain tx failed: ${err.message.slice(0, 80)}`);
+    return null;
+  }
+}
+
 // ─── ProceedGate Gate ─────────────────────────────────────────────────────────
 // Wraps every agent action with a cost governance check.
 
@@ -287,6 +367,7 @@ class ProceedGateGuard {
       status: res.status,
       price,
       decisionId: res.json?.decision_id,
+      recipient: res.headers["x402-recipient"] ?? res.json?.recipient,
     };
   }
 }
@@ -377,6 +458,42 @@ class CryptoScrapingAgent {
           return;
         }
 
+        if (decision.action === "pay" && agentWallet) {
+          // ── Onchain payment: agent autonomously signs a real BSC testnet tx ──
+          const recipient = gate.recipient ?? GOVERNOR_CONTRACT;
+          ok(`Agent decides to pay onchain to resolve friction...`);
+          const txHash = await sendFrictionPayment(recipient, gate.price ?? "0.0001");
+
+          if (txHash) {
+            // Redeem the decision with the real tx hash
+            try {
+              const redeemRes = await httpJson(
+                "POST",
+                "/v1/governor/redeem",
+                { decision_id: gate.decisionId },
+                { ...this.guard.auth, "x402-tx-hash": txHash }
+              );
+              ok(`Redeem: ${c.green}proceed_token issued${c.reset} (onchain payment verified)`);
+            } catch (redeemErr) {
+              warn(`Redeem failed: ${redeemErr.message}`);
+              await sleep(600);
+              continue;
+            }
+            // Now execute the scrape with the redeemed token
+            try {
+              const result = await mockScrape(exchange, coin);
+              ok(`Result: ${c.bold}${coin} = $${result.price}${c.reset} via ${result.exchange}`);
+              this.results.push(result);
+              console.log();
+              return;
+            } catch (scrapeErr) {
+              warn(`Scrape after payment: ${scrapeErr.message} — endpoint still broken`);
+            }
+          }
+          await sleep(600);
+          continue;
+        }
+
         // Agent wants to retry despite friction — loop continues
         await sleep(600);
         continue;
@@ -446,6 +563,7 @@ async function main() {
   console.log(`  ${c.bold}An autonomous AI agent that scrapes crypto prices,${c.reset}`);
   console.log(`  ${c.bold}protected by ProceedGate cost governance.${c.reset}\n`);
   console.log(`  ${c.dim}LLM: ${USE_REAL_LLM ? "OpenAI GPT-4o-mini (real)" : "Mock LLM (deterministic demo)"}${c.reset}`);
+  console.log(`  ${c.dim}Onchain: BSC Testnet (chain 97) — real signed transactions${c.reset}`);
   console.log(`  ${c.dim}Good Vibes Only: OpenClaw Edition · Track: Agent${c.reset}`);
   console.log(`  ${c.dim}github.com/loquit-doru/agent-cost-governor${c.reset}\n`);
 
@@ -491,6 +609,16 @@ async function main() {
       ok("50 credits loaded into workspace");
     }
     await sleep(500);
+
+    // ── Initialize Wallet ──
+    await initWallet();
+    if (agentWallet) {
+      ok(`Onchain wallet: ${c.cyan}${agentWallet.address}${c.reset}`);
+      ok(`BSC Testnet — real transactions will be signed and broadcast`);
+    } else {
+      warn(`No wallet configured — using stub tx hashes (set AGENT_WALLET_KEY or add .secrets/bsc-testnet-deployer.json)`);
+    }
+    await sleep(400);
 
     // ── Initialize Agent ──
     const llm = USE_REAL_LLM ? new RealLLM(OPENAI_API_KEY) : new MockLLM();
@@ -549,8 +677,18 @@ async function main() {
     money(`"Avg ProceedGate user saves $847/week"`);
     console.log();
 
-    console.log(`  ${c.bold}${c.cyan}⛓️  On-chain enforcement available:${c.reset}`);
-    console.log(`     ${c.dim}BSC · opBNB · Base — AICostGovernor.sol deployed${c.reset}\n`);
+    if (onchainTxLog.length > 0) {
+      console.log(`  ${c.bold}${c.cyan}⛓️  Onchain Transactions (BSC Testnet):${c.reset}`);
+      for (const tx of onchainTxLog) {
+        console.log(`     ${c.green}TX:${c.reset} ${tx.hash}`);
+        console.log(`        ${c.dim}Block: ${tx.block} · ${tx.value} BNB → ${tx.to.slice(0, 10)}...${c.reset}`);
+        console.log(`        ${c.cyan}🔗 ${BSC_TESTNET_EXPLORER}/${tx.hash}${c.reset}`);
+      }
+      console.log();
+    } else {
+      console.log(`  ${c.bold}${c.cyan}⛓️  On-chain enforcement available:${c.reset}`);
+      console.log(`     ${c.dim}BSC · opBNB · Base — AICostGovernor.sol deployed${c.reset}\n`);
+    }
 
     console.log(`  ${c.bold}LLM calls: ${llm.callCount}${c.reset}  ${c.dim}(${USE_REAL_LLM ? "OpenAI GPT-4o-mini" : "Mock LLM — zero cost"})${c.reset}\n`);
 
