@@ -51,6 +51,7 @@
             <p class="lead">
               ProceedGate is a <strong>hard gate that blocks expensive AI agent steps</strong>
               unless the agent has a short-lived <code>proceed_token</code>.
+              Friction is resolved via <strong>onchain micropayments on BNB Chain (BSC)</strong>, verified against real blockchain receipts.
               Built for production: predictable integration, auditable decisions, and clear failure modes.
             </p>
 
@@ -71,6 +72,10 @@
               <div class="stat" role="listitem">
                 <div class="stat-k">Thin boundary</div>
                 <div class="stat-v">Runner / middleware</div>
+              </div>
+              <div class="stat" role="listitem">
+                <div class="stat-k">Onchain verified</div>
+                <div class="stat-v">BSC / opBNB / Base</div>
               </div>
             </div>
 
@@ -208,15 +213,15 @@ No token, no step.</code></pre>
               <div class="step-n">2</div>
               <div>
                 <h3>Resolve friction</h3>
-                <p>If you receive <code>402</code>, you decide how to resolve friction.</p>
-                <p class="muted">Payment (x402-style) is one mechanism. Roadmap: budgets, rate limits, manual approval.</p>
+                <p>If you receive <code>402</code>, resolve friction via onchain micropayment on BSC, opBNB, or Base.</p>
+                <p class="muted">Payment verified against real blockchain receipts (JSON-RPC). Roadmap: budgets, rate limits, manual approval.</p>
               </div>
             </div>
             <div class="step">
               <div class="step-n">3</div>
               <div>
                 <h3>Redeem</h3>
-                <p>When friction is resolved: <code>POST /v1/governor/redeem</code> → <code>200</code> + token.</p>
+                <p>Submit tx hash to <code>POST /v1/governor/redeem</code> — onchain receipt verified → <code>200</code> + token.</p>
               </div>
             </div>
             <div class="step">
@@ -314,6 +319,14 @@ PROCEEDGATE_TX_HASH=0xstub npm run demo:sdk</code></pre>
             <div class="card">
               <h3>Short TTL</h3>
               <p>Tokens expire quickly (default 45s) to reduce replay.</p>
+            </div>
+            <div class="card">
+              <h3>Onchain verification</h3>
+              <p>Payment receipts verified against BSC/opBNB/Base via JSON-RPC. Replay-prevented with tx hash deduplication.</p>
+            </div>
+            <div class="card">
+              <h3>Smart contract gating</h3>
+              <p><code>AICostGovernor.sol</code> — stake-based access control with OpenZeppelin <code>Ownable</code> + <code>IERC20</code>.</p>
             </div>
           </div>
         </div>
@@ -422,6 +435,13 @@ PROCEEDGATE_TX_HASH=0xstub npm run demo:sdk</code></pre>
           </div>
 
           <div class="note">
+            <div class="note-title">🏆 Hackathon note</div>
+            <div class="note-body">
+              For the OpenClaw hackathon, the full stack runs on <strong>BSC testnet</strong> (free). Proof tx uses BSC mainnet. No subscription required to evaluate — run <code>npm run smoke</code> locally.
+            </div>
+          </div>
+
+          <div class="note">
             <div class="note-title">💡 Overage & Annual billing</div>
             <div class="note-body">
               <strong>Overage:</strong> Starter +$0.50/1k, Pro +$0.04/1k, Scale +$0.03/1k — or enable hard cap to stop at limit.<br>
@@ -446,6 +466,14 @@ PROCEEDGATE_TX_HASH=0xstub npm run demo:sdk</code></pre>
             <details>
               <summary>What happens when the governor is unavailable?</summary>
               <p class="muted">Your runner chooses the failure mode: fail-open (proceed) or fail-closed (block). The reference runner supports both.</p>
+            </details>
+            <details>
+              <summary>How does onchain verification work?</summary>
+              <p class="muted">When an agent resolves friction, it submits a tx hash. The Governor verifies the payment receipt via JSON-RPC against BSC, opBNB, or Base. Tx hashes are deduplicated to prevent replay. <a href="https://bscscan.com/tx/0xd97039268c048cafd45c0f3b870111b1dcd22f3fdfd62a47e75ae843eb13b548" target="_blank" rel="noreferrer">See example proof tx on BscScan →</a></p>
+            </details>
+            <details>
+              <summary>What is the smart contract for?</summary>
+              <p class="muted"><code>AICostGovernor.sol</code> (Solidity 0.8.20 + OpenZeppelin) provides onchain stake-gating: agents stake USDC as collateral via <code>stakeForAction()</code>, and only staked agents pass <code>checkApproval()</code>. Admin controls via <code>Ownable</code>. <a href="https://testnet.bscscan.com/address/0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA" target="_blank" rel="noreferrer">View contract on BSC Testnet →</a></p>
             </details>
           </div>
         </div>
@@ -477,6 +505,16 @@ PROCEEDGATE_TX_HASH=0xstub npm run demo:sdk</code></pre>
               <p>Technical summary for review, rollout planning, and internal alignment.</p>
               <span class="chip">Buyer</span>
             </a>
+            <a class="card card-link" href="https://github.com/loquit-doru/agent-cost-governor/blob/main/AI_BUILD_LOG.md" target="_blank" rel="noreferrer">
+              <h3>AI_BUILD_LOG.md</h3>
+              <p>Full AI tool usage log with human vs. AI separation per phase.</p>
+              <span class="chip">Hackathon</span>
+            </a>
+            <a class="card card-link" href="https://github.com/loquit-doru/agent-cost-governor/blob/main/SECURITY_AUDIT.md" target="_blank" rel="noreferrer">
+              <h3>SECURITY_AUDIT.md</h3>
+              <p>Security review: replay prevention, key management, access control.</p>
+              <span class="chip">Security</span>
+            </a>
           </div>
         </div>
       </section>
@@ -485,6 +523,7 @@ PROCEEDGATE_TX_HASH=0xstub npm run demo:sdk</code></pre>
         <div class="container">
           <h2>Open source reference implementation</h2>
           <p>This repo ships a working Worker + Runner: Cloudflare Worker (Governor API) + Node runner (enforcement).</p>
+          <p style="margin-top: 8px;"><span class="chip" style="background: rgba(45,212,191,.15); color: #2dd4bf;">🏆 OpenClaw Hackathon Ready</span> <span class="chip" style="background: rgba(251,146,60,.15); color: #fb923c;">⛓️ BNB Chain Verified</span></p>
           <div class="codecard">
             <pre><code>npm install
 npm run smoke
