@@ -1458,9 +1458,9 @@
       <span class="logo-text">ProceedGate</span>
     </a>
     <div class="nav-links">
-      <a href="/docs" class="nav-link">Documentation</a>
-      <a href="https://github.com/anthropics/proceedgate" class="nav-link">GitHub</a>
-      <a href="/pricing" class="nav-cta">Get Started</a>
+      <a href="/" class="nav-link">Home</a>
+      <a href="https://github.com/loquit-doru/agent-cost-governor" class="nav-link">GitHub</a>
+      <a href="/#signup" class="nav-cta">Get Started</a>
     </div>
   </nav>
   
@@ -1470,15 +1470,16 @@
     <section class="hero">
       <div class="hero-eyebrow">
         <span class="dot"></span>
-        Interactive Product Demo
+        CryptoScraper AI Agent · Interactive Demo
       </div>
       <h1>
-        <span class="highlight">Prevent Runaway AI Costs</span><br>
-        in Production
+        <span class="highlight">See ProceedGate Stop a Real Agent</span><br>
+        from Burning $10+ in 3 Minutes
       </h1>
       <p class="hero-subtitle">
-        Watch how ProceedGate stops expensive AI mistakes before they happen—not after.
-        Hard gates. Real control. Zero surprise bills.
+        CryptoScraper scrapes 5 real exchange APIs (CoinGecko, Binance, Kraken, CoinMarketCap, CoinPaprika).
+        When CMC’s API key expires, the agent retries endlessly → ProceedGate detects the storm → hard stop.
+        <strong>Run it yourself: <code style="background: rgba(255,255,255,.1); padding: 2px 8px; border-radius: 4px;">npm run demo:agent</code></strong>
       </p>
     </section>
     
@@ -1491,7 +1492,7 @@
             <div class="theatre-dot yellow"></div>
             <div class="theatre-dot green"></div>
           </div>
-          <span class="theatre-title">ProceedGate Demo</span>
+          <span class="theatre-title">CryptoScraper × ProceedGate</span>
           <span class="theatre-badge">Interactive</span>
         </div>
         
@@ -1509,12 +1510,12 @@
             </div>
           </div>
           
-          <!-- Scene 1: The Problem -->
+          <!-- Scene 1: The Problem - CryptoScraper -->
           <div class="scene" data-scene="0">
             <div class="scene-header">
               <div class="scene-number">SCENE 1 OF 6</div>
-              <div class="scene-title">The $10,000 Morning</div>
-              <div class="scene-subtitle">When AI agents go rogue, the damage is instant</div>
+              <div class="scene-title">CryptoScraper Goes Rogue</div>
+              <div class="scene-subtitle">CoinMarketCap API key expires → agent retries 500× in 3 minutes</div>
             </div>
             <div class="scene-body">
               <div class="chaos-visual">
@@ -1528,21 +1529,21 @@
                 </div>
                 <div class="chaos-center">
                   <div class="chaos-agent">🤖</div>
-                  <div class="chaos-label">API calls in last 3 minutes</div>
+                  <div class="chaos-label">CMC retries · $0.02/call · 401 Unauthorized</div>
                   <div class="chaos-counter"><span class="currency">$</span><span id="costCounter">0</span></div>
                 </div>
                 <div class="chaos-stats">
                   <div class="chaos-stat">
-                    <div class="chaos-stat-value">5,847</div>
-                    <div class="chaos-stat-label">API Calls</div>
+                    <div class="chaos-stat-value">500</div>
+                    <div class="chaos-stat-label">Retries (3 min)</div>
                   </div>
                   <div class="chaos-stat">
-                    <div class="chaos-stat-value">∞</div>
-                    <div class="chaos-stat-label">Loop Iterations</div>
+                    <div class="chaos-stat-value">$10</div>
+                    <div class="chaos-stat-label">Wasted</div>
                   </div>
                   <div class="chaos-stat">
                     <div class="chaos-stat-value">0</div>
-                    <div class="chaos-stat-label">Warnings Shown</div>
+                    <div class="chaos-stat-label">Hard Stops</div>
                   </div>
                 </div>
               </div>
@@ -1595,22 +1596,22 @@
             </div>
           </div>
           
-          <!-- Scene 3: How It Works -->
+          <!-- Scene 3: How It Works - CryptoScraper Flow -->
           <div class="scene" data-scene="2">
             <div class="scene-header">
               <div class="scene-number">SCENE 3 OF 6</div>
-              <div class="scene-title">One Checkpoint. Total Control.</div>
-              <div class="scene-subtitle">The ProceedGate sits between your agent and expensive actions</div>
+              <div class="scene-title">Every Scrape Goes Through the Gate</div>
+              <div class="scene-subtitle">CryptoScraper asks ProceedGate before each exchange API call</div>
             </div>
             <div class="scene-body">
               <div class="flow-visual">
                 <div class="flow-node">
                   <div class="flow-box">
                     <div class="flow-box-icon">🤖</div>
-                    <div class="flow-box-label">AI Agent</div>
+                    <div class="flow-box-label">CryptoScraper</div>
                   </div>
-                  <div class="flow-label">Wants to act</div>
-                  <div class="flow-sublabel">"I need to call this API"</div>
+                  <div class="flow-label">🧠 LLM plans scrape</div>
+                  <div class="flow-sublabel">"Scrape ETH from Binance"</div>
                 </div>
                 
                 <div class="flow-arrow">→</div>
@@ -1620,8 +1621,8 @@
                     <div class="flow-box-icon">⚡</div>
                     <div class="flow-box-label">ProceedGate</div>
                   </div>
-                  <div class="flow-label">Checks budget</div>
-                  <div class="flow-sublabel">proceed_token?</div>
+                  <div class="flow-label">Gate check</div>
+                  <div class="flow-sublabel">Loop detection + budget</div>
                 </div>
                 
                 <div class="flow-arrow">→</div>
@@ -1629,10 +1630,10 @@
                 <div class="flow-node">
                   <div class="flow-box">
                     <div class="flow-box-icon">💰</div>
-                    <div class="flow-box-label">Action</div>
+                    <div class="flow-box-label">Execute / Block</div>
                   </div>
-                  <div class="flow-label">Or blocked</div>
-                  <div class="flow-sublabel">200 or 402</div>
+                  <div class="flow-label">200 → scrape · 402 → stop</div>
+                  <div class="flow-sublabel">Onchain payment to resolve</div>
                 </div>
               </div>
             </div>
@@ -1667,12 +1668,12 @@
             </div>
           </div>
           
-          <!-- Scene 5: Live API -->
+          <!-- Scene 5: Live Agent Output -->
           <div class="scene" data-scene="4">
             <div class="scene-header">
               <div class="scene-number">SCENE 5 OF 6</div>
-              <div class="scene-title">See It In Action</div>
-              <div class="scene-subtitle">Real API call with budget check</div>
+              <div class="scene-title">CryptoScraper in Action</div>
+              <div class="scene-subtitle">Real output from <code>npm run demo:agent</code></div>
             </div>
             <div class="scene-body">
               <div class="terminal-wrapper">
@@ -1693,27 +1694,27 @@
           <div class="scene" data-scene="5">
             <div class="scene-header">
               <div class="scene-number">SCENE 6 OF 6</div>
-              <div class="scene-title">The Math is Simple</div>
-              <div class="scene-subtitle">What one prevented incident saves you</div>
+              <div class="scene-title">The Math from CryptoScraper</div>
+              <div class="scene-subtitle">Real numbers from the demo agent run</div>
             </div>
             <div class="scene-body">
               <div class="roi-visual">
                 <div class="roi-main">
                   <div class="roi-saved" id="roiCounter">$0</div>
-                  <div class="roi-label">Saved from a single prevented runaway</div>
+                  <div class="roi-label">Saved per incident ($0.02/call × 500 retries avoided)</div>
                 </div>
                 <div class="roi-stats">
                   <div class="roi-stat">
-                    <div class="roi-stat-value">$2,847</div>
-                    <div class="roi-stat-label">Avg runaway cost</div>
+                    <div class="roi-stat-value">$10.00</div>
+                    <div class="roi-stat-label">Cost without gate</div>
                   </div>
                   <div class="roi-stat">
-                    <div class="roi-stat-value">1 line</div>
-                    <div class="roi-stat-label">Code to integrate</div>
+                    <div class="roi-stat-value">~3 retries</div>
+                    <div class="roi-stat-label">With ProceedGate</div>
                   </div>
                   <div class="roi-stat">
-                    <div class="roi-stat-value">$0</div>
-                    <div class="roi-stat-label">Setup cost</div>
+                    <div class="roi-stat-value">$30/week</div>
+                    <div class="roi-stat-label">Projected savings</div>
                   </div>
                 </div>
               </div>
@@ -1850,21 +1851,21 @@
     
     <!-- CTA -->
     <section class="cta">
-      <h2>Stop Runaway Costs Today</h2>
-      <p>Add ProceedGate to your agent stack in under 5 minutes</p>
+      <h2>Try CryptoScraper Yourself</h2>
+      <p>Run the real AI agent demo locally in under 2 minutes</p>
       <div class="cta-buttons">
-        <a href="/docs/quickstart" class="btn btn-primary">
-          Get Started Free
+        <a href="https://github.com/loquit-doru/agent-cost-governor" class="btn btn-primary">
+          Clone & Run
           <svg viewBox="0 0 24 24"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></svg>
         </a>
-        <a href="/docs" class="btn btn-secondary">Read Documentation</a>
+        <a href="/" class="btn btn-secondary">Back to Home</a>
       </div>
     </section>
   </main>
   
   <!-- Footer -->
   <footer class="footer">
-    <p>© 2026 ProceedGate · <a href="./terms.html">Terms</a> · <a href="./privacy.html">Privacy</a> · <a href="https://github.com/anthropics/proceedgate">GitHub</a></p>
+    <p>© 2026 ProceedGate · <a href="./terms.html">Terms</a> · <a href="./privacy.html">Privacy</a> · <a href="https://github.com/loquit-doru/agent-cost-governor">GitHub</a></p>
   </footer>
   
   <script>
@@ -1983,7 +1984,7 @@
     function animateCostCounter() {
       const counter = document.getElementById('costCounter');
       let value = 0;
-      const target = 2847;
+      const target = 10;
       const duration = 3000;
       const steps = 60;
       const increment = target / steps;
@@ -1995,7 +1996,7 @@
           value = target;
           clearInterval(timer);
         }
-        counter.textContent = Math.floor(value).toLocaleString();
+        counter.textContent = value.toFixed(2);
       }, interval);
     }
     
@@ -2004,21 +2005,26 @@
       terminal.innerHTML = '';
       
       const lines = [
-        { html: '<span class="term-prompt">$</span> curl -X POST https://api.proceedgate.dev/v1/check \\', delay: 0 },
-        { html: '    -H "Authorization: Bearer $AGENT_TOKEN" \\', delay: 200 },
-        { html: '    -d \'{"action": "gpt-4-call", "cost": 0.12}\'', delay: 400 },
-        { html: '', delay: 600 },
-        { html: '<span class="term-comment"># Checking budget...</span>', delay: 800 },
-        { html: '', delay: 1200 },
-        { html: '<span class="term-success">HTTP/1.1 200 OK</span>', delay: 1400 },
-        { html: '{', delay: 1600 },
-        { html: '  <span class="term-key">"allowed"</span>: <span class="term-success">true</span>,', delay: 1800 },
-        { html: '  <span class="term-key">"proceed_token"</span>: <span class="term-string">"tok_abc123..."</span>,', delay: 2000 },
-        { html: '  <span class="term-key">"remaining_budget"</span>: <span class="term-number">8.76</span>,', delay: 2200 },
-        { html: '  <span class="term-key">"budget_window"</span>: <span class="term-string">"hourly"</span>', delay: 2400 },
-        { html: '}', delay: 2600 },
-        { html: '', delay: 2800 },
-        { html: '<span class="term-success">✓ Agent may proceed with GPT-4 call</span>', delay: 3000 },
+        { html: '<span class="term-prompt">$</span> npm run demo:agent', delay: 0 },
+        { html: '', delay: 300 },
+        { html: '<span class="term-comment"># 🤖 CryptoScraper — AI Agent with ProceedGate</span>', delay: 500 },
+        { html: '<span class="term-comment"># APIs: CoinGecko, Binance, Kraken, CoinMarketCap, CoinPaprika</span>', delay: 700 },
+        { html: '', delay: 900 },
+        { html: '<span class="term-string">📡 [1/5] CoinGecko / BTC</span>  <span class="term-comment">(attempt 1)</span>', delay: 1100 },
+        { html: '     <span class="term-success">✅ Gate: 200 OK — proceed_token issued</span>', delay: 1400 },
+        { html: '     <span class="term-success">✅ Result: BTC = $104,283.00 via CoinGecko  LIVE</span>', delay: 1700 },
+        { html: '', delay: 1900 },
+        { html: '<span class="term-string">📡 [4/5] CoinMarketCap / AVAX</span>  <span class="term-comment">(attempt 1)</span>', delay: 2100 },
+        { html: '     <span class="term-success">✅ Gate: 200 OK</span>', delay: 2300 },
+        { html: '     <span class="term-key">⚠️  API Error: 401 Unauthorized — API key expired</span>', delay: 2500 },
+        { html: '     <span class="term-comment">🧠 LLM: "Could be transient. Attempt 1 of 3 — retry."</span>', delay: 2800 },
+        { html: '', delay: 3000 },
+        { html: '<span class="term-string">📡 [4/5] CoinMarketCap / AVAX</span>  <span class="term-comment">(attempt 3)</span>', delay: 3200 },
+        { html: '     <span class="term-key">⚠️  Gate: <span style="color:#ef4444">402 Payment Required</span> — friction: $0.05</span>', delay: 3500 },
+        { html: '     <span class="term-comment">🧠 LLM: "ProceedGate blocked me 3× — this is a retry loop. Skip."</span>', delay: 3800 },
+        { html: '     <span style="color:#ef4444">🚫 Agent decided to skip CoinMarketCap/AVAX</span>', delay: 4100 },
+        { html: '', delay: 4300 },
+        { html: '<span class="term-success">💰 SAVED: $9.90 per incident (not 500 retries)</span>', delay: 4500 },
       ];
       
       lines.forEach(line => {
@@ -2034,7 +2040,7 @@
     function animateROI() {
       const counter = document.getElementById('roiCounter');
       let value = 0;
-      const target = 2847;
+      const target = 9.90;
       const duration = 2000;
       const steps = 50;
       const increment = target / steps;
@@ -2046,7 +2052,7 @@
           value = target;
           clearInterval(timer);
         }
-        counter.textContent = '$' + Math.floor(value).toLocaleString();
+        counter.textContent = '$' + value.toFixed(2);
       }, interval);
     }
     

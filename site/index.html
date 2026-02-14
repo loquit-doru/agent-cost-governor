@@ -55,6 +55,11 @@
               Friction is resolved via <strong>onchain micropayments on BNB Chain (BSC)</strong>, verified against real blockchain receipts.
               Built for production: predictable integration, auditable decisions, and clear failure modes.
             </p>
+            <div class="note" style="margin: 16px 0 0; padding: 14px 18px; background: rgba(45,212,191,.08); border: 1px solid rgba(45,212,191,.15); border-radius: 10px;">
+              <span style="font-weight: 700;">🤖 Live Agent Demo:</span>
+              <span class="muted">CryptoScraper — an autonomous AI agent that scrapes 5 real exchange APIs (CoinGecko, Binance, Kraken, CoinMarketCap, CoinPaprika), gated by ProceedGate. When CMC's API key expires, the agent retries → ProceedGate detects the storm → applies escalating friction → agent autonomously decides to stop. Real BSC testnet transactions included.</span>
+              <code style="display: block; margin-top: 8px; font-size: 13px;">npm run demo:agent</code>
+            </div>
 
             <div class="cta-row">
               <a class="btn primary" href="#integration">Integrate in 30 minutes</a>
@@ -146,9 +151,10 @@ No token, no step.</code></pre>
               <ul style="margin: 0; padding-left: 18px; line-height: 1.8;">
                 <li>Code scaffolding — Durable Objects, Hono routes, Vitest tests (88/88)</li>
                 <li>Smart contract baseline — <code>AICostGovernor.sol</code> with OpenZeppelin</li>
-                <li>Documentation — TECHNICAL.md (165 lines), PROJECT.md, README</li>
+                <li><strong>CryptoScraper AI Agent</strong> — autonomous agent with 5 real exchange APIs, LLM reasoning, onchain BSC payments</li>
+                <li>OpenClaw integration — SKILL.md loaded as system prompt, agent behavior defined by skill</li>
+                <li>Security audit — 9 fixes (timing-safe compare, XSS, security headers, Zod validation)</li>
                 <li>Deployment automation — Wrangler secrets, multi-env deploy, live proof</li>
-                <li>Demo scripts — storm simulation, billing lifecycle, hackathon proof</li>
               </ul>
               <p style="margin-top: 8px; margin-bottom: 0;"><strong>Human-only:</strong> Architecture decisions, chain selection, security posture, key management, all onchain transactions, business strategy.</p>
             </div>
@@ -170,19 +176,19 @@ No token, no step.</code></pre>
           <p class="muted">If you run agents in production, you’ve seen this:</p>
           <div class="cards">
             <div class="card">
-              <h3>LLM retry storms</h3>
-              <p>Regeneration loops quietly burn money.</p>
+              <h3>Expired API key → 500 retries</h3>
+              <p>CoinMarketCap returns 401, your agent thinks it's transient and retries 500× in 3 minutes. $10 burned on a broken key.</p>
             </div>
             <div class="card">
-              <h3>Browser automation loops</h3>
-              <p>Playwright-style sessions stall and rack up runtime.</p>
+              <h3>Scraping retry storms</h3>
+              <p>Exchange APIs rate-limit you, agent retries harder. Firecrawl, SerpAPI, Apify bills explode overnight.</p>
             </div>
             <div class="card">
-              <h3>Paid API spam</h3>
-              <p>External paid APIs get hammered when the agent gets confused.</p>
+              <h3>LLM + tool call loops</h3>
+              <p>Agent calls GPT-4 → tool → GPT-4 → tool in a loop. Each iteration costs $0.02–$0.50. No hard stop.</p>
             </div>
           </div>
-          <p class="callout">“Just add guardrails in the prompt” is not enforceable. ProceedGate makes it enforceable.</p>
+          <p class="callout">"Just add guardrails in the prompt" is not enforceable. ProceedGate makes it enforceable. <strong>Run <code>npm run demo:agent</code> to see it live.</strong></p>
         </div>
       </section>
 
@@ -571,16 +577,19 @@ openclaw agent --message "Gate my next API call"</code></pre>
       <section class="section fade-in" id="demo">
         <div class="container">
           <h2>Open source reference implementation</h2>
-          <p>This repo ships a working Worker + Runner: Cloudflare Worker (Governor API) + Node runner (enforcement).</p>
-          <p style="margin-top: 8px;"><span class="chip" style="background: rgba(45,212,191,.15); color: #2dd4bf;">🏆 OpenClaw Hackathon Ready</span> <span class="chip" style="background: rgba(251,146,60,.15); color: #fb923c;">⛓️ BNB Chain Verified</span></p>
+          <p>This repo ships a working Worker + Runner + a <strong>real AI agent demo (CryptoScraper)</strong>.</p>
+          <p style="margin-top: 8px;"><span class="chip" style="background: rgba(45,212,191,.15); color: #2dd4bf;">🏆 OpenClaw Hackathon Ready</span> <span class="chip" style="background: rgba(251,146,60,.15); color: #fb923c;">⛓️ BNB Chain Verified</span> <span class="chip" style="background: rgba(168,85,247,.15); color: #a855f7;">🤖 Live AI Agent</span></p>
           <div class="codecard">
             <pre><code>npm install
-npm run smoke
+npm run demo:agent          # 🤖 CryptoScraper AI agent
+                            #    5 real APIs · ProceedGate gating
+                            #    onchain BSC testnet payments
 
-# deploy governor
-npm run deploy:worker</code></pre>
+npm run smoke               # local flow: check → 402 → redeem
+npm run demo:storm:block    # retry storm detection demo</code></pre>
             <div class="links">
               <a class="link" href="https://github.com/loquit-doru/agent-cost-governor" target="_blank" rel="noreferrer">GitHub repo</a>
+              <a class="link" href="./demo.html">🎬 Interactive demo</a>
             </div>
           </div>
         </div>
