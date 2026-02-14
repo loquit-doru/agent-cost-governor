@@ -105,13 +105,13 @@ No token, no step.</code></pre>
       <section class="section fade-in" id="hackathon">
         <div class="container">
           <h2>Hackathon proof (OpenClaw Edition)</h2>
-          <p class="muted">Submission-ready verification artifacts for judges.</p>
+          <p class="muted">Submission-ready verification artifacts for judges. Track: <strong>Agent</strong> (AI Agent × Onchain Actions).</p>
 
           <div class="cards">
             <div class="card">
               <h3>Live endpoint</h3>
               <p><a class="link" href="https://agent-cost-governor-hackathon.apiworkersdev.workers.dev" target="_blank" rel="noreferrer">agent-cost-governor-hackathon.apiworkersdev.workers.dev</a></p>
-              <p class="muted">Configured with non-stub verification flow (<code>ALLOW_STUB_TX=false</code>).</p>
+              <p class="muted">Non-stub verification (<code>ALLOW_STUB_TX=false</code>). Try <code>GET /health</code> to verify.</p>
             </div>
             <div class="card">
               <h3>BSC proof tx</h3>
@@ -121,14 +121,39 @@ No token, no step.</code></pre>
             <div class="card">
               <h3>Contract address</h3>
               <p><a class="link" href="https://testnet.bscscan.com/address/0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA" target="_blank" rel="noreferrer">0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA</a></p>
-              <p class="muted">AICostGovernor deployed on BSC Testnet.</p>
+              <p class="muted"><code>AICostGovernor</code> on BSC Testnet — Solidity 0.8.20 + OpenZeppelin.</p>
+            </div>
+          </div>
+
+          <div class="note" style="margin-top: 24px;">
+            <div class="note-title">Reproduce in 3 commands</div>
+            <div class="note-body">
+              <code style="display: block; background: rgba(0,0,0,.3); padding: 12px; border-radius: 8px; font-size: 13px; line-height: 1.6;">npm install<br>npm --workspaces run check&nbsp;&nbsp;&nbsp;# typecheck 5 packages<br>npm run smoke&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# full local flow: check → 402 → redeem → proceed</code>
+              <p class="muted" style="margin-top: 8px;">88 unit tests, local smoke with <code>friction_events</code> + <code>proceed_token</code> issuance.</p>
+            </div>
+          </div>
+
+          <div class="note" style="margin-top: 16px;">
+            <div class="note-title">🤖 AI Build Log</div>
+            <div class="note-body">
+              <p style="margin-bottom: 8px;">Built with <strong>GitHub Copilot (Claude)</strong> as development assistant. AI was used for:</p>
+              <ul style="margin: 0; padding-left: 18px; line-height: 1.8;">
+                <li>Code scaffolding — Durable Objects, Hono routes, Vitest tests (88/88)</li>
+                <li>Smart contract baseline — <code>AICostGovernor.sol</code> with OpenZeppelin</li>
+                <li>Documentation — TECHNICAL.md (165 lines), PROJECT.md, README</li>
+                <li>Deployment automation — Wrangler secrets, multi-env deploy, live proof</li>
+                <li>Demo scripts — storm simulation, billing lifecycle, hackathon proof</li>
+              </ul>
+              <p style="margin-top: 8px; margin-bottom: 0;"><strong>Human-only:</strong> Architecture decisions, chain selection, security posture, key management, all onchain transactions, business strategy.</p>
             </div>
           </div>
 
           <div class="links" style="margin-top: 14px;">
             <a class="link" href="https://github.com/loquit-doru/agent-cost-governor/blob/main/docs/TECHNICAL.md" target="_blank" rel="noreferrer">Repro steps</a>
+            <a class="link" href="https://github.com/loquit-doru/agent-cost-governor/blob/main/docs/PROJECT.md" target="_blank" rel="noreferrer">Project overview</a>
             <a class="link" href="https://github.com/loquit-doru/agent-cost-governor/blob/main/bsc.address" target="_blank" rel="noreferrer">Address index</a>
-            <a class="link" href="https://github.com/loquit-doru/agent-cost-governor/blob/main/AI_BUILD_LOG.md" target="_blank" rel="noreferrer">AI build log</a>
+            <a class="link" href="https://github.com/loquit-doru/agent-cost-governor/blob/main/AI_BUILD_LOG.md" target="_blank" rel="noreferrer">Full AI build log</a>
+            <a class="link" href="https://github.com/loquit-doru/agent-cost-governor" target="_blank" rel="noreferrer">GitHub repo</a>
           </div>
         </div>
       </section>
@@ -599,9 +624,9 @@ npm run deploy:worker</code></pre>
             </div>
             <div class="footer-col">
               <div class="footer-title">Resources</div>
-              <a href="https://github.com/user/agent-cost-governor" target="_blank" rel="noreferrer">GitHub</a>
-              <a href="https://github.com/user/agent-cost-governor/blob/main/SPEC.md" target="_blank" rel="noreferrer">API Spec</a>
-              <a href="https://github.com/user/agent-cost-governor/blob/main/INTEGRATION.md" target="_blank" rel="noreferrer">Integration</a>
+              <a href="https://github.com/loquit-doru/agent-cost-governor" target="_blank" rel="noreferrer">GitHub</a>
+              <a href="https://github.com/loquit-doru/agent-cost-governor/blob/main/SPEC.md" target="_blank" rel="noreferrer">API Spec</a>
+              <a href="https://github.com/loquit-doru/agent-cost-governor/blob/main/INTEGRATION.md" target="_blank" rel="noreferrer">Integration</a>
             </div>
             <div class="footer-col">
               <div class="footer-title">Support</div>

@@ -191,6 +191,44 @@
 			],
 			"isBackground": true,
 			"group": "build"
+		},
+		{
+			"label": "ACG: deploy:worker:hackathon",
+			"type": "shell",
+			"command": "npx",
+			"args": [
+				"wrangler",
+				"deploy",
+				"--env",
+				"hackathon",
+				"--config",
+				"worker/wrangler.toml"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "ACG: deploy:site",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"deploy:site"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "ACG: hackathon live proof",
+			"type": "shell",
+			"command": "pwsh",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"$cfg='worker/wrangler.toml'; $admin='pg_admin_finalcheck_'+([guid]::NewGuid().ToString('N')); $admin | npx wrangler secret put API_ADMIN_KEY --env hackathon --config $cfg; npx wrangler deploy --env hackathon --config $cfg; $env:HACKATHON_API_ADMIN_KEY=$admin; $env:HACKATHON_BASE_URL='https://agent-cost-governor-hackathon.apiworkersdev.workers.dev'; node scripts/hackathon-proof.mjs"
+			],
+			"isBackground": false,
+			"group": "build"
 		}
 	]
 }

@@ -77,8 +77,9 @@ All commands above have been validated and pass as of 2026-02-14.
 - Explorer links:
   - https://bscscan.com/tx/0xd97039268c048cafd45c0f3b870111b1dcd22f3fdfd62a47e75ae843eb13b548
   - https://testnet.bscscan.com/address/0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA
-  - `https://testnet.bscscan.com/address/0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA`
-  - `https://testnet.bscscan.com/tx/0x0c695608865e5cad89d9b86d0041c3ca1caf142da77cbcb08febc682567c91a7`
-- Demo URL: `<video_or_live_demo_url>`
-- Repo URL: `<public_repo_url>`
-- Repro steps: "Install -> check -> run worker -> run runner -> verify redeem"
+  - [BSC Testnet contract](https://testnet.bscscan.com/address/0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA)
+  - [BSC Testnet deploy tx](https://testnet.bscscan.com/tx/0x0c695608865e5cad89d9b86d0041c3ca1caf142da77cbcb08febc682567c91a7)
+- Demo URL: `https://agent-cost-governor-hackathon.apiworkersdev.workers.dev`
+- Website: `https://proceedgate.dev`
+- Repo URL: `https://github.com/loquit-doru/agent-cost-governor`
+- Repro steps: `npm install && npm --workspaces run check && npm run smoke`
