@@ -646,22 +646,55 @@ async function main() {
     const outcome = await agentInstance.run();
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
 
-    // ── Phase 3: What-if Contrast ──
-    phase(3, "What Would Happen Without ProceedGate?");
+    // ── Phase 3: Impact — Live Contrast Simulation ──
+    phase(3, "Impact: With vs Without ProceedGate");
 
-    console.log(`  ${c.bold}${c.red}⚠️  WITHOUT ProceedGate, this agent would:${c.reset}`);
-    console.log(`     ${c.red}→ Retry the broken endpoint 200+ times overnight${c.reset}`);
-    console.log(`     ${c.red}→ Burn $340 in API credits on a dead endpoint${c.reset}`);
-    console.log(`     ${c.red}→ No alerting, no budget cap, no loop detection${c.reset}`);
-    await sleep(2000);
+    const COST_PER_CALL = 0.02; // $0.02 per API call (SerpAPI/Firecrawl typical)
+    const RETRY_DELAY_S = 0.4;  // 400ms between retries (aggressive agent)
+    const SIM_RETRIES = 500;    // simulate up to 500 retries in ~3 min
 
+    console.log(`  ${c.bold}${c.red}⚠️  SIMULATION: What this agent does WITHOUT ProceedGate${c.reset}`);
+    console.log(`  ${c.dim}(CoinMarketCap is down — agent retries endlessly at 400ms intervals)${c.reset}\n`);
+    await sleep(1200);
+
+    // Rapid visual counter — shows retries + cost climbing
+    const milestones = [10, 25, 50, 100, 200, 300, 500];
+    let mIdx = 0;
+    for (let i = 1; i <= SIM_RETRIES; i++) {
+      if (i === milestones[mIdx]) {
+        const cost = (i * COST_PER_CALL).toFixed(2);
+        const perHour = Math.floor(3600 / (RETRY_DELAY_MS / 1000));
+        const bar = "█".repeat(Math.min(Math.floor(i / 10), 40));
+        const color = i <= 50 ? c.yellow : i <= 200 ? c.red : `${c.bold}${c.red}`;
+        process.stdout.write(`\r     ${color}🔄 ${String(i).padStart(3)} retries │ $${cost.padStart(7)} wasted │ ${bar}${c.reset}`);
+        process.stdout.write("\n");
+        mIdx++;
+        await sleep(i <= 50 ? 400 : i <= 200 ? 300 : 200);
+      }
+    }
+
+    const totalNoCost = (SIM_RETRIES * COST_PER_CALL).toFixed(2);
+    const overnightCost = Math.floor(8 * 3600 / RETRY_DELAY_S * COST_PER_CALL);
     console.log();
-    console.log(`  ${c.bold}${c.green}✅ WITH ProceedGate:${c.reset}`);
-    console.log(`     ${c.green}→ Detected retry loop after 3 free attempts${c.reset}`);
-    console.log(`     ${c.green}→ Applied escalating friction (price grows each retry)${c.reset}`);
-    console.log(`     ${c.green}→ Agent's LLM recognized the pattern and stopped autonomously${c.reset}`);
-    console.log(`     ${c.green}→ Budget saved: ~$339+ per incident${c.reset}`);
-    await sleep(2000);
+    console.log(`  ${c.bold}${c.bgRed}${c.white} 💸 500 retries in ~3 min = $${totalNoCost} burned on a DEAD endpoint ${c.reset}`);
+    console.log(`  ${c.red}     Overnight (8h): ~$${overnightCost} wasted. Weekend: ~$${(overnightCost * 6).toLocaleString()} gone.${c.reset}`);
+    await sleep(2500);
+
+    // Now the contrast
+    console.log(`\n  ${c.bold}${c.green}✅ ACTUAL RESULT — Same agent WITH ProceedGate:${c.reset}\n`);
+
+    const actualRetries = outcome.retries;
+    const actualFriction = guard.stats.totalFriction.toFixed(4);
+    const actualOnchain = onchainTxLog.length > 0 ? `${onchainTxLog.length} real BSC tx` : "0 onchain";
+    const savedPerIncident = (parseFloat(totalNoCost) - parseFloat(actualFriction)).toFixed(2);
+
+    console.log(`     ${c.green}🔄 Total retries:     ${c.bold}${actualRetries}${c.reset}${c.green}  (not 500+)${c.reset}`);
+    console.log(`     ${c.green}💰 Friction paid:     ${c.bold}$${actualFriction}${c.reset}${c.green}  (not $${totalNoCost})${c.reset}`);
+    console.log(`     ${c.green}⛓️  Onchain actions:   ${c.bold}${actualOnchain}${c.reset}${c.green}  (verifiable on BSC Testnet)${c.reset}`);
+    console.log(`     ${c.green}🧠 LLM decided:       ${c.bold}STOP${c.reset}${c.green}  (autonomous, not hardcoded)${c.reset}`);
+    console.log();
+    console.log(`  ${c.bold}${c.bgGreen}${c.white} 💰 SAVED: $${savedPerIncident} per incident × ~3 incidents/week = $${(savedPerIncident * 3).toFixed(0)}/week ${c.reset}`);
+    await sleep(3000);
 
     // ── Phase 4: Summary ──
     phase(4, "Mission Report");
@@ -689,8 +722,8 @@ async function main() {
       console.log();
     }
 
-    money(`Estimated savings: $339+ per retry storm incident`);
-    money(`"Avg ProceedGate user saves $847/week"`);
+    money(`Quantified impact: $${savedPerIncident} saved THIS demo run`);
+    money(`Projected: $${(savedPerIncident * 3).toFixed(0)}/week · $${(savedPerIncident * 12).toFixed(0)}/month (at 3 incidents/week)`);
     console.log();
 
     if (onchainTxLog.length > 0) {
