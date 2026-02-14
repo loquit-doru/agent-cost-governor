@@ -43,7 +43,7 @@ Agent ──► POST /v1/governor/check ──► 200 (proceed_token) → contin
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/<your-org>/agent-cost-governor.git
+git clone https://github.com/loquit-doru/agent-cost-governor.git
 cd agent-cost-governor
 npm install
 ```

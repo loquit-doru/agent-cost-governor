@@ -71,13 +71,13 @@ npm install -g openclaw
 Run OpenClaw onboarding:
 
 ```bash
-openclaw onboard
+openclaw onboard --install-daemon
 ```
 
-Register skill from this repo:
+Configure ProceedGate skill:
 
 ```bash
-openclaw configure --section skills
+cp openclaw/openclaw.json.example ~/.openclaw/openclaw.json
 ```
 
 Reference docs:
