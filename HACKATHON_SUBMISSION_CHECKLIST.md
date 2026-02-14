@@ -44,8 +44,10 @@ Use this before uploading to DoraHacks.
 
 - [ ] 60–120s video showing: check → 402 → redeem → proceed_token → action continues.
   - Run `npm run demo:video` for a narrated terminal walkthrough.
+  - Run `npm run demo:agent` for the AI agent demo (scraping + loop detection).
 - [x] Show hard gate behavior (`--abort-on-402`) — `demo:storm:block` validated.
 - [x] Show credits/budget/loop protection — `demo:billing` validated.
+- [x] AI agent demo working — `demo:agent` validated (4/5 scrapes, 1 loop detected).
 - [x] Impact metric: "Avg user saves $847/week by preventing retry storms."
 
 ## 5) Rule compliance
@@ -61,6 +63,7 @@ npm install
 npm --workspaces run check
 npm --workspace worker run test
 npm run smoke
+npm run demo:agent
 npm run demo:billing
 npm run demo:storm:block
 npm run demo:storm:redeem

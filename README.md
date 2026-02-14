@@ -28,6 +28,14 @@ npm --workspaces run check   # typecheck all packages
 npm run smoke                # full local flow: check → 402 → redeem → proceed
 ```
 
+### Run the AI agent demo
+
+```bash
+npm run demo:agent           # autonomous scraping agent gated by ProceedGate
+```
+
+The agent scrapes crypto prices from 5 exchanges. When one exchange is down, the agent retries — ProceedGate detects the loop, applies escalating friction, and the agent's LLM decides to stop. See the live output for the full flow.
+
 See [`docs/TECHNICAL.md`](docs/TECHNICAL.md) for the complete step-by-step guide (8 validation commands).
 
 ---

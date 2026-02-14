@@ -32,6 +32,7 @@
     "deploy:contract:testnet": "node scripts/deploy-cost-governor-testnet.mjs",
     "demo:storm:block": "npm run build && node scripts/run-storm-demo.mjs block",
     "demo:storm:redeem": "npm run build && node scripts/run-storm-demo.mjs redeem",
+    "demo:agent": "npm run build && node scripts/demo-agent.mjs",
     "demo:video": "npm run build && node scripts/demo-video.mjs",
     "smoke": "npm run build && node scripts/run-storm-demo.mjs smoke",
     "deploy:worker": "npm --workspace worker run deploy",
