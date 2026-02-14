@@ -43,6 +43,7 @@ Use this before uploading to DoraHacks.
 ## 4) Demo quality (high impact)
 
 - [ ] 60–120s video showing: check → 402 → redeem → proceed_token → action continues.
+  - Run `npm run demo:video` for a narrated terminal walkthrough.
 - [x] Show hard gate behavior (`--abort-on-402`) — `demo:storm:block` validated.
 - [x] Show credits/budget/loop protection — `demo:billing` validated.
 - [x] Impact metric: "Avg user saves $847/week by preventing retry storms."
