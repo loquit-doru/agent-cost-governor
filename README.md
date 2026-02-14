@@ -1,12 +1,35 @@
-# ProceedGate (DFaaS v1)
+# ProceedGate — Onchain Cost Governor for AI Agents
 
-Stop runaway agents. Enforce cost and behavior.
+> **Good Vibes Only: OpenClaw Edition** | Track: **Agent** (AI Agent × Onchain Actions)
 
-ProceedGate is a **cost-control & governance** primitive for autonomous agents in production.
+Stop runaway AI agents. Enforce cost and behavior with onchain-verifiable friction.
 
-It sits **outside** the agent loop and blocks expensive/risky steps unless the agent has a valid short-lived `proceed_token`.
+ProceedGate sits **outside** the agent loop and blocks expensive/risky steps unless the agent has a valid short-lived `proceed_token`. If an agent enters a retry storm, ProceedGate automatically gates it with escalating micropayments verified on BSC.
 
-Primary audience (v1 headline): **internal teams running agents in prod**.
+## Hackathon Quick Links
+
+| Resource | Link |
+|---|---|
+| Live endpoint | `https://agent-cost-governor-hackathon.apiworkersdev.workers.dev` |
+| Proof tx (BSC) | [`0xd97039...b548`](https://bscscan.com/tx/0xd97039268c048cafd45c0f3b870111b1dcd22f3fdfd62a47e75ae843eb13b548) |
+| Contract (BSC Testnet) | [`0xAd8Da0...58dA`](https://testnet.bscscan.com/address/0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA) |
+| Address index | [`bsc.address`](bsc.address) |
+| Full setup guide | [`docs/TECHNICAL.md`](docs/TECHNICAL.md) |
+| Project overview | [`docs/PROJECT.md`](docs/PROJECT.md) |
+| AI build log | [`AI_BUILD_LOG.md`](AI_BUILD_LOG.md) |
+| Competition runbook | [`HACKATHON.md`](HACKATHON.md) |
+
+### Reproduce in 3 commands
+
+```bash
+npm install
+npm --workspaces run check   # typecheck all packages
+npm run smoke                # full local flow: check → 402 → redeem → proceed
+```
+
+See [`docs/TECHNICAL.md`](docs/TECHNICAL.md) for the complete step-by-step guide (8 validation commands).
+
+---
 
 ## Integrate in 30 minutes
 

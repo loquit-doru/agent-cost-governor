@@ -163,6 +163,34 @@
 			"isBackground": false,
 			"problemMatcher": [],
 			"group": "build"
+		},
+		{
+			"label": "ACG: demo:storm:redeem",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"demo:storm:redeem"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "ACG: worker dev 8993",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"--workspace",
+				"worker",
+				"run",
+				"dev",
+				"--",
+				"--local",
+				"--port",
+				"8993"
+			],
+			"isBackground": true,
+			"group": "build"
 		}
 	]
 }
