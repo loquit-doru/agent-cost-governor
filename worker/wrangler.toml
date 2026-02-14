@@ -121,3 +121,39 @@ class_name = "DecisionStoreDO"
 [[env.billing.durable_objects.bindings]]
 name = "BILLING"
 class_name = "BillingStoreDO"
+
+[env.hackathon]
+# Hackathon-focused environment (OpenClaw-style): chain defaults on opBNB.
+# Run locally with: wrangler dev --env hackathon
+
+[env.hackathon.vars]
+X402_PRICE_DEFAULT = "0.004 USDC"
+X402_CHAIN = "BSC"
+X402_RECIPIENT = "0xc30ac7ab7fbb2f0cb82c6d49b65df362b5ac1769"
+BILLING_RECIPIENT = "0xc30ac7ab7fbb2f0cb82c6d49b65df362b5ac1769"
+PROCEED_TOKEN_TTL_SECONDS = "45"
+
+BILLING_MODE = "credits"
+PAYMENT_VERIFY_MODE = "facilitator"
+FACILITATOR_URL = "internal"
+ALLOW_STUB_TX = "false"
+BILLING_CHAIN = "BSC"
+
+BASE_RPC_URL = "https://mainnet.base.org"
+BSC_RPC_URL = "https://bsc-dataseed.binance.org"
+OPBNB_RPC_URL = "https://opbnb-mainnet-rpc.bnbchain.org"
+
+# Auth for evaluator-friendly workspace keys
+API_AUTH_MODE = "workspace"
+
+[[env.hackathon.analytics_engine_datasets]]
+binding = "METRICS"
+dataset = "proceedgate_metrics"
+
+[[env.hackathon.durable_objects.bindings]]
+name = "DECISIONS"
+class_name = "DecisionStoreDO"
+
+[[env.hackathon.durable_objects.bindings]]
+name = "BILLING"
+class_name = "BillingStoreDO"

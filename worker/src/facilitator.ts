@@ -15,6 +15,10 @@ export type FacilitatorVerifyResponse =
 type Env = {
   BASE_RPC_URL?: string;
   BASE_USDC_ADDRESS?: string;
+  BSC_RPC_URL?: string;
+  BSC_USDC_ADDRESS?: string;
+  OPBNB_RPC_URL?: string;
+  OPBNB_USDC_ADDRESS?: string;
 
   // Dev-only escape hatch: allow "0xstub" tx hashes.
   // MUST NOT be enabled in production.
@@ -60,6 +64,15 @@ function parseUsdcToUnits(price: string): bigint | null {
   const fracPadded = (frac + '000000').slice(0, 6);
   if (!/^[0-9]+$/.test(whole) || !/^[0-9]{6}$/.test(fracPadded)) return null;
   return BigInt(whole) * 1_000_000n + BigInt(fracPadded);
+}
+
+function normalizeChain(input: string): 'base' | 'bsc' | 'opbnb' | '' {
+  const chain = String(input || '').trim().toLowerCase();
+  if (!chain) return '';
+  if (chain === 'base') return 'base';
+  if (chain === 'bsc' || chain === 'bnb' || chain === 'bnbchain' || chain === 'bnb chain') return 'bsc';
+  if (chain === 'opbnb' || chain === 'op-bnb' || chain === 'op bnb') return 'opbnb';
+  return '';
 }
 
 function formatUsdcUnits(units: bigint): string {
@@ -112,10 +125,25 @@ async function rpcCallWithRetry<T>(
   throw lastErr instanceof Error ? lastErr : new Error('rpc_call_failed');
 }
 
-function getBaseUsdcAddress(env: Env): string {
-  // Default: USDC on Base (Circle native USDC)
-  const fallback = '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913';
-  return normalizeAddress(env.BASE_USDC_ADDRESS ?? fallback) || fallback;
+function getTokenAddressForChain(env: Env, chain: 'base' | 'bsc' | 'opbnb'): string {
+  if (chain === 'base') {
+    const fallback = '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913';
+    return normalizeAddress(env.BASE_USDC_ADDRESS ?? fallback) || fallback;
+  }
+
+  if (chain === 'bsc') {
+    const fallback = '0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d';
+    return normalizeAddress(env.BSC_USDC_ADDRESS ?? fallback) || fallback;
+  }
+
+  const fallback = '0x9f05f8a0f7abe74e6b8f39f19ec47ff4f64f38f6';
+  return normalizeAddress(env.OPBNB_USDC_ADDRESS ?? fallback) || fallback;
+}
+
+function getRpcUrlForChain(env: Env, chain: 'base' | 'bsc' | 'opbnb'): string {
+  if (chain === 'base') return String(env.BASE_RPC_URL || '').trim();
+  if (chain === 'bsc') return String(env.BSC_RPC_URL || '').trim();
+  return String(env.OPBNB_RPC_URL || '').trim();
 }
 
 export async function facilitatorVerifyPayment(
@@ -125,9 +153,13 @@ export async function facilitatorVerifyPayment(
   const txHash = normalizeHex0x(req.tx_hash);
   if (!txHash) return { ok: false, status: 400, error: 'invalid_tx_hash' };
 
-  const chain = String(req.required_chain || '').trim().toLowerCase();
-  if (!chain) return { ok: false, status: 400, error: 'missing_required_chain' };
-  if (chain !== 'base') return { ok: false, status: 422, error: 'unsupported_chain' };
+  const chain = normalizeChain(req.required_chain);
+  if (!chain) {
+    if (!String(req.required_chain || '').trim()) {
+      return { ok: false, status: 400, error: 'missing_required_chain' };
+    }
+    return { ok: false, status: 422, error: 'unsupported_chain' };
+  }
 
   const recipient = normalizeAddress(req.required_recipient);
   if (!recipient) return { ok: false, status: 400, error: 'invalid_required_recipient' };
@@ -144,13 +176,13 @@ export async function facilitatorVerifyPayment(
       receipt: {
         tx_hash: txHash,
         paid_price: req.required_price,
-        paid_chain: 'base',
+        paid_chain: chain,
         paid_at: nowIso(),
       },
     };
   }
 
-  const rpcUrl = String(env.BASE_RPC_URL || '').trim();
+  const rpcUrl = getRpcUrlForChain(env, chain);
   if (!rpcUrl) return { ok: false, status: 501, error: 'rpc_not_configured' };
 
   type RpcReceiptLog = { address: string; topics: string[]; data: string };
@@ -168,7 +200,7 @@ export async function facilitatorVerifyPayment(
   if (!receipt) return { ok: false, status: 404, error: 'tx_not_found' };
   if (String(receipt.status || '').toLowerCase() !== '0x1') return { ok: false, status: 422, error: 'tx_failed' };
 
-  const usdc = getBaseUsdcAddress(env);
+  const usdc = getTokenAddressForChain(env, chain);
   const toTopic = addressToTopic(recipient);
   if (!toTopic) return { ok: false, status: 500, error: 'recipient_topic_failed' };
 
@@ -216,7 +248,7 @@ export async function facilitatorVerifyPayment(
     receipt: {
       tx_hash: txHash,
       paid_price: formatUsdcUnits(paidUnits),
-      paid_chain: 'base',
+      paid_chain: chain,
       paid_at: paidAt,
     },
   };

@@ -1,6 +1,6 @@
-# Payment verification (v1 stub, v2+ real)
+# Payment verification (facilitator-first)
 
-v1 goal: keep the friction flow **compatible and audit-friendly** while shipping fast.
+Goal: keep the friction flow **compatible and audit-friendly** while shipping fast.
 
 - `POST /v1/governor/check` may return `402` with x402-style headers (`x402-price`, `x402-recipient`, `x402-chain`).
 - Client retries by calling `POST /v1/governor/redeem` with header `x402-tx-hash`.
@@ -9,11 +9,15 @@ v1 goal: keep the friction flow **compatible and audit-friendly** while shipping
 
 Configured via `PAYMENT_VERIFY_MODE`:
 
-- `stub` (v1 default): accept any `x402-tx-hash`.
-  - Purpose: validate product/UX/integration and enforcement loop.
+- `facilitator` (current default in this repo): verify through a trusted verifier endpoint.
+  - Purpose: validate tx details against required price, recipient, and chain.
+  - Supports built-in verifier (`FACILITATOR_URL=internal`) and external facilitator URL.
+
+- `stub` (dev-only): accept `x402-tx-hash` without onchain verification.
+  - Purpose: quick local UX iteration and integration testing.
   - Risk: no real payment protection.
 
-Planned (v2+):
+Planned/optional:
 
 - `facilitator`: call a trusted verifier service that validates tx and returns canonical receipt data.
 - `onchain`: directly verify onchain for the configured chain (heavier, more moving parts).
@@ -31,7 +35,7 @@ Governor (worker) calls a verifier service:
   "tx_hash": "0x...",
   "decision_id": "dec_...",
   "required_price": "0.0018 USDC",
-  "required_chain": "Base",
+  "required_chain": "opBNB",
   "required_recipient": "0x..."
 }
 ```
@@ -46,7 +50,7 @@ Response:
   "receipt": {
     "tx_hash": "0x...",
     "paid_price": "0.002 USDC",
-    "paid_chain": "base",
+    "paid_chain": "opbnb",
     "paid_at": "2026-01-17T12:00:00.000Z"
   }
 }
@@ -60,19 +64,22 @@ This repo's worker includes a minimal verifier endpoint at `POST /x402/verify`.
 
 It supports:
 
-- `tx_hash=0xstub` for local/dev flows.
-- Real Base tx verification via JSON-RPC (no indexer): it checks the tx receipt logs for a USDC `Transfer` to `required_recipient` of at least `required_price`.
+- `tx_hash=0xstub` for local/dev flows (only when `ALLOW_STUB_TX=true`).
+- Real tx verification via JSON-RPC (no indexer) on supported chains (`base`, `bsc`, `opbnb`): it checks tx receipt logs for a USDC `Transfer` to `required_recipient` of at least `required_price`.
 
 Required env vars/secrets:
 
 - `FACILITATOR_KEY` (required; shared secret)
-- `BASE_RPC_URL` (required for real tx verification)
-- Optional: `BASE_USDC_ADDRESS` (defaults to Base USDC)
+- `BASE_RPC_URL`, `BSC_RPC_URL`, `OPBNB_RPC_URL` (required per chain you verify)
+- Optional token overrides:
+  - `BASE_USDC_ADDRESS`
+  - `BSC_USDC_ADDRESS`
+  - `OPBNB_USDC_ADDRESS`
 
 Recommended governor config for this mode:
 
 - `PAYMENT_VERIFY_MODE=facilitator`
-- `FACILITATOR_URL=https://governor.proceedgate.dev/x402/verify` (or `http://127.0.0.1:8787/x402/verify` locally)
+- `FACILITATOR_URL=https://governor.proceedgate.dev/x402/verify` (or `internal` locally)
 
 ## Receipt
 
@@ -83,7 +90,7 @@ On successful redeem, Governor returns a `receipt` object:
 - `paid_chain`: chain identifier (e.g. `base`)
 - `paid_at`: ISO timestamp
 
-In v2+ verification modes, the receipt should be derived from the verifier/onchain source of truth.
+In facilitator/onchain modes, the receipt should be derived from verifier/onchain source of truth.
 
 ## Threat model (what v1 does/doesn't protect)
 
@@ -93,9 +100,9 @@ Protected in v1:
 - Tokens are short-lived (`PROCEED_TOKEN_TTL_SECONDS`, default 45s).
 - Decision IDs are time-sortable and traceable in logs.
 
-Not protected in v1 (by design):
+Not protected in dev/stub mode:
 
-- A malicious client can fake `x402-tx-hash` and redeem (because `stub`).
+- A malicious client can fake `x402-tx-hash` and redeem.
 
 Mitigations for v2+:
 
@@ -105,5 +112,5 @@ Mitigations for v2+:
 
 ## Operational guidance
 
-- Use `stub` only for local dev and early buyer demos.
-- For any production use, switch to `facilitator`/`onchain` and set a stable signing key (`GOVERNOR_SIGNING_JWK`).
+- Use `stub` only for local dev and early UX demos.
+- For production/hackathon judging, use `facilitator` (or `onchain` when available), disable `ALLOW_STUB_TX`, and set stable signing key (`GOVERNOR_SIGNING_JWK`).

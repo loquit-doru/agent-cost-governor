@@ -10,6 +10,7 @@
   ],
   "devDependencies": {
     "concurrently": "^9.1.2",
+    "openai": "^6.16.0",
     "wait-on": "^7.2.0"
   },
   "scripts": {
@@ -23,6 +24,7 @@
     "deploy:site": "npx wrangler pages deploy site --project-name proceedgate --branch main",
     "demo:sdk": "npm run build && node examples/sdk-demo.mjs",
     "demo:billing": "node scripts/demo-billing.mjs",
+    "demo:hackathon:proof": "node scripts/hackathon-proof.mjs",
     "demo:storm:block": "npm run build && node scripts/run-storm-demo.mjs block",
     "demo:storm:redeem": "npm run build && node scripts/run-storm-demo.mjs redeem",
     "smoke": "npm run build && node scripts/run-storm-demo.mjs smoke",

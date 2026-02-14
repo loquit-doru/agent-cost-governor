@@ -9,6 +9,10 @@ import { putDecisionRecord, consumeWorkspaceCredits } from '../services/store.js
 import { requireWorkspaceAuth } from '../middleware/auth.js';
 import { logEvent, actorKey } from '../observability.js';
 import { writeMetric } from '../metrics.js';
+import { webhookCreditsLow } from '../services/webhook.js';
+import { getBillingStub, doUrl } from '../lib/do.js';
+import { hashApiKey } from '../lib/crypto.js';
+import { API_KEY_PREFIXES } from '../lib/constants.js';
 
 const checkRoutes = new Hono<{ Bindings: Env; Variables: Vars }>();
 
@@ -33,7 +37,57 @@ checkRoutes.post('/v1/governor/check', async (c) => {
     const authErr = await requireWorkspaceAuth(c, workspaceId);
     if (authErr) return authErr;
 
-    const consumed = await consumeWorkspaceCredits(c.env, workspaceId, 1);
+    // Loop detection - check if this action pattern is repeating too fast
+    const stub = getBillingStub(c.env);
+    const patternHash = await crypto.subtle.digest(
+      'SHA-256',
+      new TextEncoder().encode(`${parsed.data.action}:${parsed.data.context.task_hash || ''}:${parsed.data.context.step_hash || ''}`)
+    ).then(buf => Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 16));
+
+    const loopCheckRes = await stub.fetch(doUrl(`/workspaces/${workspaceId}/check-loop`), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ 
+        pattern_hash: patternHash,
+        window_ms: 60000, // 1 minute window
+        max_count: 10, // Max 10 identical patterns per minute
+      }),
+    });
+
+    if (loopCheckRes.status === 429) {
+      const loopData = await loopCheckRes.json() as { count: number };
+      logEvent({
+        event: 'loop_detected',
+        workspace_id: workspaceId,
+        actor_key: await actorKey(parsed.data.actor.id),
+        action: parsed.data.action,
+        pattern_hash: patternHash,
+        count: loopData.count,
+      });
+
+      writeMetric(c.env, {
+        indexes: ['check_loop_blocked', parsed.data.policy_id, parsed.data.action, 'loop_detected'],
+        doubles: [1, Date.now() - startMs],
+      });
+
+      c.header('cache-control', 'no-store');
+      c.header('X-Proceedgate-Loop-Detected', 'true');
+      return c.json({
+        allowed: false,
+        error: 'loop_detected',
+        workspace_id: workspaceId,
+        reason: 'Too many identical requests detected. Possible agent loop.',
+        pattern_count: loopData.count,
+        cost_saved: '$0.05',
+        cost_saved_usd: 0.05,
+        message: `🚫 Blocked retry storm. You just saved $0.05`,
+        hint: 'Add variation to task_hash or step_hash, or wait before retrying.',
+      }, 429);
+    }
+
+    const consumed = await consumeWorkspaceCredits(c.env, workspaceId, 1, {
+      action: parsed.data.action,
+    });
     if (!consumed.ok) {
       logEvent({
         event: 'billing_consume_fail',
@@ -47,6 +101,18 @@ checkRoutes.post('/v1/governor/check', async (c) => {
         doubles: [1, Date.now() - startMs],
       });
 
+      // Track blocked request for "cost saved" metric
+      const stub = getBillingStub(c.env);
+      stub.fetch(doUrl(`/workspaces/${workspaceId}/block`), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ 
+          reason: consumed.error || 'insufficient_credits',
+          estimated_cost_usd: 0.01, // Conservative estimate per blocked API call
+          action: parsed.data.action,
+        }),
+      }).catch(() => {}); // Fire and forget
+
       c.header('cache-control', 'no-store');
       c.header('X-Proceedgate-Billing-Mode', 'credits');
       return c.json(
@@ -55,6 +121,9 @@ checkRoutes.post('/v1/governor/check', async (c) => {
           error: 'insufficient_credits',
           workspace_id: workspaceId,
           credits_remaining: consumed.credits,
+          cost_saved: '$0.01',
+          cost_saved_usd: 0.01,
+          message: '🚫 Blocked. You just saved $0.01 by not burning more credits.',
           billing: {
             quote_url: '/v1/billing/quote',
             redeem_url: '/v1/billing/redeem',
@@ -63,6 +132,25 @@ checkRoutes.post('/v1/governor/check', async (c) => {
         },
         402,
       );
+    }
+
+    // Send credits.low webhook if this is the first time crossing the threshold
+    if (consumed.creditsLowNotify && consumed.maxCredits) {
+      const stub = getBillingStub(c.env);
+      const webhookRes = await stub.fetch(doUrl(`/workspaces/${workspaceId}/webhook`));
+      if (webhookRes.ok) {
+        const webhookConfig = await webhookRes.json() as { ok: boolean; webhook_url?: string; webhook_secret?: string };
+        if (webhookConfig.ok && webhookConfig.webhook_url) {
+          webhookCreditsLow(c.env, {
+            webhookUrl: webhookConfig.webhook_url,
+            webhookSecret: webhookConfig.webhook_secret,
+            workspaceId,
+            creditsRemaining: consumed.credits,
+            thresholdPercent: 20,
+            maxCredits: consumed.maxCredits,
+          }).catch(err => console.error('Credits low webhook failed:', err));
+        }
+      }
     }
   }
 
@@ -206,6 +294,173 @@ checkRoutes.post('/v1/governor/check', async (c) => {
     },
     402,
   );
+});
+
+// ============================================================================
+// /v1/check/simple - Simplified billing-only check endpoint
+// ============================================================================
+// This endpoint is for customers who only need credit-based billing
+// without the full policy/friction system.
+// Workspace is automatically derived from the API key.
+// ============================================================================
+
+import { z } from 'zod';
+
+const simpleCheckSchema = z.object({
+  user_id: z.string().min(1),
+  action: z.string().optional().default('api_call'),
+  cost: z.number().int().min(1).max(1000).optional().default(1),
+  metadata: z.record(z.unknown()).optional(),
+});
+
+checkRoutes.post('/v1/check/simple', async (c) => {
+  const startMs = Date.now();
+
+  // 1. Extract and validate API key
+  const authHeader = c.req.header('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return c.json({
+      ok: false,
+      error: 'missing_authorization',
+      hint: 'Include Authorization header: Authorization: Bearer pg_ws_...',
+      docs: 'https://docs.proceedgate.dev/authentication',
+    }, 401);
+  }
+
+  const apiKey = authHeader.slice(7).trim();
+  if (!apiKey.startsWith(API_KEY_PREFIXES.WORKSPACE)) {
+    return c.json({
+      ok: false,
+      error: 'invalid_api_key_format',
+      hint: `API key should start with ${API_KEY_PREFIXES.WORKSPACE}`,
+      docs: 'https://docs.proceedgate.dev/authentication',
+    }, 401);
+  }
+
+  // 2. Parse body
+  const body = await c.req.json().catch(() => null);
+  const parsed = simpleCheckSchema.safeParse(body);
+
+  if (!parsed.success) {
+    return c.json({
+      ok: false,
+      error: 'invalid_request',
+      hint: 'Required: { "user_id": "your-user-id" }',
+      issues: parsed.error.issues,
+      docs: 'https://docs.proceedgate.dev/api/check-simple',
+    }, 400);
+  }
+
+  // 3. Look up workspace from API key
+  const apiKeyHash = await hashApiKey(apiKey);
+  const stub = getBillingStub(c.env);
+
+  const lookupRes = await stub.fetch(doUrl('/keys/lookup'), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ api_key_hash: apiKeyHash }),
+  });
+
+  if (!lookupRes.ok) {
+    return c.json({
+      ok: false,
+      error: 'workspace_not_found',
+      hint: 'The API key is not associated with any workspace.',
+      docs: 'https://docs.proceedgate.dev/errors/workspace-not-found',
+    }, 404);
+  }
+
+  const { workspace_id: workspaceId } = await lookupRes.json() as { workspace_id: string };
+
+  // 4. Consume credits (use cost from request, default 1)
+  const creditCost = parsed.data.cost || 1;
+  const consumed = await consumeWorkspaceCredits(c.env, workspaceId, creditCost, {
+    action: parsed.data.action || 'simple_check',
+  });
+
+  if (!consumed.ok) {
+    logEvent({
+      event: 'simple_check_fail',
+      workspace_id: workspaceId,
+      user_id: parsed.data.user_id,
+      error: consumed.error,
+    });
+
+    writeMetric(c.env, {
+      indexes: ['simple_check_fail', workspaceId, parsed.data.action, consumed.error],
+      doubles: [1, Date.now() - startMs],
+    });
+
+    // Track blocked request for "cost saved" metric
+    stub.fetch(doUrl(`/workspaces/${workspaceId}/block`), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ 
+        reason: consumed.error || 'insufficient_credits',
+        estimated_cost_usd: 0.01,
+        action: parsed.data.action,
+      }),
+    }).catch(() => {}); // Fire and forget
+
+    return c.json({
+      ok: false,
+      allowed: false,
+      error: 'insufficient_credits',
+      workspace_id: workspaceId,
+      credits_remaining: consumed.credits,
+      cost_saved: '$0.01',
+      cost_saved_usd: 0.01,
+      message: '🚫 Blocked. You just saved $0.01 by not burning more credits.',
+      upgrade: {
+        message: 'You have run out of credits. Top up to continue.',
+        quote_url: `/v1/billing/quote?workspace_id=${encodeURIComponent(workspaceId)}&credits=10000`,
+        balance_url: `/v1/billing/balance?workspace_id=${encodeURIComponent(workspaceId)}`,
+        docs: 'https://docs.proceedgate.dev/billing/top-up',
+      },
+    }, 402);
+  }
+
+  // 5. Trigger credits.low webhook if needed
+  if (consumed.creditsLowNotify && consumed.maxCredits) {
+    const webhookRes = await stub.fetch(doUrl(`/workspaces/${workspaceId}/webhook`));
+    if (webhookRes.ok) {
+      const webhookConfig = await webhookRes.json() as { ok: boolean; webhook_url?: string; webhook_secret?: string };
+      if (webhookConfig.ok && webhookConfig.webhook_url) {
+        webhookCreditsLow(c.env, {
+          webhookUrl: webhookConfig.webhook_url,
+          webhookSecret: webhookConfig.webhook_secret,
+          workspaceId,
+          creditsRemaining: consumed.credits,
+          thresholdPercent: 20,
+          maxCredits: consumed.maxCredits,
+        }).catch(err => console.error('Credits low webhook failed:', err));
+      }
+    }
+  }
+
+  // 6. Log success
+  logEvent({
+    event: 'simple_check_ok',
+    workspace_id: workspaceId,
+    user_id: parsed.data.user_id,
+    action: parsed.data.action,
+    credits_remaining: consumed.credits,
+  });
+
+  writeMetric(c.env, {
+    indexes: ['simple_check_ok', workspaceId, parsed.data.action, 'success'],
+    doubles: [1, Date.now() - startMs],
+  });
+
+  // 7. Return success
+  return c.json({
+    ok: true,
+    allowed: true,
+    workspace_id: workspaceId,
+    user_id: parsed.data.user_id,
+    credits_remaining: consumed.credits,
+    credits_used: creditCost,
+  }, 200);
 });
 
 export { checkRoutes };

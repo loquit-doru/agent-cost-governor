@@ -3,6 +3,7 @@ import type { Env, Vars, AppContext } from '../types.js';
 import { getApiAuthMode, getSharedApiKey, getAdminApiKey } from '../lib/config.js';
 import { getRequestApiKey, sha256Hex } from '../lib/utils.js';
 import { verifyWorkspaceApiKeyInStore } from '../services/store.js';
+import { timingSafeCompare } from '../lib/crypto.js';
 
 export type AuthResult =
   | { ok: true }
@@ -27,6 +28,7 @@ export async function verifyWorkspaceApiKey(
 /**
  * Require workspace authentication based on configured auth mode.
  * Returns null if auth passes, or a Response if it fails.
+ * Uses timing-safe comparison to prevent timing attacks.
  */
 export async function requireWorkspaceAuth(c: AppContext, workspaceId: string): Promise<Response | null> {
   const mode = getApiAuthMode(c.env);
@@ -37,7 +39,9 @@ export async function requireWorkspaceAuth(c: AppContext, workspaceId: string): 
   if (mode === 'shared') {
     const shared = getSharedApiKey(c.env);
     if (!shared) return c.json({ ok: false, error: 'auth_misconfigured' }, 501);
-    if (apiKey !== shared) return c.json({ ok: false, error: 'unauthorized' }, 401);
+    // Use timing-safe comparison to prevent timing attacks
+    const isValid = await timingSafeCompare(apiKey, shared);
+    if (!isValid) return c.json({ ok: false, error: 'unauthorized' }, 401);
     return null;
   }
 
@@ -51,26 +55,33 @@ export async function requireWorkspaceAuth(c: AppContext, workspaceId: string): 
 /**
  * Require admin authentication via X-Admin-Key header.
  * Returns null if auth passes, or a Response if it fails.
+ * Uses timing-safe comparison to prevent timing attacks.
  */
-export function requireAdminAuth(c: AppContext): Response | null {
+export async function requireAdminAuth(c: AppContext): Promise<Response | null> {
   const admin = getAdminApiKey(c.env);
   if (!admin) return c.json({ ok: false, error: 'admin_key_not_configured' }, 501);
 
   const header = String(c.req.header('x-admin-key') ?? '').trim();
-  if (header !== admin) return c.json({ ok: false, error: 'unauthorized' }, 401);
+  // Use timing-safe comparison to prevent timing attacks
+  const isValid = await timingSafeCompare(header, admin);
+  if (!isValid) return c.json({ ok: false, error: 'unauthorized' }, 401);
 
   return null;
 }
 
 /**
  * Require facilitator key authentication.
+ * Uses timing-safe comparison to prevent timing attacks.
  */
-export function requireFacilitatorAuth(c: AppContext): Response | null {
+export async function requireFacilitatorAuth(c: AppContext): Promise<Response | null> {
   const key = String(c.env.FACILITATOR_KEY ?? '').trim();
   if (!key) return c.json({ ok: false, error: 'facilitator_key_missing' }, 501);
 
   const auth = String(c.req.header('authorization') ?? '').trim();
-  if (auth !== `Bearer ${key}`) return c.json({ ok: false, error: 'unauthorized' }, 401);
+  const expected = `Bearer ${key}`;
+  // Use timing-safe comparison to prevent timing attacks
+  const isValid = await timingSafeCompare(auth, expected);
+  if (!isValid) return c.json({ ok: false, error: 'unauthorized' }, 401);
 
   return null;
 }

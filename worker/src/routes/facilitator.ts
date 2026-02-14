@@ -10,7 +10,7 @@ const facilitatorRoutes = new Hono<{ Bindings: Env; Variables: Vars }>();
 facilitatorRoutes.post('/x402/verify', async (c) => {
   const startMs = Date.now();
 
-  const authErr = requireFacilitatorAuth(c);
+  const authErr = await requireFacilitatorAuth(c);
   if (authErr) {
     writeMetric(c.env, {
       indexes: ['facilitator_fail', 'unknown', 'unknown', 'unauthorized'],

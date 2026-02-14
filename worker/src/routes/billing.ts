@@ -21,6 +21,7 @@ import {
 import { facilitatorVerifyPayment } from '../facilitator.js';
 import { logEvent, txKey } from '../observability.js';
 import { writeMetric } from '../metrics.js';
+import { getBillingStub, doUrl } from '../lib/do.js';
 import type { BillingQuoteRecord } from '../billingStoreDO.js';
 
 const billingRoutes = new Hono<{ Bindings: Env; Variables: Vars }>();
@@ -237,8 +238,8 @@ billingRoutes.put('/v1/billing/budget', async (c) => {
   const authErr = await requireWorkspaceAuth(c, workspaceId);
   if (authErr) return authErr;
 
-  const stub = c.env.BILLING.get(c.env.BILLING.idFromName('global'));
-  const response = await stub.fetch(new Request(`http://do/workspaces/${encodeURIComponent(workspaceId)}/budget`, {
+  const stub = getBillingStub(c.env);
+  const response = await stub.fetch(doUrl(`/workspaces/${encodeURIComponent(workspaceId)}/budget`), {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -248,7 +249,7 @@ billingRoutes.put('/v1/billing/budget', async (c) => {
       alert_threshold: body?.alert_threshold,
       webhook_url: body?.webhook_url,
     }),
-  }));
+  });
 
   const data = await response.json();
   return c.json(data, response.status as 200 | 400 | 500);
@@ -268,10 +269,10 @@ billingRoutes.get('/v1/billing/budget', async (c) => {
   const authErr = await requireWorkspaceAuth(c, workspaceId);
   if (authErr) return authErr;
 
-  const stub = c.env.BILLING.get(c.env.BILLING.idFromName('global'));
-  const response = await stub.fetch(new Request(`http://do/workspaces/${encodeURIComponent(workspaceId)}/budget`, {
+  const stub = getBillingStub(c.env);
+  const response = await stub.fetch(doUrl(`/workspaces/${encodeURIComponent(workspaceId)}/budget`), {
     method: 'GET',
-  }));
+  });
 
   const data = await response.json();
   return c.json(data, response.status as 200 | 404);
@@ -291,10 +292,10 @@ billingRoutes.delete('/v1/billing/budget', async (c) => {
   const authErr = await requireWorkspaceAuth(c, workspaceId);
   if (authErr) return authErr;
 
-  const stub = c.env.BILLING.get(c.env.BILLING.idFromName('global'));
-  await stub.fetch(new Request(`http://do/workspaces/${encodeURIComponent(workspaceId)}/budget`, {
+  const stub = getBillingStub(c.env);
+  await stub.fetch(doUrl(`/workspaces/${encodeURIComponent(workspaceId)}/budget`), {
     method: 'DELETE',
-  }));
+  });
 
   return c.json({ ok: true }, 200);
 });
@@ -314,10 +315,40 @@ billingRoutes.get('/v1/billing/usage', async (c) => {
   const authErr = await requireWorkspaceAuth(c, workspaceId);
   if (authErr) return authErr;
 
-  const stub = c.env.BILLING.get(c.env.BILLING.idFromName('global'));
-  const response = await stub.fetch(new Request(`http://do/workspaces/${encodeURIComponent(workspaceId)}/usage?period=${period}`, {
+  const stub = getBillingStub(c.env);
+  const response = await stub.fetch(doUrl(`/workspaces/${encodeURIComponent(workspaceId)}/usage?period=${period}`), {
     method: 'GET',
-  }));
+  });
+
+  const data = await response.json();
+  return c.json(data, response.status as 200);
+});
+
+// ============================================================================
+// GET /v1/billing/stats - Get workspace statistics including "cost saved" metric
+// ============================================================================
+// Returns:
+// - blocked_requests: Total requests blocked
+// - cost_saved_usd: Estimated money saved by blocking runaway requests
+// - blocked_by_reason: Breakdown by reason (insufficient_credits, budget_exceeded, loop_detected)
+// ============================================================================
+billingRoutes.get('/v1/billing/stats', async (c) => {
+  if (getBillingMode(c.env) !== 'credits') {
+    return c.json({ ok: false, error: 'billing_not_enabled' }, 501);
+  }
+
+  const workspaceId = String(c.req.query('workspace_id') ?? '').trim();
+  if (!workspaceId) {
+    return c.json({ ok: false, error: 'missing_workspace_id' }, 400);
+  }
+
+  const authErr = await requireWorkspaceAuth(c, workspaceId);
+  if (authErr) return authErr;
+
+  const stub = getBillingStub(c.env);
+  const response = await stub.fetch(doUrl(`/workspaces/${encodeURIComponent(workspaceId)}/stats`), {
+    method: 'GET',
+  });
 
   const data = await response.json();
   return c.json(data, response.status as 200);

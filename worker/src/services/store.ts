@@ -1,29 +1,16 @@
 import type { Env } from '../types.js';
 import type { DecisionRecord } from '../decisionStoreDO.js';
 import type { BillingQuoteRecord } from '../billingStoreDO.js';
-
-// ============================================================================
-// Durable Object Stubs
-// ============================================================================
-
-function getDecisionStoreStub(env: Env): DurableObjectStub {
-  const id = env.DECISIONS.idFromName('decision-store');
-  return env.DECISIONS.get(id);
-}
-
-function getBillingStoreStub(env: Env): DurableObjectStub {
-  const id = env.BILLING.idFromName('billing-store');
-  return env.BILLING.get(id);
-}
+import { getBillingStub, getDecisionStub, doUrl } from '../lib/do.js';
 
 // ============================================================================
 // Decision Store Operations
 // ============================================================================
 
 export async function putDecisionRecord(env: Env, record: DecisionRecord): Promise<void> {
-  const stub = getDecisionStoreStub(env);
-  const url = new URL(`/decisions/${encodeURIComponent(record.decisionId)}`, 'https://do.internal');
-  const res = await stub.fetch(url.toString(), {
+  const stub = getDecisionStub(env);
+  const url = doUrl(`/decisions/${encodeURIComponent(record.decisionId)}`);
+  const res = await stub.fetch(url, {
     method: 'PUT',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ record }),
@@ -32,9 +19,9 @@ export async function putDecisionRecord(env: Env, record: DecisionRecord): Promi
 }
 
 export async function getDecisionRecord(env: Env, decisionId: string): Promise<DecisionRecord | null> {
-  const stub = getDecisionStoreStub(env);
-  const url = new URL(`/decisions/${encodeURIComponent(decisionId)}`, 'https://do.internal');
-  const res = await stub.fetch(url.toString(), { method: 'GET' });
+  const stub = getDecisionStub(env);
+  const url = doUrl(`/decisions/${encodeURIComponent(decisionId)}`);
+  const res = await stub.fetch(url, { method: 'GET' });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`decision_store_get_failed status=${res.status}`);
   const body = (await res.json().catch(() => null)) as { record?: DecisionRecord } | null;
@@ -42,9 +29,9 @@ export async function getDecisionRecord(env: Env, decisionId: string): Promise<D
 }
 
 export async function deleteDecisionRecord(env: Env, decisionId: string): Promise<void> {
-  const stub = getDecisionStoreStub(env);
-  const url = new URL(`/decisions/${encodeURIComponent(decisionId)}`, 'https://do.internal');
-  const res = await stub.fetch(url.toString(), { method: 'DELETE' });
+  const stub = getDecisionStub(env);
+  const url = doUrl(`/decisions/${encodeURIComponent(decisionId)}`);
+  const res = await stub.fetch(url, { method: 'DELETE' });
   if (!res.ok) throw new Error(`decision_store_delete_failed status=${res.status}`);
 }
 
@@ -53,9 +40,9 @@ export async function deleteDecisionRecord(env: Env, decisionId: string): Promis
 // ============================================================================
 
 export async function putBillingQuote(env: Env, record: BillingQuoteRecord): Promise<void> {
-  const stub = getBillingStoreStub(env);
-  const url = new URL(`/quotes/${encodeURIComponent(record.quoteId)}`, 'https://do.internal');
-  const res = await stub.fetch(url.toString(), {
+  const stub = getBillingStub(env);
+  const url = doUrl(`/quotes/${encodeURIComponent(record.quoteId)}`);
+  const res = await stub.fetch(url, {
     method: 'PUT',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ record }),
@@ -64,9 +51,9 @@ export async function putBillingQuote(env: Env, record: BillingQuoteRecord): Pro
 }
 
 export async function getBillingQuote(env: Env, quoteId: string): Promise<BillingQuoteRecord | null> {
-  const stub = getBillingStoreStub(env);
-  const url = new URL(`/quotes/${encodeURIComponent(quoteId)}`, 'https://do.internal');
-  const res = await stub.fetch(url.toString(), { method: 'GET' });
+  const stub = getBillingStub(env);
+  const url = doUrl(`/quotes/${encodeURIComponent(quoteId)}`);
+  const res = await stub.fetch(url, { method: 'GET' });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`billing_quote_get_failed status=${res.status}`);
   const body = (await res.json().catch(() => null)) as { record?: BillingQuoteRecord } | null;
@@ -80,9 +67,9 @@ export async function redeemBillingQuote(
   quoteId: string,
   txHash: string,
 ): Promise<{ ok: true; credits: number } | { ok: false; status: BillingRedeemStatus; error: string; credits?: number }> {
-  const stub = getBillingStoreStub(env);
-  const url = new URL(`/quotes/${encodeURIComponent(quoteId)}/redeem`, 'https://do.internal');
-  const res = await stub.fetch(url.toString(), {
+  const stub = getBillingStub(env);
+  const url = doUrl(`/quotes/${encodeURIComponent(quoteId)}/redeem`);
+  const res = await stub.fetch(url, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ tx_hash: txHash }),
@@ -106,9 +93,9 @@ export async function redeemBillingQuote(
 }
 
 export async function getWorkspaceCredits(env: Env, workspaceId: string): Promise<number> {
-  const stub = getBillingStoreStub(env);
-  const url = new URL(`/workspaces/${encodeURIComponent(workspaceId)}`, 'https://do.internal');
-  const res = await stub.fetch(url.toString(), { method: 'GET' });
+  const stub = getBillingStub(env);
+  const url = doUrl(`/workspaces/${encodeURIComponent(workspaceId)}`);
+  const res = await stub.fetch(url, { method: 'GET' });
   if (!res.ok) throw new Error(`billing_workspace_get_failed status=${res.status}`);
   const body = (await res.json().catch(() => null)) as { credits?: unknown } | null;
   return typeof body?.credits === 'number' ? body.credits : 0;
@@ -118,17 +105,37 @@ export async function consumeWorkspaceCredits(
   env: Env,
   workspaceId: string,
   n: number,
-): Promise<{ ok: true; credits: number } | { ok: false; status: number; error: string; credits: number }> {
-  const stub = getBillingStoreStub(env);
-  const url = new URL(`/workspaces/${encodeURIComponent(workspaceId)}/consume`, 'https://do.internal');
-  const res = await stub.fetch(url.toString(), {
+  options?: { action?: string; tool?: string },
+): Promise<{ ok: true; credits: number; creditsLow?: boolean; creditsLowNotify?: boolean; maxCredits?: number } | { ok: false; status: number; error: string; credits: number }> {
+  const stub = getBillingStub(env);
+  const url = doUrl(`/workspaces/${encodeURIComponent(workspaceId)}/consume`);
+  const res = await stub.fetch(url, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ n }),
+    body: JSON.stringify({ 
+      n,
+      action: options?.action,
+      tool: options?.tool,
+    }),
   });
-  const body = (await res.json().catch(() => null)) as { ok?: unknown; credits?: unknown; error?: unknown } | null;
+  const body = (await res.json().catch(() => null)) as { 
+    ok?: unknown; 
+    credits?: unknown; 
+    error?: unknown;
+    credits_low?: boolean;
+    credits_low_notify?: boolean;
+    max_credits?: number;
+  } | null;
   const credits = typeof body?.credits === 'number' ? body.credits : 0;
-  if (res.ok && body?.ok === true) return { ok: true, credits };
+  if (res.ok && body?.ok === true) {
+    return { 
+      ok: true, 
+      credits,
+      creditsLow: body.credits_low === true,
+      creditsLowNotify: body.credits_low_notify === true,
+      maxCredits: typeof body.max_credits === 'number' ? body.max_credits : undefined,
+    };
+  }
   const err = typeof body?.error === 'string' && body.error ? body.error : 'consume_failed';
   return { ok: false, status: res.status, error: err, credits };
 }
@@ -138,9 +145,9 @@ export async function consumeWorkspaceCredits(
 // ============================================================================
 
 export async function setWorkspaceApiKey(env: Env, workspaceId: string, apiKeyHash: string): Promise<boolean> {
-  const stub = getBillingStoreStub(env);
-  const url = new URL(`/workspaces/${encodeURIComponent(workspaceId)}/key`, 'https://do.internal');
-  const res = await stub.fetch(url.toString(), {
+  const stub = getBillingStub(env);
+  const url = doUrl(`/workspaces/${encodeURIComponent(workspaceId)}/key`);
+  const res = await stub.fetch(url, {
     method: 'PUT',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ api_key_hash: apiKeyHash }),
@@ -149,9 +156,9 @@ export async function setWorkspaceApiKey(env: Env, workspaceId: string, apiKeyHa
 }
 
 export async function deleteWorkspaceApiKey(env: Env, workspaceId: string): Promise<boolean> {
-  const stub = getBillingStoreStub(env);
-  const url = new URL(`/workspaces/${encodeURIComponent(workspaceId)}/key`, 'https://do.internal');
-  const res = await stub.fetch(url.toString(), { method: 'DELETE' });
+  const stub = getBillingStub(env);
+  const url = doUrl(`/workspaces/${encodeURIComponent(workspaceId)}/key`);
+  const res = await stub.fetch(url, { method: 'DELETE' });
   return res.ok;
 }
 
@@ -159,9 +166,9 @@ export async function getWorkspaceAuthStatus(
   env: Env,
   workspaceId: string,
 ): Promise<{ found: boolean; hasKey?: boolean; createdAt?: string; updatedAt?: string }> {
-  const stub = getBillingStoreStub(env);
-  const url = new URL(`/workspaces/${encodeURIComponent(workspaceId)}/auth`, 'https://do.internal');
-  const res = await stub.fetch(url.toString(), { method: 'GET' });
+  const stub = getBillingStub(env);
+  const url = doUrl(`/workspaces/${encodeURIComponent(workspaceId)}/auth`);
+  const res = await stub.fetch(url, { method: 'GET' });
 
   if (res.status === 404) return { found: false };
   if (!res.ok) throw new Error(`workspace_auth_status_failed status=${res.status}`);
@@ -186,9 +193,9 @@ export async function verifyWorkspaceApiKeyInStore(
   workspaceId: string,
   apiKeyHash: string,
 ): Promise<'ok' | 'unauthorized' | 'not_found'> {
-  const stub = getBillingStoreStub(env);
-  const url = new URL(`/workspaces/${encodeURIComponent(workspaceId)}/verify`, 'https://do.internal');
-  const res = await stub.fetch(url.toString(), {
+  const stub = getBillingStub(env);
+  const url = doUrl(`/workspaces/${encodeURIComponent(workspaceId)}/verify`);
+  const res = await stub.fetch(url, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ api_key_hash: apiKeyHash }),

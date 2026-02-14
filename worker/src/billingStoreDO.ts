@@ -11,6 +11,23 @@ export type BillingQuoteRecord = {
   txHash?: string;
 };
 
+// Payment audit record - permanent log of all confirmed payments
+export type PaymentRecord = {
+  id: string;               // payment_{timestamp}_{random}
+  invoiceId: string;
+  workspaceId: string;
+  txHash: string;
+  chain: string;
+  chainId: number;
+  amountUsdc: number;
+  plan: string;
+  months: number;
+  email?: string;
+  type: 'subscription' | 'renewal' | 'upgrade';
+  confirmedAtMs: number;
+  createdAtMs: number;
+};
+
 type WorkspaceBalance = {
   workspaceId: string;
   credits: number;
@@ -41,6 +58,24 @@ export type UsageRecord = {
   credits: number;
   actions: Record<string, number>; // action type -> count
   tools: Record<string, number>; // tool name -> count
+};
+
+// Track blocked requests for "cost saved" metric
+export type BlockedStats = {
+  workspaceId: string;
+  blockedRequests: number; // Total blocked requests
+  estimatedCostSavedUsd: number; // Estimated USD saved
+  blockedByReason: Record<string, number>; // reason -> count
+  lastBlockedAtMs?: number;
+  updatedAtMs: number;
+};
+
+// Loop detection - track recent request patterns
+export type LoopPattern = {
+  hash: string; // Hash of action + task_hash
+  count: number;
+  firstSeenMs: number;
+  lastSeenMs: number;
 };
 
 type PutQuoteBody = { record: BillingQuoteRecord };
@@ -77,6 +112,47 @@ export class BillingStoreDO {
 
   constructor(state: DurableObjectState) {
     this.state = state;
+    // Schedule daily cleanup alarm if not already set
+    this.ensureAlarmScheduled();
+  }
+
+  private async ensureAlarmScheduled(): Promise<void> {
+    const existingAlarm = await this.state.storage.getAlarm();
+    if (!existingAlarm) {
+      // Schedule alarm for next midnight UTC
+      const now = new Date();
+      const nextMidnight = new Date(Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate() + 1,
+        0, 0, 0, 0
+      ));
+      await this.state.storage.setAlarm(nextMidnight.getTime());
+    }
+  }
+
+  // Daily cleanup alarm handler
+  async alarm(): Promise<void> {
+    console.log('[BillingStoreDO] Running daily cleanup alarm');
+    
+    // Get all workspace subscriptions and clean up old usage logs
+    const allKeys = await this.state.storage.list({ prefix: 'sub:' });
+    
+    for (const [key] of allKeys) {
+      const workspaceId = key.replace('sub:', '');
+      const sub = await this.state.storage.get<{ features?: { logRetentionDays?: number } }>(key);
+      const retentionDays = sub?.features?.logRetentionDays ?? 30;
+      
+      await this.cleanupOldUsageLogs(workspaceId, retentionDays);
+    }
+    
+    // Schedule next alarm for tomorrow
+    const tomorrow = new Date();
+    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+    tomorrow.setUTCHours(0, 0, 0, 0);
+    await this.state.storage.setAlarm(tomorrow.getTime());
+    
+    console.log('[BillingStoreDO] Daily cleanup complete, next alarm:', tomorrow.toISOString());
   }
 
   private async getQuote(quoteId: string): Promise<BillingQuoteRecord | null> {
@@ -188,6 +264,24 @@ export class BillingStoreDO {
     await this.state.storage.put(`usage:${workspaceId}:${date}`, usage);
   }
 
+  private async cleanupOldUsageLogs(workspaceId: string, retentionDays: number): Promise<void> {
+    // Clean up usage logs older than retention period
+    const today = new Date();
+    const keysToDelete: string[] = [];
+    
+    // Check up to 90 days back for old data (max retention is 90 days)
+    for (let i = retentionDays + 1; i <= 90; i++) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const dateKey = date.toISOString().split('T')[0]!;
+      keysToDelete.push(`usage:${workspaceId}:${dateKey}`);
+    }
+    
+    if (keysToDelete.length > 0) {
+      await this.state.storage.delete(keysToDelete);
+    }
+  }
+
   private async getUsageForPeriod(workspaceId: string, days: number): Promise<number> {
     let total = 0;
     const today = new Date();
@@ -267,6 +361,20 @@ export class BillingStoreDO {
     // - GET  /workspaces/:id/auth
     if (parts.length < 2) return new Response('not_found', { status: 404 });
 
+    // POST /keys/lookup { api_key_hash } - Find workspace by API key hash
+    if (parts[0] === 'keys' && parts[1] === 'lookup' && request.method === 'POST') {
+      const body = (await request.json().catch(() => null)) as { api_key_hash?: string } | null;
+      const h = normalizeKeyHash(body?.api_key_hash || '');
+      if (!h) return new Response('invalid_request', { status: 400 });
+
+      const workspaceId = await this.state.storage.get<string>(`keyidx:${h}`);
+      if (!workspaceId) {
+        return Response.json({ ok: false, error: 'not_found' }, { status: 404 });
+      }
+
+      return Response.json({ ok: true, workspace_id: workspaceId }, { status: 200 });
+    }
+
     if (parts[0] === 'quotes') {
       const quoteId = parts[1]!;
 
@@ -312,6 +420,69 @@ export class BillingStoreDO {
       }
 
       return new Response('method_not_allowed', { status: 405 });
+    }
+
+    // POST /workspaces/create - Create new workspace (for subscription flow)
+    if (parts[0] === 'workspaces' && parts[1] === 'create' && request.method === 'POST') {
+      type PlanFeatures = {
+        projects: number;
+        logRetentionDays: number;
+        customPolicies: number;
+        webhooks: boolean;
+        alerts: boolean;
+        analytics: boolean;
+        sso: boolean;
+        auditLogs: boolean;
+      };
+      
+      type CreateWorkspaceBody = {
+        workspace_id: string;
+        api_key_hash: string;
+        plan: string;
+        credits: number;
+        expires_at_ms: number;
+        features?: PlanFeatures;
+      };
+      
+      const body = (await request.json().catch(() => null)) as CreateWorkspaceBody | null;
+      if (!body?.workspace_id || !body?.api_key_hash || !body?.credits) {
+        return new Response('invalid_request', { status: 400 });
+      }
+
+      // Check if workspace already exists
+      const existingAuth = await this.getAuth(body.workspace_id);
+      if (existingAuth) {
+        return Response.json({ ok: false, error: 'workspace_exists' }, { status: 409 });
+      }
+
+      // Create workspace with credits
+      const bal: WorkspaceBalance = {
+        workspaceId: body.workspace_id,
+        credits: body.credits,
+        updatedAtMs: Date.now(),
+      };
+      await this.putBalance(bal);
+
+      // Set API key
+      await this.setAuth(body.workspace_id, body.api_key_hash);
+
+      // Store API key hash -> workspace ID index for lookups
+      await this.state.storage.put(`keyidx:${body.api_key_hash}`, body.workspace_id);
+
+      // Store subscription metadata with features
+      await this.state.storage.put(`sub:${body.workspace_id}`, {
+        plan: body.plan,
+        credits: body.credits,
+        expiresAtMs: body.expires_at_ms,
+        createdAtMs: Date.now(),
+        features: body.features || null,
+      });
+
+      return Response.json({ 
+        ok: true, 
+        workspace_id: body.workspace_id,
+        credits: body.credits,
+      }, { status: 200 });
     }
 
     if (parts[0] === 'workspaces') {
@@ -363,7 +534,43 @@ export class BillingStoreDO {
         // Record usage
         await this.recordUsage(workspaceId, n, body?.action, body?.tool);
 
-        return Response.json({ ok: true, credits: bal.credits }, { status: 200 });
+        // Check if credits are low (below 20% of max)
+        const sub = await this.state.storage.get<{ 
+          credits?: number; 
+          features?: { logRetentionDays?: number } 
+        }>(`sub:${workspaceId}`);
+        const maxCredits = sub?.credits ?? 25000;
+        const creditsLowThreshold = 0.2; // 20%
+        const isCreditsLow = bal.credits < (maxCredits * creditsLowThreshold);
+
+        // Check if we should send credits_low webhook (only first time crossing threshold)
+        let shouldNotifyCreditsLow = false;
+        if (isCreditsLow) {
+          const notifiedKey = `credits_low_notified:${workspaceId}`;
+          const alreadyNotified = await this.state.storage.get<boolean>(notifiedKey);
+          if (!alreadyNotified) {
+            await this.state.storage.put(notifiedKey, true);
+            shouldNotifyCreditsLow = true;
+          }
+        } else {
+          // Reset notification flag when credits go above threshold (after renewal)
+          await this.state.storage.delete(`credits_low_notified:${workspaceId}`);
+        }
+
+        // Probabilistic log cleanup (1% chance per consume call)
+        if (Math.random() < 0.01) {
+          const retentionDays = sub?.features?.logRetentionDays ?? 30;
+          this.cleanupOldUsageLogs(workspaceId, retentionDays).catch(() => {}); // fire-and-forget
+        }
+
+        return Response.json({ 
+          ok: true, 
+          credits: bal.credits,
+          credits_low: isCreditsLow,
+          credits_low_notify: shouldNotifyCreditsLow, // true = first time, should send webhook
+          credits_low_threshold: isCreditsLow ? creditsLowThreshold : undefined,
+          max_credits: isCreditsLow ? maxCredits : undefined,
+        }, { status: 200 });
       }
 
       if (request.method === 'PUT' && parts.length === 3 && parts[2] === 'key') {
@@ -494,7 +701,764 @@ export class BillingStoreDO {
         }, { status: 200 });
       }
 
+      // Subscription metadata
+      if (request.method === 'GET' && parts.length === 3 && parts[2] === 'subscription') {
+        const sub = await this.state.storage.get<{
+          plan: string;
+          credits: number;
+          expiresAtMs: number;
+          createdAtMs: number;
+        }>(`sub:${workspaceId}`);
+        
+        if (!sub) {
+          return Response.json({ ok: false, error: 'not_found' }, { status: 404 });
+        }
+
+        return Response.json({
+          ok: true,
+          workspace_id: workspaceId,
+          plan: sub.plan,
+          credits: sub.credits,
+          expiresAtMs: sub.expiresAtMs,
+          createdAtMs: sub.createdAtMs,
+          expires_at: new Date(sub.expiresAtMs).toISOString(),
+          created_at: new Date(sub.createdAtMs).toISOString(),
+        }, { status: 200 });
+      }
+
+      // Add credits (for renewals)
+      if (request.method === 'POST' && parts.length === 3 && parts[2] === 'add-credits') {
+        const body = (await request.json().catch(() => null)) as {
+          credits?: number;
+          plan?: string;
+          months?: number;
+        } | null;
+
+        if (!body?.credits || body.credits <= 0) {
+          return new Response('invalid_request', { status: 400 });
+        }
+
+        // Add credits to balance
+        const bal = await this.getBalance(workspaceId);
+        bal.credits += body.credits;
+        await this.putBalance(bal);
+
+        // Update subscription metadata
+        const existingSub = await this.state.storage.get<{
+          plan: string;
+          credits: number;
+          expiresAtMs: number;
+          createdAtMs: number;
+        }>(`sub:${workspaceId}`);
+
+        const nowMs = Date.now();
+        const monthsMs = (body.months || 1) * 30 * 24 * 60 * 60 * 1000;
+        
+        // Extend from current expiry or from now if expired
+        const baseExpiryMs = (existingSub?.expiresAtMs && existingSub.expiresAtMs > nowMs) 
+          ? existingSub.expiresAtMs 
+          : nowMs;
+        const newExpiryMs = baseExpiryMs + monthsMs;
+
+        await this.state.storage.put(`sub:${workspaceId}`, {
+          plan: body.plan || existingSub?.plan || 'starter',
+          credits: bal.credits,
+          expiresAtMs: newExpiryMs,
+          createdAtMs: existingSub?.createdAtMs || nowMs,
+        });
+
+        return Response.json({
+          ok: true,
+          workspace_id: workspaceId,
+          credits: bal.credits,
+          expires_at: new Date(newExpiryMs).toISOString(),
+        }, { status: 200 });
+      }
+
+      // Webhook configuration
+      if (request.method === 'PUT' && parts.length === 3 && parts[2] === 'webhook') {
+        const body = (await request.json().catch(() => null)) as {
+          webhook_url?: string;
+          webhook_secret?: string;
+          events?: string[];
+        } | null;
+
+        const nowMs = Date.now();
+        await this.state.storage.put(`webhook:${workspaceId}`, {
+          webhookUrl: body?.webhook_url || null,
+          webhookSecret: body?.webhook_secret || null,
+          events: body?.events || [],
+          updatedAtMs: nowMs,
+        });
+
+        return Response.json({ ok: true }, { status: 200 });
+      }
+
+      if (request.method === 'GET' && parts.length === 3 && parts[2] === 'webhook') {
+        // First check dedicated webhook config
+        const config = await this.state.storage.get<{
+          webhookUrl?: string;
+          webhookSecret?: string;
+          events?: string[];
+        }>(`webhook:${workspaceId}`);
+
+        if (config?.webhookUrl) {
+          return Response.json({
+            ok: true,
+            webhook_url: config.webhookUrl,
+            webhook_secret: config.webhookSecret,
+            events: config.events || [],
+          }, { status: 200 });
+        }
+
+        // Fallback to budget config for webhook_url
+        const budget = await this.getBudget(workspaceId);
+        if (budget?.webhookUrl) {
+          return Response.json({
+            ok: true,
+            webhook_url: budget.webhookUrl,
+            events: [],
+          }, { status: 200 });
+        }
+
+        return Response.json({ ok: false, error: 'not_configured' }, { status: 404 });
+      }
+
+      // ======================================================================
+      // Stats - Including cost saved metric
+      // ======================================================================
+      if (request.method === 'GET' && parts.length === 3 && parts[2] === 'stats') {
+        const stats = await this.state.storage.get<BlockedStats>(`blocked:${workspaceId}`);
+        const bal = await this.getBalance(workspaceId);
+        const sub = await this.state.storage.get<{ credits?: number }>(`sub:${workspaceId}`);
+        const maxCredits = sub?.credits ?? 25000;
+        
+        // Get usage for current month
+        const monthUsage = await this.getUsageForPeriod(workspaceId, 30);
+        
+        return Response.json({
+          ok: true,
+          workspace_id: workspaceId,
+          credits_remaining: bal.credits,
+          credits_used_this_month: monthUsage,
+          max_credits: maxCredits,
+          blocked_requests: stats?.blockedRequests ?? 0,
+          cost_saved_usd: stats?.estimatedCostSavedUsd ?? 0,
+          blocked_by_reason: stats?.blockedByReason ?? {},
+          last_blocked_at: stats?.lastBlockedAtMs ? new Date(stats.lastBlockedAtMs).toISOString() : null,
+        }, { status: 200 });
+      }
+
+      // Record a blocked request (for cost_saved tracking)
+      // ======================================================================
+      if (request.method === 'POST' && parts.length === 3 && parts[2] === 'block') {
+        const body = await request.json().catch(() => null) as { 
+          reason?: string; 
+          estimated_cost_usd?: number;
+          action?: string;
+        } | null;
+        
+        const reason = body?.reason || 'unknown';
+        const estimatedCost = body?.estimated_cost_usd ?? 0.01; // Default $0.01 per blocked request
+        
+        const existing = await this.state.storage.get<BlockedStats>(`blocked:${workspaceId}`) || {
+          workspaceId,
+          blockedRequests: 0,
+          estimatedCostSavedUsd: 0,
+          blockedByReason: {},
+          updatedAtMs: Date.now(),
+        };
+        
+        existing.blockedRequests += 1;
+        existing.estimatedCostSavedUsd += estimatedCost;
+        existing.blockedByReason[reason] = (existing.blockedByReason[reason] ?? 0) + 1;
+        existing.lastBlockedAtMs = Date.now();
+        existing.updatedAtMs = Date.now();
+        
+        await this.state.storage.put(`blocked:${workspaceId}`, existing);
+        
+        return Response.json({ 
+          ok: true, 
+          blocked_requests: existing.blockedRequests,
+          cost_saved_usd: existing.estimatedCostSavedUsd,
+        }, { status: 200 });
+      }
+
+      // Loop detection - check if action pattern is repeating too fast
+      // ======================================================================
+      if (request.method === 'POST' && parts.length === 3 && parts[2] === 'check-loop') {
+        const body = await request.json().catch(() => null) as { 
+          pattern_hash: string; // Hash of action + task context
+          window_ms?: number; // Time window (default 60s)
+          max_count?: number; // Max allowed in window (default 10)
+        } | null;
+        
+        if (!body?.pattern_hash) {
+          return new Response('invalid_request', { status: 400 });
+        }
+        
+        const windowMs = body.window_ms ?? 60000; // 60 seconds default
+        const maxCount = body.max_count ?? 10; // 10 requests per minute default
+        const nowMs = Date.now();
+        
+        // Get or create loop tracking for this pattern
+        const key = `loop:${workspaceId}:${body.pattern_hash}`;
+        const existing = await this.state.storage.get<LoopPattern>(key);
+        
+        // If pattern is old, reset it
+        if (existing && (nowMs - existing.lastSeenMs > windowMs)) {
+          await this.state.storage.delete(key);
+          const fresh: LoopPattern = {
+            hash: body.pattern_hash,
+            count: 1,
+            firstSeenMs: nowMs,
+            lastSeenMs: nowMs,
+          };
+          await this.state.storage.put(key, fresh);
+          return Response.json({ ok: true, loop_detected: false, count: 1 }, { status: 200 });
+        }
+        
+        if (!existing) {
+          const fresh: LoopPattern = {
+            hash: body.pattern_hash,
+            count: 1,
+            firstSeenMs: nowMs,
+            lastSeenMs: nowMs,
+          };
+          await this.state.storage.put(key, fresh);
+          return Response.json({ ok: true, loop_detected: false, count: 1 }, { status: 200 });
+        }
+        
+        // Increment count
+        existing.count += 1;
+        existing.lastSeenMs = nowMs;
+        await this.state.storage.put(key, existing);
+        
+        // Check if loop detected
+        const loopDetected = existing.count > maxCount;
+        
+        if (loopDetected) {
+          // Track as blocked for cost_saved metric
+          const blocked = await this.state.storage.get<BlockedStats>(`blocked:${workspaceId}`) || {
+            workspaceId,
+            blockedRequests: 0,
+            estimatedCostSavedUsd: 0,
+            blockedByReason: {},
+            updatedAtMs: nowMs,
+          };
+          blocked.blockedRequests += 1;
+          blocked.estimatedCostSavedUsd += 0.05; // Loop blocks are more valuable
+          blocked.blockedByReason['loop_detected'] = (blocked.blockedByReason['loop_detected'] ?? 0) + 1;
+          blocked.lastBlockedAtMs = nowMs;
+          blocked.updatedAtMs = nowMs;
+          await this.state.storage.put(`blocked:${workspaceId}`, blocked);
+        }
+        
+        return Response.json({ 
+          ok: true, 
+          loop_detected: loopDetected,
+          count: existing.count,
+          window_ms: windowMs,
+          max_count: maxCount,
+        }, { status: loopDetected ? 429 : 200 });
+      }
+
+      // Analytics - Usage over time
+      // ======================================================================
+      if (request.method === 'GET' && parts.length === 3 && parts[2] === 'analytics') {
+        const period = url.searchParams.get('period') || '30d';
+        
+        // Calculate date range
+        const now = new Date();
+        let days = 30;
+        if (period === '7d') days = 7;
+        else if (period === '14d') days = 14;
+        else if (period === '90d') days = 90;
+
+        const dailyData: { date: string; credits: number; actions: Record<string, number>; tools: Record<string, number> }[] = [];
+        let totalCredits = 0;
+        const allActions: Record<string, number> = {};
+        const allTools: Record<string, number> = {};
+
+        for (let i = 0; i < days; i++) {
+          const date = new Date(now);
+          date.setDate(date.getDate() - i);
+          const dateKey = date.toISOString().split('T')[0]!;
+          
+          const usage = await this.state.storage.get<UsageRecord>(`usage:${workspaceId}:${dateKey}`);
+          
+          const dayData = {
+            date: dateKey,
+            credits: usage?.credits || 0,
+            actions: usage?.actions || {},
+            tools: usage?.tools || {},
+          };
+          
+          dailyData.push(dayData);
+          totalCredits += dayData.credits;
+          
+          // Aggregate actions and tools
+          for (const [action, count] of Object.entries(dayData.actions)) {
+            allActions[action] = (allActions[action] || 0) + count;
+          }
+          for (const [tool, count] of Object.entries(dayData.tools)) {
+            allTools[tool] = (allTools[tool] || 0) + count;
+          }
+        }
+
+        return Response.json({
+          ok: true,
+          daily: dailyData.reverse(), // oldest first
+          summary: {
+            total_credits_used: totalCredits,
+            actions_by_type: allActions,
+            tools_by_name: allTools,
+            avg_daily_credits: Math.round(totalCredits / days),
+          },
+        }, { status: 200 });
+      }
+
       return new Response('method_not_allowed', { status: 405 });
+    }
+
+    // ========================================================================
+    // Projects CRUD
+    // ========================================================================
+    if (parts[0] === 'workspaces' && parts.length >= 3 && parts[2] === 'projects') {
+      const workspaceId = parts[1]!;
+      const projectId = parts[3];
+
+      // GET /workspaces/:id/projects - List projects
+      if (request.method === 'GET' && !projectId) {
+        const projectIds = await this.state.storage.get<string[]>(`projects:${workspaceId}`) || [];
+        const projects: { id: string; name: string; description?: string; createdAt: string }[] = [];
+        
+        for (const id of projectIds) {
+          const project = await this.state.storage.get<{ id: string; name: string; description?: string; createdAtMs: number }>(`project:${workspaceId}:${id}`);
+          if (project) {
+            projects.push({
+              id: project.id,
+              name: project.name,
+              description: project.description,
+              createdAt: new Date(project.createdAtMs).toISOString(),
+            });
+          }
+        }
+        
+        return Response.json({ ok: true, projects, count: projects.length }, { status: 200 });
+      }
+
+      // POST /workspaces/:id/projects - Create project
+      if (request.method === 'POST' && !projectId) {
+        const body = await request.json().catch(() => null) as { name?: string; description?: string } | null;
+        if (!body?.name) {
+          return Response.json({ ok: false, error: 'name_required' }, { status: 400 });
+        }
+
+        const id = `proj_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+        const project = {
+          id,
+          name: body.name,
+          description: body.description,
+          createdAtMs: Date.now(),
+        };
+
+        await this.state.storage.put(`project:${workspaceId}:${id}`, project);
+        
+        const projectIds = await this.state.storage.get<string[]>(`projects:${workspaceId}`) || [];
+        projectIds.push(id);
+        await this.state.storage.put(`projects:${workspaceId}`, projectIds);
+
+        return Response.json({ 
+          ok: true, 
+          project: {
+            id: project.id,
+            name: project.name,
+            description: project.description,
+            createdAt: new Date(project.createdAtMs).toISOString(),
+          },
+        }, { status: 201 });
+      }
+
+      // DELETE /workspaces/:id/projects/:projectId - Delete project
+      if (request.method === 'DELETE' && projectId) {
+        const exists = await this.state.storage.get(`project:${workspaceId}:${projectId}`);
+        if (!exists) {
+          return Response.json({ ok: false, error: 'not_found' }, { status: 404 });
+        }
+
+        await this.state.storage.delete(`project:${workspaceId}:${projectId}`);
+        
+        const projectIds = await this.state.storage.get<string[]>(`projects:${workspaceId}`) || [];
+        const filtered = projectIds.filter(id => id !== projectId);
+        await this.state.storage.put(`projects:${workspaceId}`, filtered);
+
+        return Response.json({ ok: true }, { status: 200 });
+      }
+
+      return new Response('method_not_allowed', { status: 405 });
+    }
+
+    // ========================================================================
+    // Custom Policies CRUD
+    // ========================================================================
+    if (parts[0] === 'workspaces' && parts.length >= 3 && parts[2] === 'policies') {
+      const workspaceId = parts[1]!;
+      const policyId = parts[3];
+
+      // GET /workspaces/:id/policies - List policies
+      if (request.method === 'GET' && !policyId) {
+        const policyIds = await this.state.storage.get<string[]>(`custpolicies:${workspaceId}`) || [];
+        const policies: { 
+          id: string; 
+          name: string; 
+          description?: string;
+          rules: unknown;
+          createdAt: string;
+        }[] = [];
+        
+        for (const id of policyIds) {
+          const policy = await this.state.storage.get<{ 
+            id: string; 
+            name: string; 
+            description?: string;
+            rules: unknown;
+            createdAtMs: number;
+          }>(`custpolicy:${workspaceId}:${id}`);
+          if (policy) {
+            policies.push({
+              id: policy.id,
+              name: policy.name,
+              description: policy.description,
+              rules: policy.rules,
+              createdAt: new Date(policy.createdAtMs).toISOString(),
+            });
+          }
+        }
+        
+        return Response.json({ ok: true, policies, count: policies.length }, { status: 200 });
+      }
+
+      // POST /workspaces/:id/policies - Create policy
+      if (request.method === 'POST' && !policyId) {
+        const body = await request.json().catch(() => null) as { 
+          name?: string; 
+          description?: string;
+          rules?: unknown;
+        } | null;
+        
+        if (!body?.name) {
+          return Response.json({ ok: false, error: 'name_required' }, { status: 400 });
+        }
+
+        const id = `policy_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+        const policy = {
+          id,
+          name: body.name,
+          description: body.description,
+          rules: body.rules || {},
+          createdAtMs: Date.now(),
+          updatedAtMs: Date.now(),
+        };
+
+        await this.state.storage.put(`custpolicy:${workspaceId}:${id}`, policy);
+        
+        const policyIds = await this.state.storage.get<string[]>(`custpolicies:${workspaceId}`) || [];
+        policyIds.push(id);
+        await this.state.storage.put(`custpolicies:${workspaceId}`, policyIds);
+
+        return Response.json({ 
+          ok: true, 
+          policy: {
+            id: policy.id,
+            name: policy.name,
+            description: policy.description,
+            rules: policy.rules,
+            createdAt: new Date(policy.createdAtMs).toISOString(),
+          },
+        }, { status: 201 });
+      }
+
+      // PUT /workspaces/:id/policies/:policyId - Update policy
+      if (request.method === 'PUT' && policyId) {
+        const existing = await this.state.storage.get<{ 
+          id: string; 
+          name: string; 
+          description?: string;
+          rules: unknown;
+          createdAtMs: number;
+        }>(`custpolicy:${workspaceId}:${policyId}`);
+        
+        if (!existing) {
+          return Response.json({ ok: false, error: 'not_found' }, { status: 404 });
+        }
+
+        const body = await request.json().catch(() => null) as { 
+          name?: string; 
+          description?: string;
+          rules?: unknown;
+        } | null;
+
+        const updated = {
+          ...existing,
+          name: body?.name ?? existing.name,
+          description: body?.description ?? existing.description,
+          rules: body?.rules ?? existing.rules,
+          updatedAtMs: Date.now(),
+        };
+
+        await this.state.storage.put(`custpolicy:${workspaceId}:${policyId}`, updated);
+
+        return Response.json({ 
+          ok: true, 
+          policy: {
+            id: updated.id,
+            name: updated.name,
+            description: updated.description,
+            rules: updated.rules,
+            createdAt: new Date(updated.createdAtMs).toISOString(),
+          },
+        }, { status: 200 });
+      }
+
+      // DELETE /workspaces/:id/policies/:policyId - Delete policy
+      if (request.method === 'DELETE' && policyId) {
+        const exists = await this.state.storage.get(`custpolicy:${workspaceId}:${policyId}`);
+        if (!exists) {
+          return Response.json({ ok: false, error: 'not_found' }, { status: 404 });
+        }
+
+        await this.state.storage.delete(`custpolicy:${workspaceId}:${policyId}`);
+        
+        const policyIds = await this.state.storage.get<string[]>(`custpolicies:${workspaceId}`) || [];
+        const filtered = policyIds.filter(id => id !== policyId);
+        await this.state.storage.put(`custpolicies:${workspaceId}`, filtered);
+
+        return Response.json({ ok: true }, { status: 200 });
+      }
+
+      return new Response('method_not_allowed', { status: 405 });
+    }
+
+    // ========================================================================
+    // Invoice storage for subscription flow
+    // ========================================================================
+    if (parts[0] === 'invoices') {
+      // PUT /invoices/:id - Store an invoice
+      if (request.method === 'PUT' && parts.length === 2) {
+        const invoiceId = parts[1]!;
+        const body = await request.json().catch(() => null);
+        if (!body) return new Response('invalid_request', { status: 400 });
+
+        await this.state.storage.put(`invoice:${invoiceId}`, body);
+        return Response.json({ ok: true }, { status: 200 });
+      }
+
+      // GET /invoices/:id - Retrieve an invoice
+      if (request.method === 'GET' && parts.length === 2) {
+        const invoiceId = parts[1]!;
+        const invoice = await this.state.storage.get(`invoice:${invoiceId}`);
+
+        if (!invoice) {
+          return Response.json({ ok: false, error: 'invoice_not_found' }, { status: 404 });
+        }
+
+        return Response.json({ ok: true, invoice }, { status: 200 });
+      }
+
+      // DELETE /invoices/:id - Delete an invoice (cleanup after confirmation)
+      if (request.method === 'DELETE' && parts.length === 2) {
+        const invoiceId = parts[1]!;
+        await this.state.storage.delete(`invoice:${invoiceId}`);
+        return Response.json({ ok: true }, { status: 200 });
+      }
+
+      return new Response('method_not_allowed', { status: 405 });
+    }
+
+    // ========================================================================
+    // Payment audit log - permanent record of all confirmed payments
+    // ========================================================================
+    if (parts[0] === 'payments') {
+      // POST /payments - Record a new payment
+      if (request.method === 'POST' && parts.length === 1) {
+        const body = await request.json().catch(() => null) as PaymentRecord | null;
+        if (!body || !body.txHash || !body.workspaceId) {
+          return new Response('invalid_request', { status: 400 });
+        }
+
+        const paymentId = `payment_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        const record: PaymentRecord = {
+          ...body,
+          id: paymentId,
+          createdAtMs: Date.now(),
+        };
+
+        // Store payment with multiple indexes for querying
+        await this.state.storage.put(`payment:${paymentId}`, record);
+        
+        // Index by tx hash (for dedup/lookup)
+        await this.state.storage.put(`paytx:${body.txHash.toLowerCase()}`, paymentId);
+        
+        // Index by workspace (for listing workspace payments)
+        const wsPayments = await this.state.storage.get<string[]>(`wspay:${body.workspaceId}`) || [];
+        wsPayments.push(paymentId);
+        await this.state.storage.put(`wspay:${body.workspaceId}`, wsPayments);
+
+        // Global payment list (last 1000 for admin)
+        const allPayments = await this.state.storage.get<string[]>('payments:all') || [];
+        allPayments.unshift(paymentId); // newest first
+        if (allPayments.length > 1000) allPayments.pop();
+        await this.state.storage.put('payments:all', allPayments);
+
+        return Response.json({ ok: true, payment_id: paymentId }, { status: 201 });
+      }
+
+      // GET /payments - List all payments (admin, requires secret)
+      if (request.method === 'GET' && parts.length === 1) {
+        const limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 100);
+        const allPaymentIds = await this.state.storage.get<string[]>('payments:all') || [];
+        
+        const payments: PaymentRecord[] = [];
+        for (const id of allPaymentIds.slice(0, limit)) {
+          const payment = await this.state.storage.get<PaymentRecord>(`payment:${id}`);
+          if (payment) payments.push(payment);
+        }
+
+        return Response.json({ 
+          ok: true, 
+          payments,
+          total: allPaymentIds.length,
+        }, { status: 200 });
+      }
+
+      // GET /payments/by-tx/:txHash - Get payment by transaction hash
+      if (request.method === 'GET' && parts.length === 3 && parts[1] === 'by-tx') {
+        const txHash = parts[2]!.toLowerCase();
+        const paymentId = await this.state.storage.get<string>(`paytx:${txHash}`);
+        
+        if (!paymentId) {
+          return Response.json({ ok: false, error: 'payment_not_found' }, { status: 404 });
+        }
+
+        const payment = await this.state.storage.get<PaymentRecord>(`payment:${paymentId}`);
+        return Response.json({ ok: true, payment }, { status: 200 });
+      }
+
+      // GET /payments/by-workspace/:workspaceId - Get workspace payments
+      if (request.method === 'GET' && parts.length === 3 && parts[1] === 'by-workspace') {
+        const workspaceId = parts[2]!;
+        const paymentIds = await this.state.storage.get<string[]>(`wspay:${workspaceId}`) || [];
+        
+        const payments: PaymentRecord[] = [];
+        for (const id of paymentIds) {
+          const payment = await this.state.storage.get<PaymentRecord>(`payment:${id}`);
+          if (payment) payments.push(payment);
+        }
+
+        // Sort by date, newest first
+        payments.sort((a, b) => b.confirmedAtMs - a.confirmedAtMs);
+
+        return Response.json({ ok: true, payments }, { status: 200 });
+      }
+
+      // GET /payments/stats - Get payment statistics
+      if (request.method === 'GET' && parts.length === 2 && parts[1] === 'stats') {
+        const allPaymentIds = await this.state.storage.get<string[]>('payments:all') || [];
+        
+        let totalUsdc = 0;
+        let subscriptions = 0;
+        let renewals = 0;
+        const byPlan: Record<string, number> = {};
+        const byChain: Record<string, number> = {};
+
+        for (const id of allPaymentIds) {
+          const payment = await this.state.storage.get<PaymentRecord>(`payment:${id}`);
+          if (payment) {
+            totalUsdc += payment.amountUsdc;
+            if (payment.type === 'subscription') subscriptions++;
+            if (payment.type === 'renewal') renewals++;
+            byPlan[payment.plan] = (byPlan[payment.plan] || 0) + payment.amountUsdc;
+            byChain[payment.chain] = (byChain[payment.chain] || 0) + payment.amountUsdc;
+          }
+        }
+
+        return Response.json({
+          ok: true,
+          stats: {
+            total_payments: allPaymentIds.length,
+            total_usdc: totalUsdc,
+            subscriptions,
+            renewals,
+            by_plan: byPlan,
+            by_chain: byChain,
+          },
+        }, { status: 200 });
+      }
+
+      return new Response('method_not_allowed', { status: 405 });
+    }
+
+    // GET /admin/workspaces - List all workspaces with subscription + balance
+    if (parts[0] === 'admin' && parts[1] === 'workspaces' && request.method === 'GET') {
+      const planFilter = url.searchParams.get('plan') || '';
+      const allSubs = await this.state.storage.list({ prefix: 'sub:' });
+
+      type SubRecord = {
+        plan: string;
+        credits: number;
+        expiresAtMs: number;
+        createdAtMs: number;
+        features?: Record<string, unknown> | null;
+      };
+
+      const workspaces: Array<{
+        workspace_id: string;
+        plan: string;
+        credits_remaining: number;
+        credits_allocated: number;
+        expires_at: string;
+        created_at: string;
+        is_expired: boolean;
+        has_key: boolean;
+      }> = [];
+
+      const nowMs = Date.now();
+      const planCounts: Record<string, number> = {};
+
+      for (const [key, value] of allSubs) {
+        const workspaceId = key.replace('sub:', '');
+        const sub = value as SubRecord;
+
+        planCounts[sub.plan] = (planCounts[sub.plan] || 0) + 1;
+
+        if (planFilter && sub.plan !== planFilter) continue;
+
+        const bal = await this.getBalance(workspaceId);
+        const auth = await this.getAuth(workspaceId);
+
+        workspaces.push({
+          workspace_id: workspaceId,
+          plan: sub.plan,
+          credits_remaining: bal.credits,
+          credits_allocated: sub.credits,
+          expires_at: new Date(sub.expiresAtMs).toISOString(),
+          created_at: new Date(sub.createdAtMs).toISOString(),
+          is_expired: sub.expiresAtMs < nowMs,
+          has_key: !!auth,
+        });
+      }
+
+      // Sort newest first
+      workspaces.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+      return Response.json({
+        ok: true,
+        total: workspaces.length,
+        total_all_plans: allSubs.size,
+        by_plan: planCounts,
+        workspaces,
+      }, { status: 200 });
     }
 
     return new Response('not_found', { status: 404 });

@@ -1,0 +1,297 @@
+/**
+ * Email service for ProceedGate
+ * Uses Resend API for transactional emails
+ */
+
+import type { Env } from '../types.js';
+
+interface SendEmailParams {
+  to: string;
+  subject: string;
+  html: string;
+  text?: string;
+}
+
+interface SubscriptionConfirmationParams {
+  to: string;
+  workspaceId: string;
+  apiKey: string;
+  plan: string;
+  months: number;
+  expiresAt: string;
+  totalPaid: number;
+  txHash?: string;
+}
+
+interface LowCreditsAlertParams {
+  to: string;
+  workspaceId: string;
+  creditsRemaining: number;
+  plan: string;
+}
+
+interface ExpiryWarningParams {
+  to: string;
+  workspaceId: string;
+  expiresAt: string;
+  plan: string;
+  daysLeft: number;
+}
+
+// Get Resend API key from env
+function getResendKey(env: Env): string | null {
+  // Use type assertion to access optional env vars
+  const envWithResend = env as Env & { RESEND_API_KEY?: string };
+  return envWithResend.RESEND_API_KEY || null;
+}
+
+// Send email via Resend
+async function sendEmail(env: Env, params: SendEmailParams): Promise<{ ok: boolean; error?: string }> {
+  const apiKey = getResendKey(env);
+  
+  if (!apiKey) {
+    console.log('Email not sent - RESEND_API_KEY not configured');
+    return { ok: true }; // Don't fail if email not configured
+  }
+
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: 'ProceedGate <billing@proceedgate.dev>',
+        reply_to: 'support@proceedgate.dev',
+        to: [params.to],
+        subject: params.subject,
+        html: params.html,
+        text: params.text,
+        headers: {
+          'X-Entity-Ref-ID': crypto.randomUUID(), // Unique ID to prevent threading issues
+          'List-Unsubscribe': '<mailto:unsubscribe@proceedgate.dev>',
+        },
+      }),
+    });
+
+    if (!res.ok) {
+      const error = await res.text();
+      console.error('Resend error:', error);
+      return { ok: false, error };
+    }
+
+    return { ok: true };
+  } catch (err) {
+    console.error('Email send error:', err);
+    return { ok: false, error: String(err) };
+  }
+}
+
+// Send subscription confirmation email
+export async function sendSubscriptionConfirmation(
+  env: Env,
+  params: SubscriptionConfirmationParams
+): Promise<{ ok: boolean }> {
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Subscription Confirmed - ProceedGate</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0a0f1c;">
+  <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+    <!-- Header -->
+    <div style="text-align: center; margin-bottom: 40px;">
+      <div style="display: inline-block; background: #00d4aa; width: 50px; height: 50px; border-radius: 12px; line-height: 50px; font-size: 24px;">✓</div>
+      <h1 style="color: #ffffff; margin: 20px 0 10px 0; font-size: 28px;">Payment Confirmed!</h1>
+      <p style="color: #8899aa; margin: 0;">Your ProceedGate subscription is now active</p>
+    </div>
+
+    <!-- Credentials Box -->
+    <div style="background: linear-gradient(135deg, rgba(0,212,170,0.1), rgba(0,212,170,0.05)); border: 1px solid rgba(0,212,170,0.3); border-radius: 16px; padding: 30px; margin-bottom: 30px;">
+      <h2 style="color: #00d4aa; margin: 0 0 20px 0; font-size: 18px;">🔑 Your API Credentials</h2>
+      
+      <div style="margin-bottom: 16px;">
+        <div style="color: #8899aa; font-size: 12px; margin-bottom: 4px;">Workspace ID</div>
+        <div style="color: #ffffff; font-family: monospace; font-size: 14px; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; word-break: break-all;">${params.workspaceId}</div>
+      </div>
+      
+      <div style="margin-bottom: 16px;">
+        <div style="color: #8899aa; font-size: 12px; margin-bottom: 4px;">API Key</div>
+        <div style="color: #ffffff; font-family: monospace; font-size: 14px; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; word-break: break-all;">${params.apiKey}</div>
+      </div>
+      
+      <div style="background: rgba(255,170,0,0.1); border: 1px solid rgba(255,170,0,0.3); border-radius: 8px; padding: 12px; margin-top: 20px;">
+        <div style="color: #ffaa00; font-size: 13px;">⚠️ <strong>Save your API key!</strong> It won't be shown again.</div>
+      </div>
+    </div>
+
+    <!-- Plan Details -->
+    <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 24px; margin-bottom: 30px;">
+      <h2 style="color: #ffffff; margin: 0 0 20px 0; font-size: 18px;">📋 Subscription Details</h2>
+      
+      <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+        <span style="color: #8899aa;">Plan</span>
+        <span style="color: #ffffff; font-weight: 600;">${params.plan}</span>
+      </div>
+      
+      <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+        <span style="color: #8899aa;">Period</span>
+        <span style="color: #ffffff;">${params.months} month${params.months > 1 ? 's' : ''}</span>
+      </div>
+      
+      <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+        <span style="color: #8899aa;">Amount Paid</span>
+        <span style="color: #00d4aa; font-weight: 600;">$${params.totalPaid} USDC</span>
+      </div>
+      
+      <div style="display: flex; justify-content: space-between;">
+        <span style="color: #8899aa;">Valid Until</span>
+        <span style="color: #ffffff;">${params.expiresAt}</span>
+      </div>
+    </div>
+
+    <!-- Quick Start -->
+    <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 24px; margin-bottom: 30px;">
+      <h2 style="color: #ffffff; margin: 0 0 16px 0; font-size: 18px;">🚀 Quick Start</h2>
+      
+      <div style="background: #1a1f2e; border-radius: 8px; padding: 16px; font-family: monospace; font-size: 13px; color: #00d4aa; overflow-x: auto;">
+        curl -X POST https://governor.proceedgate.dev/v1/check \\<br>
+        &nbsp;&nbsp;-H "Authorization: Bearer ${params.apiKey}" \\<br>
+        &nbsp;&nbsp;-H "Content-Type: application/json" \\<br>
+        &nbsp;&nbsp;-d '{"action": "model_call"}'
+      </div>
+    </div>
+
+    <!-- CTA Button -->
+    <div style="text-align: center; margin-bottom: 30px;">
+      <a href="https://proceedgate.dev/docs" style="display: inline-block; background: linear-gradient(135deg, #00d4aa, #00b894); color: #0a0f1c; text-decoration: none; padding: 16px 40px; border-radius: 12px; font-weight: 600; font-size: 16px;">Read Integration Guide</a>
+    </div>
+
+    <!-- Footer -->
+    <div style="text-align: center; padding-top: 30px; border-top: 1px solid rgba(255,255,255,0.1);">
+      <p style="color: #8899aa; font-size: 13px; margin: 0 0 10px 0;">Questions? Reply to this email or contact support@proceedgate.dev</p>
+      <p style="color: #556677; font-size: 12px; margin: 0;">© 2024-2026 ProceedGate. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>
+`;
+
+  const text = `
+ProceedGate - Subscription Confirmed!
+
+Your API Credentials:
+- Workspace ID: ${params.workspaceId}
+- API Key: ${params.apiKey}
+
+⚠️ Save your API key! It won't be shown again.
+
+Subscription Details:
+- Plan: ${params.plan}
+- Period: ${params.months} month(s)
+- Amount Paid: $${params.totalPaid} USDC
+- Valid Until: ${params.expiresAt}
+
+Quick Start:
+curl -X POST https://governor.proceedgate.dev/v1/check \\
+  -H "Authorization: Bearer ${params.apiKey}" \\
+  -H "Content-Type: application/json" \\
+  -d '{"action": "model_call"}'
+
+Read the full integration guide: https://proceedgate.dev/docs
+
+Questions? Contact support@proceedgate.dev
+`;
+
+  return sendEmail(env, {
+    to: params.to,
+    subject: `✅ ProceedGate ${params.plan} Subscription Confirmed`,
+    html,
+    text,
+  });
+}
+
+// Send low credits alert
+export async function sendLowCreditsAlert(
+  env: Env,
+  params: LowCreditsAlertParams
+): Promise<{ ok: boolean }> {
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Low Credits Alert - ProceedGate</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0a0f1c;">
+  <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+    <div style="text-align: center; margin-bottom: 40px;">
+      <div style="display: inline-block; background: #ffaa00; width: 50px; height: 50px; border-radius: 12px; line-height: 50px; font-size: 24px;">⚠️</div>
+      <h1 style="color: #ffffff; margin: 20px 0 10px 0; font-size: 28px;">Low Credits Alert</h1>
+      <p style="color: #8899aa; margin: 0;">Your ProceedGate workspace is running low on credits</p>
+    </div>
+
+    <div style="background: rgba(255,170,0,0.1); border: 1px solid rgba(255,170,0,0.3); border-radius: 16px; padding: 30px; margin-bottom: 30px; text-align: center;">
+      <div style="color: #ffaa00; font-size: 48px; font-weight: 700;">${params.creditsRemaining.toLocaleString()}</div>
+      <div style="color: #8899aa; font-size: 14px;">credits remaining</div>
+    </div>
+
+    <div style="text-align: center;">
+      <a href="https://proceedgate.dev/pay?plan=${params.plan.toLowerCase()}" style="display: inline-block; background: linear-gradient(135deg, #00d4aa, #00b894); color: #0a0f1c; text-decoration: none; padding: 16px 40px; border-radius: 12px; font-weight: 600; font-size: 16px;">Top Up Credits</a>
+    </div>
+  </div>
+</body>
+</html>
+`;
+
+  return sendEmail(env, {
+    to: params.to,
+    subject: `⚠️ ProceedGate: Low credits (${params.creditsRemaining.toLocaleString()} remaining)`,
+    html,
+  });
+}
+
+// Send expiry warning
+export async function sendExpiryWarning(
+  env: Env,
+  params: ExpiryWarningParams
+): Promise<{ ok: boolean }> {
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Subscription Expiring - ProceedGate</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0a0f1c;">
+  <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+    <div style="text-align: center; margin-bottom: 40px;">
+      <div style="display: inline-block; background: #ff6b6b; width: 50px; height: 50px; border-radius: 12px; line-height: 50px; font-size: 24px;">⏰</div>
+      <h1 style="color: #ffffff; margin: 20px 0 10px 0; font-size: 28px;">Subscription Expiring Soon</h1>
+      <p style="color: #8899aa; margin: 0;">Your ProceedGate ${params.plan} plan expires in ${params.daysLeft} days</p>
+    </div>
+
+    <div style="background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.3); border-radius: 16px; padding: 30px; margin-bottom: 30px; text-align: center;">
+      <div style="color: #ff6b6b; font-size: 48px; font-weight: 700;">${params.daysLeft}</div>
+      <div style="color: #8899aa; font-size: 14px;">days left</div>
+      <div style="color: #556677; font-size: 13px; margin-top: 8px;">Expires: ${params.expiresAt}</div>
+    </div>
+
+    <div style="text-align: center;">
+      <a href="https://proceedgate.dev/pay?plan=${params.plan.toLowerCase()}&renew=true" style="display: inline-block; background: linear-gradient(135deg, #00d4aa, #00b894); color: #0a0f1c; text-decoration: none; padding: 16px 40px; border-radius: 12px; font-weight: 600; font-size: 16px;">Renew Subscription</a>
+    </div>
+  </div>
+</body>
+</html>
+`;
+
+  return sendEmail(env, {
+    to: params.to,
+    subject: `⏰ ProceedGate: Subscription expires in ${params.daysLeft} days`,
+    html,
+  });
+}

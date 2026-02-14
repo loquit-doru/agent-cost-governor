@@ -13,7 +13,7 @@ const adminRoutes = new Hono<{ Bindings: Env; Variables: Vars }>();
 
 // Create workspace
 adminRoutes.post('/v1/workspaces/create', async (c) => {
-  const authErr = requireAdminAuth(c);
+  const authErr = await requireAdminAuth(c);
   if (authErr) return authErr;
 
   const body = await c.req.json().catch(() => null);
@@ -37,7 +37,7 @@ adminRoutes.post('/v1/workspaces/create', async (c) => {
 
 // Rotate workspace API key
 adminRoutes.post('/v1/workspaces/rotate_key', async (c) => {
-  const authErr = requireAdminAuth(c);
+  const authErr = await requireAdminAuth(c);
   if (authErr) return authErr;
 
   const body = await c.req.json().catch(() => null);
@@ -61,7 +61,7 @@ adminRoutes.post('/v1/workspaces/rotate_key', async (c) => {
 
 // Revoke workspace API key
 adminRoutes.post('/v1/workspaces/revoke_key', async (c) => {
-  const authErr = requireAdminAuth(c);
+  const authErr = await requireAdminAuth(c);
   if (authErr) return authErr;
 
   const body = await c.req.json().catch(() => null);
@@ -83,7 +83,7 @@ adminRoutes.post('/v1/workspaces/revoke_key', async (c) => {
 
 // Get workspace status
 adminRoutes.get('/v1/workspaces/status', async (c) => {
-  const authErr = requireAdminAuth(c);
+  const authErr = await requireAdminAuth(c);
   if (authErr) return authErr;
 
   const workspaceId = String(c.req.query('workspace_id') ?? '').trim();

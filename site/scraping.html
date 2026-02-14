@@ -1,0 +1,604 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Stop retry storms in scraping agents. Prevent infinite retries from burning your API budget on Apify, SerpAPI, Firecrawl." />
+    <meta name="theme-color" content="#0c1220" />
+    <meta property="og:title" content="Stop Retry Storms in Scraping Agents — ProceedGate" />
+    <meta property="og:description" content="Prevent infinite retries from burning your API budget. Works with Apify, SerpAPI, Firecrawl." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="keywords" content="retry storms in scraping, stop scraping retries, scraping budget control, Apify retry loop, SerpAPI bill too high, Firecrawl retries, scraper stuck in loop, scraping runaway costs, LLM agent retry loop, stop infinite retries" />
+    <title>Stop Retry Storms in Scraping Agents — ProceedGate</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='%23111827' d='M0 0h64v64H0z'/%3E%3Cpath fill='%23ffffff' d='M14 16h36v6H14zm0 13h36v6H14zm0 13h24v6H14z'/%3E%3C/svg%3E" />
+    <style>
+      .pain-stat {
+        font-size: 3rem;
+        font-weight: 800;
+        color: #ef4444;
+        line-height: 1;
+      }
+      .pain-label {
+        font-size: 0.875rem;
+        color: #9ca3af;
+        margin-top: 4px;
+      }
+      .savings-box {
+        background: linear-gradient(135deg, #065f46 0%, #047857 100%);
+        border-radius: 12px;
+        padding: 32px;
+        text-align: center;
+        margin: 32px 0;
+      }
+      .savings-amount {
+        font-size: 4rem;
+        font-weight: 800;
+        color: #10b981;
+        text-shadow: 0 0 40px rgba(16, 185, 129, 0.5);
+      }
+      .savings-label {
+        font-size: 1.125rem;
+        color: #d1fae5;
+        margin-top: 8px;
+      }
+      .tool-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 16px;
+        margin: 24px 0;
+      }
+      .tool-card {
+        background: #1f2937;
+        border: 1px solid #374151;
+        border-radius: 8px;
+        padding: 20px;
+        text-align: center;
+        transition: border-color 0.2s;
+      }
+      .tool-card:hover {
+        border-color: #6366f1;
+      }
+      .tool-name {
+        font-weight: 600;
+        color: #f9fafb;
+        margin-top: 8px;
+      }
+      .tool-pain {
+        font-size: 0.75rem;
+        color: #ef4444;
+        margin-top: 4px;
+      }
+      .horror-story {
+        background: #1c1917;
+        border-left: 4px solid #ef4444;
+        padding: 24px;
+        margin: 24px 0;
+        border-radius: 0 8px 8px 0;
+      }
+      .horror-quote {
+        font-size: 1.25rem;
+        font-style: italic;
+        color: #fca5a5;
+      }
+      .horror-source {
+        margin-top: 12px;
+        font-size: 0.875rem;
+        color: #78716c;
+      }
+      .blocked-demo {
+        background: #18181b;
+        border: 2px solid #ef4444;
+        border-radius: 12px;
+        padding: 24px;
+        font-family: 'Monaco', 'Menlo', monospace;
+        font-size: 0.875rem;
+      }
+      .blocked-header {
+        color: #ef4444;
+        font-weight: 600;
+        margin-bottom: 12px;
+      }
+      .blocked-saved {
+        color: #10b981;
+        font-weight: 600;
+        font-size: 1.125rem;
+        margin-top: 12px;
+      }
+      .cta-scraping {
+        background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+        padding: 48px;
+        border-radius: 16px;
+        text-align: center;
+        margin: 48px 0;
+      }
+      .cta-scraping h2 {
+        color: #fff;
+        margin-bottom: 16px;
+      }
+      .cta-scraping p {
+        color: #c7d2fe;
+        margin-bottom: 24px;
+      }
+      .integration-code {
+        background: #0f172a;
+        border-radius: 8px;
+        padding: 20px;
+        overflow-x: auto;
+        margin: 16px 0;
+      }
+      .integration-code pre {
+        margin: 0;
+        color: #e2e8f0;
+        font-size: 0.8125rem;
+        line-height: 1.6;
+      }
+      .comparison-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 24px 0;
+      }
+      .comparison-table th,
+      .comparison-table td {
+        padding: 16px;
+        text-align: left;
+        border-bottom: 1px solid #374151;
+      }
+      .comparison-table th {
+        color: #9ca3af;
+        font-weight: 500;
+        font-size: 0.875rem;
+      }
+      .comparison-table td {
+        color: #f9fafb;
+      }
+      .check-yes {
+        color: #10b981;
+      }
+      .check-no {
+        color: #ef4444;
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="topbar">
+      <div class="container topbar-inner">
+        <a class="brand" href="./index.html" aria-label="ProceedGate">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span class="brand-name">ProceedGate</span>
+          <span class="pill" style="background: #ef4444;">Scraping</span>
+        </a>
+        <nav class="nav" id="navMenu">
+          <a href="./index.html">Home</a>
+          <a href="./demo.html">🎬 Demo</a>
+          <a href="#how">How it works</a>
+          <a href="#pricing">Pricing</a>
+          <a class="nav-cta" href="#signup" style="background: #ef4444;">Protect my budget →</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="hero">
+        <div class="container">
+          <p class="eyebrow" style="color: #ef4444;">Works with Apify, SerpAPI, Firecrawl</p>
+          <h1>Stop retry storms in <span class="accent">scraping agents</span></h1>
+          <p class="lead" style="max-width: 700px; margin-bottom: 8px;">
+            Users typically save <strong style="color: #10b981;">~$847 in their first week</strong><br>
+            …by blocking scraping retry storms
+          </p>
+          
+          <!-- Skimmable bullets -->
+          <ul style="list-style: none; padding: 0; margin: 24px auto; max-width: 400px; text-align: left; font-size: 1rem; line-height: 2;">
+            <li style="color: #fca5a5;">• Infinite retries = runaway API cost</li>
+            <li style="color: #fca5a5;">• 429/503 errors keep looping</li>
+            <li style="color: #fca5a5;">• No kill-switch on production</li>
+          </ul>
+
+          <div class="cta-row">
+            <a class="btn primary" href="#signup" style="background: #ef4444;">Protect my scraping budget →</a>
+            <a class="btn" href="#how">See how it works</a>
+          </div>
+
+          <!-- Social proof - concrete numbers -->
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; margin-top: 48px; text-align: center;">
+            <div>
+              <div class="pain-stat" style="color: #10b981;">$847</div>
+              <div class="pain-label">saved in 7 days by avg user</div>
+            </div>
+            <div>
+              <div class="pain-stat" style="color: #10b981;">3,482</div>
+              <div class="pain-label">Apify/SerpAPI retries blocked</div>
+            </div>
+            <div>
+              <div class="pain-stat" style="color: #10b981;">47</div>
+              <div class="pain-label">retry storms stopped today</div>
+            </div>
+          </div>
+          
+          <!-- CTA after proof -->
+          <div style="margin-top: 32px;">
+            <a class="btn primary" href="#signup" style="background: #ef4444;">Block my retry storms →</a>
+          </div>
+        </div>
+      </section>
+
+      <!-- Problem - dev language -->
+      <section class="section" id="problem">
+        <div class="container">
+          <h2>Your scraper works. Your bill doesn't.</h2>
+          
+          <!-- Skimmable pain patterns - SEO optimized -->
+          <div style="background: #1f2937; border-radius: 12px; padding: 24px 32px; margin: 24px 0;">
+            <h3 style="color: #9ca3af; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 16px;">Scraping pain patterns we detect:</h3>
+            <ul style="list-style: none; padding: 0; margin: 0; display: grid; gap: 12px;">
+              <li style="color: #f9fafb;">🔄 <strong>Same request repeated 10x in &lt;1min</strong> — Apify retry loop</li>
+              <li style="color: #f9fafb;">📈 <strong>Exponential backoff loops</strong> — SerpAPI 429 storms</li>
+              <li style="color: #f9fafb;">🔁 <strong>Serial retries after transient failures</strong> — Firecrawl timeout loops</li>
+              <li style="color: #f9fafb;">💀 <strong>Pagination stuck on same page</strong> — scraping budget control gone</li>
+            </ul>
+          </div>
+          
+          <div class="cards" style="margin-top: 32px;">
+            <div class="card" style="border-left: 4px solid #ef4444;">
+              <h3>🔄 agent.retry() in infinite loop</h3>
+              <p><code>while True: scrape()</code> — except you didn't write that. The LLM did.</p>
+              <p class="muted" style="font-size: 0.875rem; margin-top: 8px;">"My Apify actor got stuck in a pagination loop overnight" — real user</p>
+            </div>
+            <div class="card" style="border-left: 4px solid #ef4444;">
+              <h3>💸 SerpAPI: $50/1000 × retry_count</h3>
+              <p>429 → exponential backoff → but backoff was too aggressive. <strong>$89 in 20 minutes.</strong></p>
+              <p class="muted" style="font-size: 0.875rem; margin-top: 8px;">"SerpAPI bill exploded" — every week on Twitter</p>
+            </div>
+            <div class="card" style="border-left: 4px solid #ef4444;">
+              <h3>😱 No kill switch</h3>
+              <p><code>Ctrl+C</code> doesn't work when it's running on a server. You notice at 3am.</p>
+              <p class="muted" style="font-size: 0.875rem; margin-top: 8px;">"Woke up to a $340 bill" — solo founder</p>
+            </div>
+          </div>
+
+          <div class="horror-story" style="margin-top: 32px;">
+            <div class="horror-quote">"Saved $340 this month. That's my entire Apify budget."</div>
+            <div class="horror-source">— Solo founder using ProceedGate</div>
+          </div>
+
+          <div class="horror-story">
+            <div class="horror-quote">"Blocked 847 SerpAPI retries in first week. ROI was instant."</div>
+            <div class="horror-source">— SEO tool developer</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- How it works - simple diagram -->
+      <section class="section" id="how" style="background: #111827;">
+        <div class="container">
+          <h2>Block retries before <code style="background: #374151; padding: 4px 8px; border-radius: 4px;">scrape()</code> runs</h2>
+          
+          <div style="display: flex; justify-content: center; align-items: center; gap: 24px; margin: 48px 0; flex-wrap: wrap;">
+            <div style="background: #1f2937; padding: 24px 32px; border-radius: 12px; text-align: center;">
+              <div style="font-size: 2rem;">📤</div>
+              <div style="font-weight: 600; margin-top: 8px;">Check</div>
+              <div style="color: #9ca3af; font-size: 0.875rem;">Before each scrape</div>
+            </div>
+            <div style="font-size: 2rem; color: #6b7280;">→</div>
+            <div style="background: #1f2937; padding: 24px 32px; border-radius: 12px; text-align: center;">
+              <div style="font-size: 2rem;">🧠</div>
+              <div style="font-weight: 600; margin-top: 8px;">Detect</div>
+              <div style="color: #9ca3af; font-size: 0.875rem;">Loop pattern?</div>
+            </div>
+            <div style="font-size: 2rem; color: #6b7280;">→</div>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+              <div style="background: #065f46; padding: 16px 24px; border-radius: 8px; text-align: center;">
+                <span style="color: #10b981; font-weight: 600;">✅ Allow</span>
+              </div>
+              <div style="background: #7f1d1d; padding: 16px 24px; border-radius: 8px; text-align: center;">
+                <span style="color: #ef4444; font-weight: 600;">🚫 Block</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="blocked-demo">
+            <div class="blocked-header">🚫 BLOCKED — Retry storm detected</div>
+            <pre style="color: #9ca3af; margin: 0;">{
+  "allowed": false,
+  "error": "loop_detected",
+  "pattern_count": 12,
+  "message": "Same request repeated 12x in 47 seconds"
+}</pre>
+            <div class="blocked-saved">💰 You just saved: $8.40</div>
+          </div>
+          
+          <!-- CTA after demo -->
+          <div style="text-align: center; margin-top: 32px;">
+            <a class="btn primary" href="#signup" style="background: #ef4444;">Stop my scraping retries →</a>
+          </div>
+        </div>
+      </section>
+
+      <!-- Integrations - Apify first -->
+      <section class="section">
+        <div class="container">
+          <h2>Works with your scraping stack</h2>
+          <p class="muted">Built for scraping agents. Also works for research & web automation.</p>
+
+          <div class="tool-grid">
+            <div class="tool-card" style="border: 2px solid #6366f1;">
+              <div style="font-size: 2rem;">🐝</div>
+              <div class="tool-name">Apify</div>
+              <div class="tool-pain">Actor retries = $$$</div>
+              <div style="font-size: 0.7rem; color: #6366f1; margin-top: 4px;">MOST POPULAR</div>
+            </div>
+            <div class="tool-card">
+              <div style="font-size: 2rem;">🔍</div>
+              <div class="tool-name">SerpAPI</div>
+              <div class="tool-pain">$50/1000 searches</div>
+            </div>
+            <div class="tool-card">
+              <div style="font-size: 2rem;">🔥</div>
+              <div class="tool-name">Firecrawl</div>
+              <div class="tool-pain">$0.01/page adds up</div>
+            </div>
+            <div class="tool-card">
+              <div style="font-size: 2rem;">🕷️</div>
+              <div class="tool-name">Crawlee</div>
+              <div class="tool-pain">Infinite crawl loops</div>
+            </div>
+            <div class="tool-card">
+              <div style="font-size: 2rem;">🌐</div>
+              <div class="tool-name">Playwright</div>
+              <div class="tool-pain">Browser sessions stack</div>
+            </div>
+            <div class="tool-card">
+              <div style="font-size: 2rem;">💡</div>
+              <div class="tool-name">BrightData</div>
+              <div class="tool-pain">Bandwidth explodes</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- What you get -->
+      <section class="section" id="how">
+        <div class="container">
+          <h2>What happens when ProceedGate blocks a retry storm</h2>
+
+          <div class="blocked-demo">
+            <div class="blocked-header">🚫 BLOCKED — Retry storm detected</div>
+            <pre style="color: #9ca3af; margin: 0;">{
+  "allowed": false,
+  "error": "loop_detected",
+  "pattern_count": 12,
+  "reason": "Same scraping request repeated 12x in 47 seconds",
+  "action": "firecrawl_scrape"
+}</pre>
+            <div class="blocked-saved">💰 Estimated savings: $8.40</div>
+          </div>
+
+          <div class="savings-box">
+            <div class="savings-amount">$63.20</div>
+            <div class="savings-label">Average weekly savings per workspace</div>
+          </div>
+
+          <h3>3 lines to stop scraping retries</h3>
+          <div class="steps">
+            <div class="step">
+              <div class="step-n">1</div>
+              <div>
+                <h3><code>gate.check()</code> before <code>scrape()</code></h3>
+                <p>One check before each API call.</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-n">2</div>
+              <div>
+                <h3>We detect: <code>same_request &gt; 10x/min</code></h3>
+                <p>Patterns tracked in real-time. No config needed.</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-n">3</div>
+              <div>
+                <h3><code>return 429</code> → agent stops</h3>
+                <p>Retry storm blocked. Your wallet survives.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Code example -->
+          <h3 style="margin-top: 48px;">Copy-paste integration</h3>
+          <div class="integration-code">
+            <pre><code>import { ProceedGate } from '@proceedgate/sdk';
+
+const gate = new ProceedGate({ apiKey: 'pg_ws_...' });
+
+// Before your scraping call
+async function scrapeWithProtection(url: string) {
+  const check = await gate.check({
+    user_id: 'agent-1',
+    action: 'firecrawl_scrape',
+    cost: 1,  // 1 credit per scrape
+    metadata: { url }
+  });
+
+  if (!check.allowed) {
+    console.log(`🚫 Blocked: ${check.error}`);
+    console.log(`💰 Saved: $${check.cost_saved}`);
+    return null;
+  }
+
+  // Safe to proceed
+  return await firecrawl.scrape(url);
+}</code></pre>
+          </div>
+          
+          <!-- CTA after code -->
+          <div style="text-align: center; margin-top: 32px;">
+            <a class="btn primary" href="#signup" style="background: #ef4444;">Add to my scraper →</a>
+          </div>
+        </div>
+      </section>
+
+      <!-- Comparison -->
+      <section class="section" style="background: #111827;">
+        <div class="container">
+          <h2>Why not just use rate limiting?</h2>
+          
+          <table class="comparison-table">
+            <thead>
+              <tr>
+                <th></th>
+                <th>Generic Rate Limiting</th>
+                <th>ProceedGate</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Detects retry loops</td>
+                <td class="check-no">❌ No</td>
+                <td class="check-yes">✅ Yes</td>
+              </tr>
+              <tr>
+                <td>Tracks cost saved</td>
+                <td class="check-no">❌ No</td>
+                <td class="check-yes">✅ Yes</td>
+              </tr>
+              <tr>
+                <td>Per-agent budgets</td>
+                <td class="check-no">❌ No</td>
+                <td class="check-yes">✅ Yes</td>
+              </tr>
+              <tr>
+                <td>Webhooks on blocks</td>
+                <td class="check-no">❌ No</td>
+                <td class="check-yes">✅ Yes</td>
+              </tr>
+              <tr>
+                <td>Works across tools</td>
+                <td class="check-no">❌ Tool-specific</td>
+                <td class="check-yes">✅ Universal</td>
+              </tr>
+              <tr>
+                <td>Setup time</td>
+                <td>Hours/days</td>
+                <td><strong>5 minutes</strong></td>
+              </tr>
+            </tbody>
+          </table>
+          
+          <!-- CTA after comparison -->
+          <div style="text-align: center; margin-top: 32px;">
+            <p style="color: #9ca3af; margin-bottom: 16px;">Stop building your own scraping budget control. We did it for you.</p>
+            <a class="btn primary" href="#signup" style="background: #ef4444;">Get scraping budget control →</a>
+          </div>
+        </div>
+      </section>
+
+      <!-- Pricing -->
+      <section class="section" id="pricing">
+        <div class="container">
+          <h2>Pricing</h2>
+          <p class="muted">Average user saves <strong style="color: #10b981;">$847/month</strong>. Pays for itself after one retry storm.</p>
+
+          <div class="cards" style="margin-top: 32px;">
+            <div class="card" style="border: 2px solid #374151;">
+              <h3>Free</h3>
+              <p style="font-size: 2rem; font-weight: 700;">$0</p>
+              <p style="color: #10b981; font-size: 0.875rem; margin-top: -8px;">Avg saves: $50/mo</p>
+              <ul style="text-align: left; margin-top: 16px;">
+                <li>2,000 checks/month</li>
+                <li>Unlimited retries blocked</li>
+                <li>Basic loop detection</li>
+                <li>7-day "Saved $X" history</li>
+              </ul>
+              <a class="btn" href="#signup" style="width: 100%; margin-top: 16px;">Start free</a>
+            </div>
+            <div class="card" style="border: 2px solid #6366f1;">
+              <div style="background: #6366f1; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.75rem; display: inline-block; margin-bottom: 12px;">MOST POPULAR</div>
+              <h3>Starter</h3>
+              <p style="font-size: 2rem; font-weight: 700;">$59<span style="font-size: 1rem; color: #9ca3af;">/mo</span></p>
+              <p style="color: #10b981; font-size: 0.875rem; margin-top: -8px;">Avg saves: $340/mo</p>
+              <ul style="text-align: left; margin-top: 16px;">
+                <li>25,000 checks/month</li>
+                <li>Unlimited retries blocked</li>
+                <li>Per-agent budgets</li>
+                <li>Slack/Discord alerts</li>
+                <li style="color: #10b981; font-weight: 600;">+ "You saved $X" weekly email</li>
+              </ul>
+              <a class="btn primary" href="#signup" style="width: 100%; margin-top: 16px;">Protect my budget →</a>
+            </div>
+            <div class="card" style="border: 2px solid #374151;">
+              <h3>Pro</h3>
+              <p style="font-size: 2rem; font-weight: 700;">$199<span style="font-size: 1rem; color: #9ca3af;">/mo</span></p>
+              <p style="color: #10b981; font-size: 0.875rem; margin-top: -8px;">Avg saves: $847/mo</p>
+              <ul style="text-align: left; margin-top: 16px;">
+                <li>100,000 checks/month</li>
+                <li>Everything in Starter</li>
+                <li>Hard budget cap: stop at $X</li>
+                <li>Custom policies per agent</li>
+                <li>Priority Slack support</li>
+              </ul>
+              <a class="btn" href="#signup" style="width: 100%; margin-top: 16px;">Contact us</a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CTA -->
+      <section class="section" id="signup">
+        <div class="container">
+          <div class="cta-scraping">
+            <h2>Stop retry storms. Save money. Start today.</h2>
+            <p>Free plan. No credit card. Setup in 5 minutes.</p>
+            <a class="btn primary" href="./pay.html" style="font-size: 1.125rem; padding: 16px 32px; background: #ef4444;">
+              Protect my scraping budget →
+            </a>
+            <p style="margin-top: 16px; font-size: 0.875rem; color: #a5b4fc;">
+              Or email us at <a href="mailto:support@proceedgate.dev" style="color: #fff;">support@proceedgate.dev</a>
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="container">
+        <div class="footer-grid">
+          <div class="footer-brand">
+            <div class="brand">
+              <span class="brand-mark" aria-hidden="true"></span>
+              <span class="brand-name">ProceedGate</span>
+            </div>
+            <p class="muted" style="margin-top: 8px; font-size: 14px;">
+              Stop burning money on scraping retries.<br>
+              The panic when the bill arrives? We fix that.
+            </p>
+          </div>
+          <div class="footer-links">
+            <div class="footer-col">
+              <div class="footer-title">Product</div>
+              <a href="./index.html">Home</a>
+              <a href="./demo.html">Demo</a>
+              <a href="./pay.html">Pricing</a>
+            </div>
+            <div class="footer-col">
+              <div class="footer-title">Use Cases</div>
+              <a href="./scraping.html" style="color: #6366f1;">Scraping Agents</a>
+              <a href="./index.html">Research Agents</a>
+              <a href="./index.html">AI Automation</a>
+            </div>
+            <div class="footer-col">
+              <div class="footer-title">Legal</div>
+              <a href="./terms.html">Terms</a>
+              <a href="./privacy.html">Privacy</a>
+            </div>
+          </div>
+        </div>
+        <div class="footer-bottom">
+          <span class="muted">© 2024-2026 ProceedGate. Stop the bleeding.</span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

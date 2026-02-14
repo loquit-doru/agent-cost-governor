@@ -57,6 +57,16 @@ x-admin-key: {{adminKey}}
 GET {{baseUrl}}/v1/workspaces/status?workspace_id={{workspaceId}}
 x-admin-key: {{adminKey}}
 
+@adminSecret = PASTE_ADMIN_SECRET_HERE
+
+### Admin: list all workspaces (all plans)
+GET {{baseUrl}}/v1/admin/workspaces
+X-Admin-Secret: {{adminSecret}}
+
+### Admin: list only Free plan workspaces
+GET {{baseUrl}}/v1/admin/workspaces?plan=free
+X-Admin-Secret: {{adminSecret}}
+
 ### Redeem a quote after paying USDC on Base
 ### 1) Paste quote_id from the quote response
 ### 2) Paste tx_hash from your wallet (Base mainnet)

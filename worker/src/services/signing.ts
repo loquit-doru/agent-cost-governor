@@ -60,6 +60,9 @@ export async function getOrCreateSigningKey(
   }
 
   // Generate ephemeral key for development
+  // ⚠️ WARNING: Tokens signed with ephemeral keys become invalid on worker restart
+  console.warn('⚠️ SECURITY: Using ephemeral signing key. Set GOVERNOR_SIGNING_JWK for production.');
+  
   const generated = await crypto.subtle.generateKey(
     {
       name: 'ECDSA',

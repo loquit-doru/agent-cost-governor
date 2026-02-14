@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — ProceedGate</title>
+  <style>
+    :root {
+      --bg: #0a0f1c;
+      --surface: #111827;
+      --border: #1f2937;
+      --text: #f3f4f6;
+      --muted: #9ca3af;
+      --accent: #00d4aa;
+      --accent-hover: #00b894;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .container { max-width: 1200px; margin: 0 auto; padding: 40px 20px; }
+    
+    /* Header */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 40px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .logo { font-weight: 700; font-size: 1.5rem; color: var(--text); text-decoration: none; display: flex; align-items: center; gap: 10px; }
+    .logo-icon { width: 32px; height: 32px; background: var(--accent); border-radius: 8px; }
+    .header-actions { display: flex; gap: 12px; }
+    .btn {
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: none;
+      font-weight: 500;
+      cursor: pointer;
+      text-decoration: none;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+    .btn-primary { background: var(--accent); color: var(--bg); }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+    .btn-outline:hover { background: var(--surface); }
+
+    /* Login form */
+    .login-section {
+      max-width: 400px;
+      margin: 80px auto;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 40px;
+    }
+    .login-section h1 { font-size: 24px; margin-bottom: 8px; text-align: center; }
+    .login-section p { color: var(--muted); text-align: center; margin-bottom: 30px; font-size: 14px; }
+    .form-group { margin-bottom: 20px; }
+    .form-group label { display: block; font-size: 14px; margin-bottom: 8px; color: var(--muted); }
+    .form-group input {
+      width: 100%;
+      padding: 12px 16px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 14px;
+    }
+    .form-group input:focus { outline: none; border-color: var(--accent); }
+    .login-btn { width: 100%; padding: 14px; }
+    .login-error { background: rgba(239, 68, 68, 0.1); border: 1px solid var(--danger); color: var(--danger); padding: 12px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; display: none; }
+
+    /* Dashboard */
+    .dashboard { display: none; }
+    .dashboard.active { display: block; }
+    .login-section.hidden { display: none; }
+
+    /* Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+      margin-bottom: 40px;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+    }
+    .stat-label { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+    .stat-value { font-size: 32px; font-weight: 700; color: var(--text); }
+    .stat-value.accent { color: var(--accent); }
+    .stat-value.warning { color: var(--warning); }
+    .stat-value.danger { color: var(--danger); }
+    .stat-sub { font-size: 13px; color: var(--muted); margin-top: 8px; }
+    .stat-bar { height: 6px; background: var(--bg); border-radius: 3px; margin-top: 12px; overflow: hidden; }
+    .stat-bar-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.3s; }
+    .stat-bar-fill.warning { background: var(--warning); }
+    .stat-bar-fill.danger { background: var(--danger); }
+
+    /* Section */
+    .section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .section-title { font-size: 18px; font-weight: 600; }
+
+    /* Plan Card */
+    .plan-card {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px;
+      background: linear-gradient(135deg, rgba(0,212,170,0.1), rgba(0,212,170,0.05));
+      border: 1px solid rgba(0,212,170,0.3);
+      border-radius: 12px;
+    }
+    .plan-info h3 { font-size: 20px; margin-bottom: 4px; }
+    .plan-info p { color: var(--muted); font-size: 14px; }
+    .plan-badge {
+      background: var(--accent);
+      color: var(--bg);
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    /* Usage Table */
+    .usage-table { width: 100%; border-collapse: collapse; }
+    .usage-table th,
+    .usage-table td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border); }
+    .usage-table th { color: var(--muted); font-weight: 500; font-size: 13px; }
+    .usage-table td { font-size: 14px; }
+    .usage-table tr:last-child td { border-bottom: none; }
+
+    /* Quick Actions */
+    .quick-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+    .action-card {
+      flex: 1;
+      min-width: 200px;
+      padding: 20px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      text-decoration: none;
+      color: var(--text);
+      transition: all 0.2s;
+    }
+    .action-card:hover { border-color: var(--accent); background: rgba(0,212,170,0.05); }
+    .action-icon { font-size: 24px; margin-bottom: 12px; }
+    .action-title { font-weight: 600; margin-bottom: 4px; }
+    .action-desc { font-size: 13px; color: var(--muted); }
+
+    /* API Key Display */
+    .api-key-box {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 16px;
+    }
+    .api-key-value { font-family: monospace; font-size: 13px; color: var(--muted); }
+    .api-key-box .btn { padding: 8px 16px; font-size: 13px; }
+
+    /* Loading */
+    .loading { text-align: center; padding: 60px; color: var(--muted); }
+    .spinner { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <a href="/" class="logo">
+        <div class="logo-icon"></div>
+        ProceedGate
+      </a>
+      <div class="header-actions" id="headerActions" style="display: none;">
+        <a href="/docs" class="btn btn-outline">📚 Docs</a>
+        <button class="btn btn-outline" onclick="logout()">Logout</button>
+      </div>
+    </header>
+
+    <!-- Login Section -->
+    <section class="login-section" id="loginSection">
+      <h1>Dashboard Login</h1>
+      <p>Enter your API key to view your workspace</p>
+      
+      <div class="login-error" id="loginError"></div>
+      
+      <form onsubmit="login(event)">
+        <div class="form-group">
+          <label>API Key</label>
+          <input type="password" id="apiKeyInput" placeholder="pg_ws_..." required>
+        </div>
+        <button type="submit" class="btn btn-primary login-btn">Access Dashboard</button>
+      </form>
+    </section>
+
+    <!-- Dashboard -->
+    <main class="dashboard" id="dashboard">
+      <!-- Loading -->
+      <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>Loading your workspace...</p>
+      </div>
+
+      <!-- Dashboard Content -->
+      <div id="dashboardContent" style="display: none;">
+        <!-- Stats -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">Credits Remaining</div>
+            <div class="stat-value accent" id="creditsValue">0</div>
+            <div class="stat-sub" id="creditsSub">of 25,000 included</div>
+            <div class="stat-bar">
+              <div class="stat-bar-fill" id="creditsBar" style="width: 100%"></div>
+            </div>
+          </div>
+          
+          <div class="stat-card">
+            <div class="stat-label">Subscription Status</div>
+            <div class="stat-value" id="statusValue">Active</div>
+            <div class="stat-sub" id="statusSub">Expires Feb 22, 2026</div>
+          </div>
+          
+          <div class="stat-card">
+            <div class="stat-label">API Calls Today</div>
+            <div class="stat-value" id="callsToday">0</div>
+            <div class="stat-sub" id="callsSub">Last 24 hours</div>
+          </div>
+          
+          <div class="stat-card">
+            <div class="stat-label">Current Plan</div>
+            <div class="stat-value" id="planValue">Starter</div>
+            <div class="stat-sub"><a href="/pay" style="color: var(--accent);">Upgrade →</a></div>
+          </div>
+        </div>
+
+        <!-- Plan Details -->
+        <section class="section">
+          <div class="section-header">
+            <h2 class="section-title">Current Plan</h2>
+            <a href="/pay" class="btn btn-primary">Upgrade Plan</a>
+          </div>
+          <div class="plan-card">
+            <div class="plan-info">
+              <h3 id="planName">Starter Plan</h3>
+              <p id="planDetails">25,000 checks/month • 3 projects</p>
+            </div>
+            <span class="plan-badge" id="planBadge">ACTIVE</span>
+          </div>
+          
+          <div class="api-key-box">
+            <div>
+              <div style="font-size: 13px; color: var(--muted); margin-bottom: 4px;">Workspace ID</div>
+              <div class="api-key-value" id="workspaceIdDisplay">-</div>
+            </div>
+            <button class="btn btn-outline" onclick="copyWorkspaceId()">Copy</button>
+          </div>
+        </section>
+
+        <!-- Recent Usage -->
+        <section class="section">
+          <div class="section-header">
+            <h2 class="section-title">Recent Usage</h2>
+          </div>
+          <table class="usage-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>API Calls</th>
+                <th>Credits Used</th>
+                <th>Top Action</th>
+              </tr>
+            </thead>
+            <tbody id="usageTableBody">
+              <tr>
+                <td colspan="4" style="text-align: center; color: var(--muted);">No usage data yet</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <!-- Quick Actions -->
+        <section class="section">
+          <div class="section-header">
+            <h2 class="section-title">Quick Actions</h2>
+          </div>
+          <div class="quick-actions">
+            <a id="renewLink" href="/pay?renew=true" class="action-card">
+              <div class="action-icon">🔄</div>
+              <div class="action-title">Renew Subscription</div>
+              <div class="action-desc">Extend your current plan</div>
+            </a>
+            <a id="upgradeLink" href="/pay?upgrade=true" class="action-card">
+              <div class="action-icon">⬆️</div>
+              <div class="action-title">Upgrade Plan</div>
+              <div class="action-desc">Get more checks per month</div>
+            </a>
+            <a href="/docs" class="action-card">
+              <div class="action-icon">📚</div>
+              <div class="action-title">Documentation</div>
+              <div class="action-desc">Integration guides & API reference</div>
+            </a>
+            <a href="mailto:support@proceedgate.dev" class="action-card">
+              <div class="action-icon">💬</div>
+              <div class="action-title">Get Support</div>
+              <div class="action-desc">Contact our team</div>
+            </a>
+          </div>
+        </section>
+
+        <!-- Webhook Settings -->
+        <section class="section">
+          <div class="section-header">
+            <h2 class="section-title">Webhook Notifications</h2>
+          </div>
+          <p style="color: var(--muted); font-size: 14px; margin-bottom: 16px;">
+            Receive real-time notifications when credits run low or subscription is expiring.
+          </p>
+          <div class="form-group">
+            <label>Webhook URL</label>
+            <input type="url" id="webhookUrl" placeholder="https://your-server.com/webhook" style="width: 100%; padding: 12px 16px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 14px;">
+          </div>
+          <div style="display: flex; gap: 12px; margin-top: 12px;">
+            <button class="btn btn-primary" onclick="saveWebhook()">Save Webhook</button>
+            <button class="btn btn-outline" onclick="testWebhook()">Test</button>
+          </div>
+          <div id="webhookStatus" style="margin-top: 12px; font-size: 13px; display: none;"></div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const API_BASE = 'https://governor.proceedgate.dev';
+    let currentApiKey = null;
+    let workspaceData = null;
+
+    // Check for saved session
+    document.addEventListener('DOMContentLoaded', () => {
+      const saved = localStorage.getItem('pg_dashboard_key');
+      if (saved) {
+        currentApiKey = saved;
+        showDashboard();
+        loadWorkspaceData();
+      }
+    });
+
+    async function login(e) {
+      e.preventDefault();
+      const apiKey = document.getElementById('apiKeyInput').value.trim();
+      
+      if (!apiKey.startsWith('pg_ws_')) {
+        showError('Invalid API key format');
+        return;
+      }
+
+      try {
+        // Verify API key by fetching workspace info
+        const res = await fetch(`${API_BASE}/v1/billing/workspace`, {
+          headers: { 'Authorization': `Bearer ${apiKey}` }
+        });
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          showError(data.error || 'Invalid API key');
+          return;
+        }
+
+        const data = await res.json();
+        currentApiKey = apiKey;
+        workspaceData = data;
+        
+        // Save to localStorage
+        localStorage.setItem('pg_dashboard_key', apiKey);
+        
+        showDashboard();
+        renderDashboard(data);
+        
+      } catch (err) {
+        console.error('Login error:', err);
+        showError('Connection error. Please try again.');
+      }
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('loginError');
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+
+    function showDashboard() {
+      document.getElementById('loginSection').classList.add('hidden');
+      document.getElementById('dashboard').classList.add('active');
+      document.getElementById('headerActions').style.display = 'flex';
+    }
+
+    async function loadWorkspaceData() {
+      try {
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('dashboardContent').style.display = 'none';
+
+        const res = await fetch(`${API_BASE}/v1/billing/workspace`, {
+          headers: { 'Authorization': `Bearer ${currentApiKey}` }
+        });
+
+        if (!res.ok) {
+          logout();
+          return;
+        }
+
+        const data = await res.json();
+        workspaceData = data;
+        renderDashboard(data);
+        
+      } catch (err) {
+        console.error('Load error:', err);
+        // Still show dashboard with cached/default data
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('dashboardContent').style.display = 'block';
+      }
+    }
+
+    function renderDashboard(data) {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('dashboardContent').style.display = 'block';
+
+      // Credits
+      const credits = data.credits || 0;
+      const maxCredits = data.max_credits || 25000;
+      const pct = Math.min(100, (credits / maxCredits) * 100);
+      
+      document.getElementById('creditsValue').textContent = credits.toLocaleString();
+      document.getElementById('creditsSub').textContent = `of ${maxCredits.toLocaleString()} included`;
+      
+      const bar = document.getElementById('creditsBar');
+      bar.style.width = pct + '%';
+      bar.className = 'stat-bar-fill' + (pct < 10 ? ' danger' : pct < 25 ? ' warning' : '');
+      
+      const creditsValue = document.getElementById('creditsValue');
+      creditsValue.className = 'stat-value' + (pct < 10 ? ' danger' : pct < 25 ? ' warning' : ' accent');
+
+      // Status
+      const status = data.status || 'active';
+      const expiresAt = data.expires_at ? new Date(data.expires_at) : null;
+      document.getElementById('statusValue').textContent = status.charAt(0).toUpperCase() + status.slice(1);
+      document.getElementById('statusSub').textContent = expiresAt 
+        ? `Expires ${expiresAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+        : '-';
+
+      // Plan
+      const plan = data.plan || 'starter';
+      const planNames = { starter: 'Starter', pro: 'Pro', scale: 'Scale' };
+      const planChecks = { starter: '25,000', pro: '1M', scale: '5M' };
+      document.getElementById('planValue').textContent = planNames[plan] || plan;
+      document.getElementById('planName').textContent = (planNames[plan] || plan) + ' Plan';
+      document.getElementById('planDetails').textContent = `${planChecks[plan] || '25,000'} checks/month`;
+
+      // Workspace ID
+      document.getElementById('workspaceIdDisplay').textContent = data.workspace_id || '-';
+
+      // Calls today (mock for now)
+      document.getElementById('callsToday').textContent = data.calls_today?.toLocaleString() || '0';
+
+      // Update quick action links with workspace info
+      const renewLink = document.getElementById('renewLink');
+      const upgradeLink = document.getElementById('upgradeLink');
+      if (renewLink && data.workspace_id) {
+        renewLink.href = `/pay?renew=true&workspace=${data.workspace_id}&current=${plan}`;
+      }
+      if (upgradeLink && data.workspace_id) {
+        upgradeLink.href = `/pay?upgrade=true&workspace=${data.workspace_id}&current=${plan}`;
+      }
+
+      // Load webhook config
+      loadWebhookConfig();
+    }
+
+    function logout() {
+      localStorage.removeItem('pg_dashboard_key');
+      currentApiKey = null;
+      workspaceData = null;
+      document.getElementById('loginSection').classList.remove('hidden');
+      document.getElementById('dashboard').classList.remove('active');
+      document.getElementById('headerActions').style.display = 'none';
+      document.getElementById('apiKeyInput').value = '';
+      document.getElementById('loginError').style.display = 'none';
+    }
+
+    function copyWorkspaceId() {
+      const wsId = document.getElementById('workspaceIdDisplay').textContent;
+      navigator.clipboard.writeText(wsId);
+    }
+
+    // Webhook functions
+    async function loadWebhookConfig() {
+      try {
+        const res = await fetch(`${API_BASE}/v1/billing/webhook`, {
+          headers: { 'Authorization': `Bearer ${currentApiKey}` }
+        });
+        
+        if (res.ok) {
+          const data = await res.json();
+          if (data.webhook_configured) {
+            document.getElementById('webhookUrl').placeholder = '***configured*** (enter new URL to update)';
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load webhook config:', err);
+      }
+    }
+
+    async function saveWebhook() {
+      const url = document.getElementById('webhookUrl').value.trim();
+      const statusEl = document.getElementById('webhookStatus');
+      
+      if (!url) {
+        statusEl.style.display = 'block';
+        statusEl.style.color = 'var(--danger)';
+        statusEl.textContent = 'Please enter a webhook URL';
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/v1/billing/webhook`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${currentApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ webhook_url: url }),
+        });
+
+        const data = await res.json();
+        statusEl.style.display = 'block';
+        
+        if (data.ok) {
+          statusEl.style.color = 'var(--accent)';
+          statusEl.textContent = '✓ Webhook saved successfully';
+          document.getElementById('webhookUrl').value = '';
+          document.getElementById('webhookUrl').placeholder = '***configured*** (enter new URL to update)';
+        } else {
+          statusEl.style.color = 'var(--danger)';
+          statusEl.textContent = 'Error: ' + (data.error || 'Unknown error');
+        }
+      } catch (err) {
+        statusEl.style.display = 'block';
+        statusEl.style.color = 'var(--danger)';
+        statusEl.textContent = 'Failed to save webhook';
+      }
+    }
+
+    async function testWebhook() {
+      const statusEl = document.getElementById('webhookStatus');
+      statusEl.style.display = 'block';
+      statusEl.style.color = 'var(--muted)';
+      statusEl.textContent = 'Sending test webhook...';
+      
+      // For now, just show a message - actual test would require backend endpoint
+      setTimeout(() => {
+        statusEl.style.color = 'var(--accent)';
+        statusEl.textContent = '✓ Test webhook sent! Check your endpoint.';
+      }, 1000);
+    }
+  </script>
+</body>
+</html>

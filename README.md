@@ -176,6 +176,25 @@ Note: There is also an optional manual-only GitHub Pages workflow for previewing
 - Observability (logs/headers/metrics): `OBSERVABILITY.md`
 - Operations (tail + metrics queries): `OPERATIONS.md`
 - Buyer-friendly technical summary: `ONE_PAGER.md`
+- Competition runbook: `HACKATHON.md`
+- Submission checklist: `HACKATHON_SUBMISSION_CHECKLIST.md`
+- AI usage log: `AI_BUILD_LOG.md`
+- OpenClaw setup: `OPENCLAW_SETUP.md`
+
+## OpenClaw Competition Mode
+
+ProceedGate is adapted for OpenClaw as an **Onchain Cost Governor Agent**.
+
+- Primary track: `Agent`
+- Non-stub proof flow: `npm run demo:hackathon:proof`
+- OpenClaw assets: `openclaw/`
+- OpenClaw skill package: `skills/onchain-cost-governor/`
+- Onchain contract package: `contracts/`
+
+Required env for proof command:
+
+- `HACKATHON_API_ADMIN_KEY`
+- Optional overrides: `HACKATHON_BASE_URL`, `HACKATHON_TX_HASH`, `HACKATHON_WORKSPACE_ID`
 
 ## Licensing
 

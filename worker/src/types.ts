@@ -19,6 +19,10 @@ export type Env = {
   // Minimal onchain verifier inputs (used by the built-in facilitator endpoint)
   BASE_RPC_URL?: string;
   BASE_USDC_ADDRESS?: string;
+  BSC_RPC_URL?: string;
+  BSC_USDC_ADDRESS?: string;
+  OPBNB_RPC_URL?: string;
+  OPBNB_USDC_ADDRESS?: string;
 
   // Signing key: P-256 private JWK JSON string (stored as secret in prod)
   GOVERNOR_SIGNING_JWK?: string;
@@ -74,6 +78,7 @@ export type Env = {
 
 export type Vars = {
   workspaceId?: string;
+  requestId?: string;  // Unique request ID for log correlation
   rateLimit?: {
     remaining: number;
     reset: number;

@@ -33,5 +33,6 @@ What it does:
 
 ## Notes
 
-- This uses `PAYMENT_VERIFY_MODE=stub`, so any `x402-tx-hash` is accepted.
+- This uses `PAYMENT_VERIFY_MODE=facilitator` with `FACILITATOR_URL=internal`.
+- In local demos, stub hashes are accepted only when `ALLOW_STUB_TX=true`.
 - If port `8787` is already in use, stop the other process first.
