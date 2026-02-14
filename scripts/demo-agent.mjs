@@ -140,6 +140,8 @@ const EXCHANGES = {
     coin: "AVAX",
     url: "https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest?symbol=AVAX&convert=USD",
     // 🐛 No API key → real 401 Unauthorized! Exactly like expired keys in production.
+    // Fallback: if CMC ever stops returning 401, force the error for demo consistency.
+    mustFail: true,
     parse: (json) => json.data.AVAX.quote.USD.price,
   },
   coinpaprika: {
@@ -184,6 +186,12 @@ async function scrapeExchange(exchange) {
 
   const json = await res.json();
   const price = ex.parse(json);
+
+  // Safety: if this exchange must fail for demo purposes but somehow succeeded,
+  // force the error (CMC should never succeed without API key, but just in case)
+  if (ex.mustFail) {
+    throw new Error(`401 Unauthorized — API key expired (forced fallback)`);
+  }
 
   return {
     exchange: ex.name,
