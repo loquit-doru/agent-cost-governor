@@ -30,6 +30,16 @@ const GOVERNOR_URL = `http://127.0.0.1:${PORT}`;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const USE_REAL_LLM = Boolean(OPENAI_API_KEY);
 
+// ─── OpenClaw Skill ───────────────────────────────────────────────────────────
+// Agent loads its behavior from an OpenClaw AgentSkill file (SKILL.md).
+const SKILL_PATH = new URL("../skills/onchain-cost-governor/SKILL.md", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
+let SKILL_PROMPT = "";
+try {
+  const raw = readFileSync(SKILL_PATH, "utf-8");
+  // Strip YAML frontmatter, keep the instructions
+  SKILL_PROMPT = raw.replace(/^---[\s\S]*?---\n*/m, "").trim();
+} catch { /* skill file not found — OK, use hardcoded fallback */ }
+
 // ─── ANSI ─────────────────────────────────────────────────────────────────────
 const c = {
   reset: "\x1b[0m", bold: "\x1b[1m", dim: "\x1b[2m", italic: "\x1b[3m",
@@ -143,7 +153,7 @@ class MockLLM {
     // Planning phase
     if (context.type === "plan") {
       return {
-        reasoning: "I need to scrape current crypto prices from multiple exchanges for price comparison. I'll check 5 exchanges for different coins to build a comprehensive snapshot.",
+        reasoning: `Loaded OpenClaw skill "onchain-cost-governor" — I must gate every expensive action through ProceedGate before executing. Planning 5 exchange scrapes with cost governance.`,
         plan: [
           { exchange: "coingecko",     coin: "BTC", reason: "CoinGecko is the most reliable free API for BTC" },
           { exchange: "binance",       coin: "ETH", reason: "Binance has the highest volume for ETH" },
@@ -215,15 +225,11 @@ class RealLLM {
   async reason(context) {
     this.callCount++;
 
-    const systemPrompt = `You are a crypto price scraping agent. You make decisions about:
-- Which exchanges/coins to scrape
-- Whether to retry on errors
-- When to stop retrying (especially when ProceedGate applies friction)
-
-IMPORTANT: When ProceedGate applies friction (402 status with a price), it means you're in a retry loop.
-If the price exceeds $0.10, you MUST stop retrying — the cost outweighs the value.
-
-Always respond in JSON with: { "reasoning": "...", "action": "retry|skip|continue", "plan": [...] }`;
+    // Use OpenClaw SKILL.md as the system prompt (real integration)
+    const skillContext = SKILL_PROMPT
+      ? `${SKILL_PROMPT}\n\n## Agent Role\nYou are a crypto price scraping agent. Respond in JSON: { "reasoning": "...", "action": "retry|skip|continue", "plan": [...] }`
+      : `You are a crypto price scraping agent with ProceedGate cost governance.\nAlways respond in JSON: { "reasoning": "...", "action": "retry|skip|continue", "plan": [...] }`;
+    const systemPrompt = skillContext;
 
     const userPrompt = JSON.stringify(context);
 
@@ -563,6 +569,7 @@ async function main() {
   console.log(`  ${c.bold}An autonomous AI agent that scrapes crypto prices,${c.reset}`);
   console.log(`  ${c.bold}protected by ProceedGate cost governance.${c.reset}\n`);
   console.log(`  ${c.dim}LLM: ${USE_REAL_LLM ? "OpenAI GPT-4o-mini (real)" : "Mock LLM (deterministic demo)"}${c.reset}`);
+  console.log(`  ${c.dim}Skill: ${SKILL_PROMPT ? "skills/onchain-cost-governor/SKILL.md (OpenClaw)" : "hardcoded fallback"}${c.reset}`);
   console.log(`  ${c.dim}Onchain: BSC Testnet (chain 97) — real signed transactions${c.reset}`);
   console.log(`  ${c.dim}Good Vibes Only: OpenClaw Edition · Track: Agent${c.reset}`);
   console.log(`  ${c.dim}github.com/loquit-doru/agent-cost-governor${c.reset}\n`);
@@ -617,6 +624,15 @@ async function main() {
       ok(`BSC Testnet — real transactions will be signed and broadcast`);
     } else {
       warn(`No wallet configured — using stub tx hashes (set AGENT_WALLET_KEY or add .secrets/bsc-testnet-deployer.json)`);
+    }
+    await sleep(400);
+
+    // ── Load OpenClaw Skill ──
+    if (SKILL_PROMPT) {
+      ok(`OpenClaw skill loaded: ${c.cyan}onchain-cost-governor${c.reset} (${SKILL_PROMPT.length} chars)`);
+      info(`Agent behavior defined by ${c.bold}skills/onchain-cost-governor/SKILL.md${c.reset}`);
+    } else {
+      warn("OpenClaw SKILL.md not found — using hardcoded behavior");
     }
     await sleep(400);
 
