@@ -180,6 +180,11 @@ Note: There is also an optional manual-only GitHub Pages workflow for previewing
 - Submission checklist: `HACKATHON_SUBMISSION_CHECKLIST.md`
 - AI usage log: `AI_BUILD_LOG.md`
 - OpenClaw setup: `OPENCLAW_SETUP.md`
+- Judge package (starter-kit style):
+  - `docs/PROJECT.md`
+  - `docs/TECHNICAL.md`
+  - `docs/EXTRAS.md`
+  - `bsc.address`
 
 ## OpenClaw Competition Mode
 

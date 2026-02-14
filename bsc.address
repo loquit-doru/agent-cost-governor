@@ -1,0 +1,18 @@
+# BNB Chain deployment references (judge-friendly)
+
+## Project: ProceedGate (Agent Cost Governor)
+
+### Governor proof tx (BSC)
+- tx_hash: 0xd97039268c048cafd45c0f3b870111b1dcd22f3fdfd62a47e75ae843eb13b548
+- explorer: https://bscscan.com/tx/0xd97039268c048cafd45c0f3b870111b1dcd22f3fdfd62a47e75ae843eb13b548
+
+### Contract deployment (BSC Testnet)
+- contract_name: AICostGovernor
+- contract_address: 0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA
+- deploy_tx_hash: 0x0c695608865e5cad89d9b86d0041c3ca1caf142da77cbcb08febc682567c91a7
+- explorer_contract: https://testnet.bscscan.com/address/0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA
+- explorer_tx: https://testnet.bscscan.com/tx/0x0c695608865e5cad89d9b86d0041c3ca1caf142da77cbcb08febc682567c91a7
+
+## Notes
+- Competition mode uses non-stub flow (`ALLOW_STUB_TX=false`) in hackathon environment.
+- Current contract deployment is on BSC Testnet; mainnet migration is planned post-hackathon.
