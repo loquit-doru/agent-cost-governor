@@ -7,3 +7,7 @@ tmp/
 .DS_Store
 .secrets/
 worker/.secrets/
+*.mp4
+*.mov
+*.mkv
+*.avi
