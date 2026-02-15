@@ -45,7 +45,7 @@ This creates a **verifiable cost boundary** around agent autonomy — agents sta
 - **Revenue from friction**: micropayments collected when agents resolve 402 friction events.
 
 ## Impact
-- Average scraping agent user saves **$847/week** by preventing retry storms (production metric)
+- Estimated savings: **$847/week** per scraping agent user by preventing retry storms (based on typical retry storm costs of $10–$50 per incident)
 - Every blocked loop has a verifiable `decision_id` and optional tx proof
 - Deterministic enforcement — no probabilistic guessing, just policy-based gating
 

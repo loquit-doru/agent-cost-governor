@@ -48,7 +48,7 @@ Use this before uploading to DoraHacks.
 - [x] Show hard gate behavior (`--abort-on-402`) — `demo:storm:block` validated.
 - [x] Show credits/budget/loop protection — `demo:billing` validated.
 - [x] AI agent demo working — `demo:agent` validated (4/5 scrapes, 1 loop detected).
-- [x] Impact metric: "Avg user saves $847/week by preventing retry storms."
+- [x] Impact metric: "Estimated savings ~$847/week by preventing retry storms."
 
 ## 5) Rule compliance
 
