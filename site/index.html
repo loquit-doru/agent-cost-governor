@@ -3,13 +3,13 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="ProceedGate — Stop runaway agents. Enforce cost caps and sane behavior." />
+    <meta name="description" content="ProceedGate — Gate any expensive AI agent action: LLM calls, paid APIs, browser automation, onchain transactions. Stop losses before they happen." />
     <meta name="theme-color" content="#0c1220" />
     <meta property="og:title" content="ProceedGate — Stop runaway agents" />
-    <meta property="og:description" content="Enforce cost caps and sane behavior with a hard proceed_token gate." />
+    <meta property="og:description" content="Gate any expensive AI agent action — LLM calls, paid APIs, scraping, browser automation. Hard enforcement with proceed_token." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary" />
-    <title>ProceedGate — Enforceable cost control for agents</title>
+    <title>ProceedGate — Gate any expensive AI agent action</title>
     <link rel="stylesheet" href="./styles.css" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='%23111827' d='M0 0h64v64H0z'/%3E%3Cpath fill='%23ffffff' d='M14 16h36v6H14zm0 13h36v6H14zm0 13h24v6H14z'/%3E%3C/svg%3E" />
   </head>
@@ -50,8 +50,9 @@
             <p class="muted" style="margin-top: -8px; margin-bottom: 14px;">Good Vibes Only: OpenClaw Edition · Track: Agent</p>
             <h1>Stop runaway agents. <span class="accent">Enforce cost caps</span> and sane behavior.</h1>
             <p class="lead">
-              ProceedGate is a <strong>hard gate that blocks expensive AI agent steps</strong>
-              unless the agent has a short-lived <code>proceed_token</code>.
+              ProceedGate is a <strong>hard gate for any expensive AI agent action</strong> —
+              LLM calls, paid APIs, browser automation, scraping, onchain transactions.
+              No valid <code>proceed_token</code> = no execution.
               Friction is resolved via <strong>onchain micropayments on BNB Chain (BSC)</strong>, verified against real blockchain receipts.
               Built for production: predictable integration, auditable decisions, and clear failure modes.
             </p>
@@ -196,7 +197,8 @@ No token, no step.</code></pre>
         <div class="container">
           <h2>What ProceedGate does</h2>
           <p>
-            ProceedGate introduces a mandatory checkpoint before your agent executes a costly step.
+            ProceedGate introduces a mandatory checkpoint before your agent executes <strong>any</strong> costly step —
+            LLM calls, tool invocations, paid API requests, browser actions, or onchain transactions.
             If the step is within policy/budget: you get a short-lived token and proceed.
             If not: you get friction (<code>402</code>) and the agent cannot continue until friction is resolved.
           </p>

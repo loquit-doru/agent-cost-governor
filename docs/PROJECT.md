@@ -1,16 +1,16 @@
 # Project Overview
 
 ## Name
-**ProceedGate** — Onchain Cost Governor for AI Agents
+**ProceedGate** — Gate Any Expensive AI Agent Action, Onchain
 
 ## Track
 **Agent** (AI Agent × Onchain Actions)
 
 ## Problem
-Autonomous AI agents in production can enter retry storms — repeated tool calls, API requests, or browser actions — that silently drain budgets. A single overnight loop can cost hundreds of dollars before anyone notices. There is no standard mechanism to gate expensive agent actions with verifiable, onchain-backed cost control.
+Autonomous AI agents in production can enter retry storms — repeated LLM calls, tool invocations, API requests, browser actions, or onchain transactions — that silently drain budgets. A single overnight loop can cost hundreds of dollars before anyone notices. There is no standard mechanism to gate **any** expensive agent action with verifiable, onchain-backed cost control.
 
 ## Solution
-ProceedGate sits **outside** the agent loop and enforces a policy-based gate on every expensive action. Before an agent can proceed with a costly step, it must obtain a short-lived `proceed_token` from the Governor API.
+ProceedGate sits **outside** the agent loop and enforces a policy-based gate on **any expensive action** — LLM calls, paid APIs, browser automation, scraping, onchain transactions. Before an agent can proceed with a costly step, it must obtain a short-lived `proceed_token` from the Governor API.
 
 **How it works:**
 1. Agent calls `POST /v1/governor/check` before each action.

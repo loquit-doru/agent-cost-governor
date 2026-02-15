@@ -1,10 +1,10 @@
-# ProceedGate — Onchain Cost Governor for AI Agents
+# ProceedGate — Gate Any Expensive AI Agent Action, Onchain
 
 > **Good Vibes Only: OpenClaw Edition** | Track: **Agent** (AI Agent × Onchain Actions)
 
-Stop runaway AI agents. Enforce cost and behavior with onchain-verifiable friction.
+ProceedGate gates **any expensive AI agent action** — LLM calls, paid APIs, browser automation, scraping, onchain transactions — with hard enforcement.
 
-ProceedGate sits **outside** the agent loop and blocks expensive/risky steps unless the agent has a valid short-lived `proceed_token`. If an agent enters a retry storm, ProceedGate automatically gates it with escalating micropayments verified on BSC.
+ProceedGate sits **outside** the agent loop and blocks costly steps unless the agent has a valid short-lived `proceed_token`. If an agent enters a retry storm, ProceedGate automatically gates it with escalating micropayments verified on BSC.
 
 ## Hackathon Quick Links
 
@@ -74,7 +74,11 @@ See [`OPENCLAW_SETUP.md`](OPENCLAW_SETUP.md) for the full integration guide.
 
 - LLM retries / regeneration loops
 - Browser / web automation actions (Playwright-style)
-- External paid API calls
+- External paid API calls (scraping, SerpAPI, Firecrawl, Apify)
+- Onchain transactions and smart contract calls
+- Any tool invocation with a cost attached
+
+> ProceedGate doesn't care *what* the action is — it gates anything you declare as expensive. The `action` field in `/v1/governor/check` is a free string.
 
 ## How it works (two outcomes)
 

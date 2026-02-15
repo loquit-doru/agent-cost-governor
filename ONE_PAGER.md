@@ -2,7 +2,7 @@
 
 ## Summary
 
-ProceedGate is a cost-control & governance primitive for autonomous agents.
+ProceedGate gates **any expensive AI agent action** — LLM calls, paid APIs, browser automation, scraping, onchain transactions — with hard enforcement.
 
 It sits outside the agent loop and enforces a simple invariant:
 
@@ -51,7 +51,11 @@ Payment (x402-style) is **one** friction resolution path. The product headline i
 
 - LLM retries / regeneration loops
 - Browser / web automation actions
-- External paid API calls
+- External paid API calls (scraping, SerpAPI, Firecrawl, Apify)
+- Onchain transactions and smart contract calls
+- Any tool invocation with a cost attached
+
+> The `action` field is a free string — ProceedGate gates whatever you declare expensive.
 
 ## Observability
 
