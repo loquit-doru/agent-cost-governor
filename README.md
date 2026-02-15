@@ -14,6 +14,7 @@ ProceedGate sits **outside** the agent loop and blocks costly steps unless the a
 | Proof tx (BSC) | [`0xd97039...b548`](https://bscscan.com/tx/0xd97039268c048cafd45c0f3b870111b1dcd22f3fdfd62a47e75ae843eb13b548) |
 | Contract (BSC Testnet) | [`0xAd8Da0...58dA`](https://testnet.bscscan.com/address/0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA) |
 | Address index | [`bsc.address`](bsc.address) |
+| Demo video | [YouTube](https://youtu.be/3oCwey4RXG8) |
 | Full setup guide | [`docs/TECHNICAL.md`](docs/TECHNICAL.md) |
 | Project overview | [`docs/PROJECT.md`](docs/PROJECT.md) |
 | AI build log | [`AI_BUILD_LOG.md`](AI_BUILD_LOG.md) |

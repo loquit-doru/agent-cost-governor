@@ -5,6 +5,7 @@
 - **Live hackathon endpoint**: `https://agent-cost-governor-hackathon.apiworkersdev.workers.dev`
 - **Health check**: `GET /health` → `200`
 - **Full demo walkthrough**: see [`HACKATHON.md`](../HACKATHON.md)
+- **Demo video**: https://youtu.be/3oCwey4RXG8
 - **Suggested demo format**: 60–120s screen recording showing check → 402 → redeem → proceed_token → action continues
 
 ## Presentation Links
