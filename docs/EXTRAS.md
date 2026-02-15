@@ -9,10 +9,9 @@
 
 ## Presentation Links
 
-_(Add links here before submission if recording a demo video)_
-
-- Demo video: _(link)_
-- Slide deck: _(link)_
+- Demo page: https://proceedgate.dev/demo.html
+- Main site: https://proceedgate.dev
+- Voiceover script: [`scripts/VOICEOVER_SCRIPT.md`](../scripts/VOICEOVER_SCRIPT.md)
 
 ## Social / Community
 
