@@ -87,6 +87,30 @@ This keeps the integration explicit and debuggable.
 
 ---
 
+## Fail-closed by default
+
+When the ProceedGate governor is unreachable (network error, 5xx, DNS timeout), the SDK **blocks the action** by default — fail-closed. This prevents agents from running uncontrolled when monitoring is down.
+
+```ts
+// Default: fail-closed (safe)
+const client = createProceedGateClient({
+  baseUrl: 'https://governor.proceedgate.dev',
+  actor: { id: 'agent:scraper' },
+  // failMode: 'closed',  ← this is the default
+});
+
+// Override: fail-open (availability-first, for non-critical paths)
+const lenientClient = createProceedGateClient({
+  baseUrl: 'https://governor.proceedgate.dev',
+  actor: { id: 'agent:monitor' },
+  failMode: 'open',
+});
+```
+
+When `failMode: 'open'`, the SDK returns a synthetic `ok` result with `reason_code: 'governor_unreachable_fail_open'` and an empty `proceed_token`. Your code should log this and handle it accordingly.
+
+---
+
 ## Hook for future UI/wallet flows (`onFriction`)
 
 If you want a future “approval UI” or wallet integration, you can attach a hook:

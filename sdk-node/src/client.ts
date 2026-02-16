@@ -24,6 +24,7 @@ export function createProceedGateClient(opts: ProceedGateClientOptions): Proceed
   const baseUrl = normalizeBaseUrl(opts.baseUrl);
   const fetchImpl = opts.fetchImpl ?? fetch;
   const defaultHeaders = opts.defaultHeaders ?? {};
+  const failMode = opts.failMode ?? 'closed';
 
   const apiKey = String(opts.apiKey ?? '').trim();
   const apiKeyHeader = (opts.apiKeyHeader ?? 'authorization') as 'authorization' | 'x-api-key';
@@ -38,6 +39,7 @@ export function createProceedGateClient(opts: ProceedGateClientOptions): Proceed
     actor: opts.actor,
 
     async check(req: GovernorCheckRequest, checkOpts?: { signal?: AbortSignal }) {
+      try {
       const url = new URL('/v1/governor/check', baseUrl);
       const res = await fetchImpl(url, {
         method: 'POST',
@@ -60,11 +62,48 @@ export function createProceedGateClient(opts: ProceedGateClientOptions): Proceed
 
       if (!res.ok) {
         const text = await res.text().catch(() => '');
+        // 5xx = governor failure — apply failMode
+        if (res.status >= 500) {
+          if (failMode === 'open') {
+            return {
+              kind: 'ok' as const,
+              value: {
+                allowed: true,
+                decision_id: `fail-open-${Date.now()}`,
+                proceed_token: '',
+                expires_in_seconds: 0,
+                reason_code: 'governor_unreachable_fail_open',
+                policy: { policy_id: 'fail_open', friction_required: false, friction_price: '0 USDC' },
+              } as GovernorCheckOk,
+            };
+          }
+          throw new Error(`ProceedGate governor unreachable (fail-closed): HTTP ${res.status} ${text}`);
+        }
         throw new Error(`ProceedGate check failed: HTTP ${res.status} ${text}`);
       }
 
       const body = (await res.json()) as GovernorCheckOk;
       return { kind: 'ok' as const, value: body };
+      } catch (err) {
+        // Network errors (DNS, timeout, connection refused) — apply failMode
+        if (err instanceof TypeError || (err instanceof Error && err.message.includes('fetch'))) {
+          if (failMode === 'open') {
+            return {
+              kind: 'ok' as const,
+              value: {
+                allowed: true,
+                decision_id: `fail-open-${Date.now()}`,
+                proceed_token: '',
+                expires_in_seconds: 0,
+                reason_code: 'governor_unreachable_fail_open',
+                policy: { policy_id: 'fail_open', friction_required: false, friction_price: '0 USDC' },
+              } as GovernorCheckOk,
+            };
+          }
+          throw new Error(`ProceedGate governor unreachable (fail-closed): ${(err as Error).message}`);
+        }
+        throw err;
+      }
     },
 
     async redeem(decisionId: string, txHash: string, redeemOpts?: { signal?: AbortSignal }): Promise<GovernorRedeemOk> {

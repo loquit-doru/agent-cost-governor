@@ -85,6 +85,13 @@ export type ProceedGateClientOptions = {
 
   /** Where to send apiKey; defaults to Authorization: Bearer <key>. */
   apiKeyHeader?: 'authorization' | 'x-api-key';
+
+  /**
+   * Behavior when the governor is unreachable (network error, timeout, 5xx).
+   *   - 'closed' (default): block the action — safety-first.
+   *   - 'open': allow the action — availability-first.
+   */
+  failMode?: 'closed' | 'open';
 };
 
 export type GateStepInput = {
