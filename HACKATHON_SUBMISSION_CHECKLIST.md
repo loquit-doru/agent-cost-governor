@@ -44,10 +44,12 @@ Use this before uploading to DoraHacks.
 
 - [ ] 60–120s video showing: check → 402 → redeem → proceed_token → action continues.
   - Run `npm run demo:video` for a narrated terminal walkthrough.
-  - Run `npm run demo:agent` for the AI agent demo (scraping + loop detection).
+  - Run `npm run demo:guardian` for the TreasuryGuardian agent (onchain BSC + storm detection).
+  - Run `npm run demo:agent` for the CryptoScraper agent (scraping + loop detection).
 - [x] Show hard gate behavior (`--abort-on-402`) — `demo:storm:block` validated.
 - [x] Show credits/budget/loop protection — `demo:billing` validated.
-- [x] AI agent demo working — `demo:agent` validated (4/5 scrapes, 1 loop detected).
+- [x] TreasuryGuardian agent working — `demo:guardian` validated (10 real BSC txs, storm at #11).
+- [x] CryptoScraper agent working — `demo:agent` validated (4/5 scrapes, 1 loop detected).
 - [x] Impact metric: "Estimated savings ~$847/week by preventing retry storms."
 
 ## 5) Rule compliance
@@ -63,13 +65,14 @@ npm install
 npm --workspaces run check
 npm --workspace worker run test
 npm run smoke
+npm run demo:guardian
 npm run demo:agent
 npm run demo:billing
 npm run demo:storm:block
 npm run demo:storm:redeem
 ```
 
-All commands above have been validated and pass as of 2026-02-14.
+All commands above have been validated and pass as of 2026-02-17.
 
 ## Judging payload snippets
 

@@ -586,13 +586,16 @@ openclaw agent --message "Gate my next API call"</code></pre>
       <section class="section fade-in" id="demo">
         <div class="container">
           <h2>Open source reference implementation</h2>
-          <p>This repo ships a working Worker + Runner + a <strong>real AI agent demo (CryptoScraper)</strong>.</p>
-          <p style="margin-top: 8px;"><span class="chip" style="background: rgba(45,212,191,.15); color: #2dd4bf;">🏆 OpenClaw Hackathon Ready</span> <span class="chip" style="background: rgba(251,146,60,.15); color: #fb923c;">⛓️ BNB Chain Verified</span> <span class="chip" style="background: rgba(168,85,247,.15); color: #a855f7;">🤖 Live AI Agent</span></p>
+          <p>This repo ships a working Worker + Runner + <strong>two real AI agent demos</strong>.</p>
+          <p style="margin-top: 8px;"><span class="chip" style="background: rgba(45,212,191,.15); color: #2dd4bf;">🏆 OpenClaw Hackathon Ready</span> <span class="chip" style="background: rgba(251,146,60,.15); color: #fb923c;">⛓️ BNB Chain Verified</span> <span class="chip" style="background: rgba(168,85,247,.15); color: #a855f7;">🤖 Live AI Agents</span></p>
           <div class="codecard">
             <pre><code>npm install
-npm run demo:agent          # 🤖 CryptoScraper AI agent
+npm run demo:guardian       # 🛡️ TreasuryGuardian — onchain AI agent
+                            #    14 BSC transfers · LLM decisions
+                            #    storm detection · friction payments
+
+npm run demo:agent          # 🤖 CryptoScraper — scraping AI agent
                             #    5 real APIs · ProceedGate gating
-                            #    onchain BSC testnet payments
 
 npm run smoke               # local flow: check → 402 → redeem
 npm run demo:storm:block    # retry storm detection demo</code></pre>

@@ -29,13 +29,17 @@ npm --workspaces run check   # typecheck all packages
 npm run smoke                # full local flow: check → 402 → redeem → proceed
 ```
 
-### Run the AI agent demo
+### Run the AI agent demos
 
 ```bash
-npm run demo:agent           # autonomous scraping agent gated by ProceedGate
+npm run demo:guardian        # 🛡️ TreasuryGuardian — onchain AI agent
+                             #    14 BSC transfers · LLM decisions · storm detection
+npm run demo:agent           # 🤖 CryptoScraper — scraping agent gated by ProceedGate
 ```
 
-The agent scrapes crypto prices from 5 exchanges. When one exchange is down, the agent retries — ProceedGate detects the loop, applies escalating friction, and the agent's LLM decides to stop. See the live output for the full flow.
+**TreasuryGuardian** plans 14 treasury micro-transfers on BSC Testnet, gated by ProceedGate. The first 3 are approved, attempts 4–10 require friction (agent pays onchain), and at attempt 11 ProceedGate detects a storm and the LLM autonomously decides to halt. 10 real BSC transactions total.
+
+**CryptoScraper** scrapes crypto prices from 5 exchanges. When one exchange is down, the agent retries — ProceedGate detects the loop, applies escalating friction, and the agent’s LLM decides to stop.
 
 See [`docs/TECHNICAL.md`](docs/TECHNICAL.md) for the complete step-by-step guide (8 validation commands).
 
