@@ -212,6 +212,61 @@
     .openclaw-feat { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); padding: 10px 14px; background: rgba(255,255,255,0.03); border-radius: 8px; }
     .openclaw-feat .check { color: var(--success); font-weight: 700; }
 
+    /* Live Test Panel */
+    .live-test {
+      background: linear-gradient(135deg, rgba(249,115,22,0.06), rgba(239,68,68,0.04));
+      border: 1px solid rgba(249,115,22,0.25);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+      position: relative;
+      overflow: hidden;
+    }
+    .live-test::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, var(--brand), var(--danger), var(--brand));
+      background-size: 200% 100%;
+      animation: liveShimmer 3s ease infinite;
+    }
+    @keyframes liveShimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+    .live-test-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px; }
+    .live-test-title { font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+    .live-badge { font-size: 11px; padding: 3px 10px; background: rgba(239,68,68,0.2); color: var(--danger); border-radius: 8px; font-weight: 700; animation: pulse 1.5s infinite; letter-spacing: 0.05em; }
+    .live-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+    .live-btn {
+      padding: 10px 20px; border-radius: 10px; font-weight: 600; font-size: 13px;
+      border: none; cursor: pointer; transition: all 0.2s; color: #fff;
+      font-family: 'Inter', sans-serif;
+    }
+    .live-btn:hover { transform: translateY(-1px); }
+    .live-btn:active { transform: translateY(0); }
+    .live-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .live-btn.check { background: linear-gradient(135deg, var(--success), #16a34a); box-shadow: 0 4px 15px var(--success-glow); }
+    .live-btn.storm { background: linear-gradient(135deg, var(--danger), #dc2626); box-shadow: 0 4px 15px var(--danger-glow); }
+    .live-btn.reset { background: transparent; border: 1px solid var(--border); color: var(--text-secondary); box-shadow: none; }
+    .live-results { display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow-y: auto; }
+    .live-result {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 14px; border-radius: 8px; font-size: 13px;
+      font-family: 'JetBrains Mono', monospace;
+      animation: fadeIn 0.3s ease-out;
+      border: 1px solid var(--border);
+    }
+    .live-result.ok { background: rgba(34,197,94,0.08); border-color: rgba(34,197,94,0.2); }
+    .live-result.storm { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.2); }
+    .live-result.error { background: rgba(234,179,8,0.08); border-color: rgba(234,179,8,0.2); }
+    .live-status { font-weight: 700; min-width: 80px; }
+    .live-status.s200 { color: var(--success); }
+    .live-status.s429 { color: var(--danger); }
+    .live-status.err { color: var(--warning); }
+    .live-msg { color: var(--text-secondary); flex: 1; }
+    .live-latency { color: var(--text-muted); font-size: 11px; min-width: 50px; text-align: right; }
+    .live-counter { display: flex; gap: 20px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+    .live-counter-item { font-size: 12px; color: var(--text-muted); }
+    .live-counter-item span { font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+    .live-counter-item span.green { color: var(--success); }
+    .live-counter-item span.red { color: var(--danger); }
+
     /* CTA */
     .cta-row { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; }
     .btn {
@@ -304,6 +359,30 @@
         <div class="stat-label">On-Chain Proofs</div>
         <div class="stat-value purple" id="onchainProofs">0</div>
         <div class="stat-change up">BSC verified</div>
+      </div>
+    </div>
+
+    <!-- Live API Test Panel -->
+    <div class="live-test">
+      <div class="live-test-header">
+        <div class="live-test-title">
+          ⚡ Live API Test <span class="live-badge">● REAL API</span>
+        </div>
+        <div class="live-buttons">
+          <button class="live-btn check" id="btnCheck" onclick="doLiveCheck()">▶ Send Check</button>
+          <button class="live-btn storm" id="btnStorm" onclick="doStormDemo()">🌪️ Trigger Storm (11 rapid calls)</button>
+          <button class="live-btn reset" onclick="resetLive()">↺ Reset</button>
+        </div>
+      </div>
+      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
+        Hitting <code style="color: var(--brand-light); font-family: 'JetBrains Mono', monospace;">POST /v1/demo/check</code> on the live hackathon API. Click "Send Check" to see a real response. Click "Trigger Storm" to send 11 identical requests and watch ProceedGate block the retry storm.
+      </p>
+      <div class="live-results" id="liveResults"></div>
+      <div class="live-counter">
+        <div class="live-counter-item">Allowed: <span class="green" id="liveAllowed">0</span></div>
+        <div class="live-counter-item">Blocked: <span class="red" id="liveBlocked">0</span></div>
+        <div class="live-counter-item">Avg latency: <span id="liveAvgMs">—</span></div>
+        <div class="live-counter-item">Cost saved: <span class="green" id="liveSaved">$0.00</span></div>
       </div>
     </div>
 
@@ -672,6 +751,103 @@
 
       setInterval(addDecision, 3000 + Math.random() * 5000);
     });
+
+    // ─── Live API Test ────────────────────────────────────────────────────────
+    let liveAllowedCount = 0, liveBlockedCount = 0, liveLatencies = [], liveSavedUsd = 0;
+    let stormRunning = false;
+
+    function addLiveResult(status, msg, latencyMs) {
+      const results = document.getElementById('liveResults');
+      const el = document.createElement('div');
+      const cls = status === 200 ? 'ok' : status === 429 ? 'storm' : 'error';
+      const sCls = status === 200 ? 's200' : status === 429 ? 's429' : 'err';
+      el.className = 'live-result ' + cls;
+      el.innerHTML =
+        '<span class="live-status ' + sCls + '">' + status + '</span>' +
+        '<span class="live-msg">' + msg + '</span>' +
+        '<span class="live-latency">' + latencyMs + 'ms</span>';
+      results.insertBefore(el, results.firstChild);
+      while (results.children.length > 20) results.removeChild(results.lastChild);
+
+      // Update counters
+      liveLatencies.push(latencyMs);
+      if (status === 200) liveAllowedCount++;
+      else { liveBlockedCount++; liveSavedUsd += 0.05; }
+
+      document.getElementById('liveAllowed').textContent = liveAllowedCount;
+      document.getElementById('liveBlocked').textContent = liveBlockedCount;
+      document.getElementById('liveSaved').textContent = '$' + liveSavedUsd.toFixed(2);
+      const avg = Math.round(liveLatencies.reduce((a,b) => a+b, 0) / liveLatencies.length);
+      document.getElementById('liveAvgMs').textContent = avg + 'ms';
+
+      // Also update main dashboard counters
+      totalDec++;
+      document.getElementById('totalDecisions').textContent = totalDec.toLocaleString();
+      if (status === 429) {
+        stormsB++;
+        costS += 0.05;
+        document.getElementById('stormsBlocked').textContent = String(stormsB);
+        document.getElementById('costSaved').textContent = '$' + costS.toFixed(0);
+      }
+    }
+
+    async function doLiveCheck(taskHash, stepHash) {
+      const t0 = performance.now();
+      try {
+        const res = await fetch(API_BASE + '/v1/demo/check', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'tool_call',
+            task_hash: taskHash || 'live-dashboard-' + Math.random().toString(36).slice(2, 8),
+            step_hash: stepHash || 'step-' + Math.random().toString(36).slice(2, 6),
+          }),
+          signal: AbortSignal.timeout(8000),
+        });
+        const ms = Math.round(performance.now() - t0);
+        const data = await res.json();
+        addLiveResult(res.status, data.message || data.reason || JSON.stringify(data), ms);
+        return res.status;
+      } catch (err) {
+        const ms = Math.round(performance.now() - t0);
+        addLiveResult(0, '⚠️ Network error: ' + err.message, ms);
+        return 0;
+      }
+    }
+
+    async function doStormDemo() {
+      if (stormRunning) return;
+      stormRunning = true;
+      const btn = document.getElementById('btnStorm');
+      const checkBtn = document.getElementById('btnCheck');
+      btn.disabled = true;
+      checkBtn.disabled = true;
+      btn.textContent = '🌪️ Running storm...';
+
+      // Use a fixed task_hash so loop detection fires
+      const stormTask = 'storm-demo-' + Date.now();
+      const stormStep = 'retry-step';
+
+      for (let i = 1; i <= 11; i++) {
+        btn.textContent = '🌪️ Call ' + i + '/11...';
+        const status = await doLiveCheck(stormTask, stormStep);
+        if (i < 11) await new Promise(r => setTimeout(r, 150)); // small delay between calls
+      }
+
+      btn.textContent = '🌪️ Trigger Storm (11 rapid calls)';
+      btn.disabled = false;
+      checkBtn.disabled = false;
+      stormRunning = false;
+    }
+
+    function resetLive() {
+      document.getElementById('liveResults').innerHTML = '';
+      liveAllowedCount = 0; liveBlockedCount = 0; liveLatencies = []; liveSavedUsd = 0;
+      document.getElementById('liveAllowed').textContent = '0';
+      document.getElementById('liveBlocked').textContent = '0';
+      document.getElementById('liveSaved').textContent = '$0.00';
+      document.getElementById('liveAvgMs').textContent = '—';
+    }
   </script>
 </body>
 </html>
