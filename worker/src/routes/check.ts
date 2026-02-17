@@ -407,24 +407,26 @@ checkRoutes.post('/v1/demo/check', async (c) => {
       step_hash,
     });
 
-    // Fire-and-forget: log this decision for the real-time dashboard
+    // Log this decision — waitUntil guarantees the DO call completes
     const decisionId = crypto.randomUUID();
-    stub.fetch(doUrl(`/workspaces/${demoWs}/log-decision`), {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        id: decisionId,
-        timestamp: new Date().toISOString(),
-        action,
-        task_hash,
-        step_hash,
-        decision: 'blocked_storm',
-        latency_ms: latencyMs,
-        pattern_count: loopData.count,
-        cost_saved_usd: 0.05,
-        ai_reasoning: reasoning.ai_reasoning,
-      }),
-    }).catch(() => {});
+    c.executionCtx.waitUntil(
+      stub.fetch(doUrl(`/workspaces/${demoWs}/log-decision`), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          id: decisionId,
+          timestamp: new Date().toISOString(),
+          action,
+          task_hash,
+          step_hash,
+          decision: 'blocked_storm',
+          latency_ms: latencyMs,
+          pattern_count: loopData.count,
+          cost_saved_usd: 0.05,
+          ai_reasoning: reasoning.ai_reasoning,
+        }),
+      }).catch((err) => console.error('log-decision failed:', err))
+    );
 
     return c.json(
       {
@@ -457,22 +459,24 @@ checkRoutes.post('/v1/demo/check', async (c) => {
     actor_id: 'demo-user',
   });
 
-  // Fire-and-forget: log this decision
+  // Log this decision — waitUntil guarantees the DO call completes
   const decisionId = crypto.randomUUID();
-  stub.fetch(doUrl(`/workspaces/${demoWs}/log-decision`), {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      id: decisionId,
-      timestamp: new Date().toISOString(),
-      action,
-      task_hash,
-      step_hash,
-      decision: 'allowed',
-      latency_ms: latencyMs,
-      ai_reasoning: allowReasoning.ai_reasoning,
-    }),
-  }).catch(() => {});
+  c.executionCtx.waitUntil(
+    stub.fetch(doUrl(`/workspaces/${demoWs}/log-decision`), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        id: decisionId,
+        timestamp: new Date().toISOString(),
+        action,
+        task_hash,
+        step_hash,
+        decision: 'allowed',
+        latency_ms: latencyMs,
+        ai_reasoning: allowReasoning.ai_reasoning,
+      }),
+    }).catch((err) => console.error('log-decision failed:', err))
+  );
 
   return c.json(
     {
