@@ -153,23 +153,69 @@
   <main>
     <div class="hero">
       <h1>One API. <span>Any Agent.</span></h1>
-      <p>ProceedGate isn't built for one use case — it's a cost governance layer for any autonomous system that spends money. Here's proof.</p>
+      <p>ProceedGate is an onchain security agent that governs autonomous AI operations — from LLM calls to BSC transactions. Here's proof.</p>
       <div class="hero-stats">
         <div class="hero-stat">
-          <div class="hero-stat-value" style="color: var(--brand);">5</div>
+          <div class="hero-stat-value" style="color: var(--brand);">6</div>
           <div class="hero-stat-label">Use Cases</div>
         </div>
         <div class="hero-stat">
-          <div class="hero-stat-value" style="color: var(--success);">4</div>
+          <div class="hero-stat-value" style="color: var(--success);">5</div>
           <div class="hero-stat-label">Live Demos</div>
         </div>
         <div class="hero-stat">
-          <div class="hero-stat-value" style="color: var(--purple);">1</div>
-          <div class="hero-stat-label">API Endpoint</div>
+          <div class="hero-stat-value" style="color: var(--purple);">10+</div>
+          <div class="hero-stat-label">Real BSC TXs</div>
         </div>
         <div class="hero-stat">
           <div class="hero-stat-value" style="color: var(--blue);">∞</div>
           <div class="hero-stat-label">Agent Types</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ USE CASE 0: TreasuryGuardian (Onchain Agent) ═══ -->
+    <div class="use-case" id="guardian" style="border: 1px solid rgba(245,158,11,0.3); background: linear-gradient(135deg, rgba(245,158,11,0.04), transparent);">
+      <div class="uc-header">
+        <div class="uc-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">🛡️</div>
+        <div class="uc-meta">
+          <div class="uc-title">TreasuryGuardian — Onchain AI Agent</div>
+          <div class="uc-subtitle">An autonomous agent that plans and executes BSC transactions, governed by ProceedGate</div>
+          <div class="uc-tags">
+            <span class="tag live">Live Demo</span>
+            <span class="tag" style="background: rgba(245,158,11,0.15); color: #f59e0b;">🏆 Hackathon Track: Agent</span>
+            <span class="tag" style="background: rgba(59,130,246,0.15); color: #3b82f6;">On-Chain</span>
+          </div>
+        </div>
+      </div>
+      <div class="uc-body">
+        <div class="uc-grid">
+          <div class="uc-scenario">
+            <h4>Onchain Agent with Cost Governance</h4>
+            <p>An LLM-powered agent plans 14 treasury micro-transfers on BSC Testnet. <strong>ProceedGate governs every operation:</strong></p>
+            <ul style="margin: 12px 0; padding-left: 20px; font-size: 14px;">
+              <li>✅ <strong>Transfers #1–3:</strong> Approved — agent signs &amp; sends real BSC transactions</li>
+              <li>💰 <strong>Transfers #4–10:</strong> Friction — agent autonomously pays onchain to continue</li>
+              <li>🛑 <strong>Transfer #11:</strong> Storm detected — agent halts to protect treasury</li>
+            </ul>
+            <p><span class="success">10 real BSC Testnet transactions</span>, all verifiable on BscScan. The agent makes <strong>autonomous decisions</strong> — pay friction, halt on storm — powered by LLM reasoning.</p>
+          </div>
+          <div class="uc-solution">
+            <h4>Track Fit: "AI agents that execute onchain"</h4>
+            <p>TreasuryGuardian demonstrates the complete flow:</p>
+            <ul style="margin: 12px 0; padding-left: 20px; font-size: 14px;">
+              <li><strong>AI Agent</strong> — LLM plans operations, makes autonomous decisions</li>
+              <li><strong>Executes Onchain</strong> — Real BSC transactions (not simulated)</li>
+              <li><strong>Security Agent</strong> — Storm detection prevents excessive chain spam</li>
+              <li><strong>Treasury Manager</strong> — Governs spending, protects from runaway costs</li>
+            </ul>
+            <code style="display: block; margin-top: 12px; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 6px; font-size: 13px;">npm run demo:guardian</code>
+          </div>
+        </div>
+        <div class="uc-actions" style="margin-top: 20px;">
+          <button class="btn btn-primary" onclick="testApi('guardian', 'tool_call')">🧪 Test Storm Detection</button>
+          <a href="https://github.com/loquit-doru/agent-cost-governor/blob/main/scripts/treasury-guardian.mjs" class="btn btn-outline" target="_blank">View Agent Code ↗</a>
+          <a href="https://testnet.bscscan.com/address/0x399CD539643A0fe939F426Ae533780C7510EaD6b" class="btn btn-outline" target="_blank">View BSC TXs ↗</a>
         </div>
       </div>
     </div>

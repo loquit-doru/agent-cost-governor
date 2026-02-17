@@ -3,13 +3,13 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="ProceedGate — Gate any expensive AI agent action: LLM calls, paid APIs, browser automation, onchain transactions. Stop losses before they happen." />
+    <meta name="description" content="ProceedGate — An onchain security agent that governs AI operations. Detects retry storms, enforces cost limits, and executes onchain on BSC." />
     <meta name="theme-color" content="#0c1220" />
-    <meta property="og:title" content="ProceedGate — Stop runaway agents" />
-    <meta property="og:description" content="Gate any expensive AI agent action — LLM calls, paid APIs, scraping, browser automation. Hard enforcement with proceed_token." />
+    <meta property="og:title" content="ProceedGate — Onchain Security Agent for AI" />
+    <meta property="og:description" content="An autonomous security agent that governs AI operations onchain. Detects retry storms, prevents budget drain, executes on BSC. Track: Agent." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary" />
-    <title>ProceedGate — Gate any expensive AI agent action</title>
+    <title>ProceedGate — Onchain Security Agent for AI Operations</title>
     <link rel="stylesheet" href="./styles.css" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='%23111827' d='M0 0h64v64H0z'/%3E%3Cpath fill='%23ffffff' d='M14 16h36v6H14zm0 13h36v6H14zm0 13h24v6H14z'/%3E%3C/svg%3E" />
   </head>
@@ -20,7 +20,7 @@
         <a class="brand" href="#top" aria-label="ProceedGate">
           <span class="brand-mark" aria-hidden="true"></span>
           <span class="brand-name">ProceedGate</span>
-          <span class="pill">DFaaS v1</span>
+          <span class="pill">Onchain Agent</span>
         </a>
         <button class="nav-toggle" id="navToggle" aria-label="Toggle menu" aria-expanded="false">
           <span></span><span></span><span></span>
@@ -47,20 +47,21 @@
       <section class="hero">
         <div class="container hero-grid">
           <div>
-            <p class="eyebrow">Prevent runaway AI costs</p>
-            <p class="muted" style="margin-top: -8px; margin-bottom: 14px;">Good Vibes Only: OpenClaw Edition · Track: Agent</p>
-            <h1>Stop runaway agents. <span class="accent">Enforce cost caps</span> and sane behavior.</h1>
+            <p class="eyebrow">Onchain security agent for AI</p>
+            <p class="muted" style="margin-top: -8px; margin-bottom: 14px;">Good Vibes Only: OpenClaw Edition · Track: Agent · "AI agents that execute onchain"</p>
+            <h1>The agent that <span class="accent">governs other agents</span> — onchain.</h1>
             <p class="lead">
-              ProceedGate is a <strong>hard gate for any expensive AI agent action</strong> —
-              LLM calls, paid APIs, browser automation, scraping, onchain transactions.
-              No valid <code>proceed_token</code> = no execution.
-              Friction is resolved via <strong>onchain micropayments on BNB Chain (BSC)</strong>, verified against real blockchain receipts.
-              Built for production: predictable integration, auditable decisions, and clear failure modes.
+              ProceedGate is an <strong>autonomous security agent</strong> that monitors AI operations,
+              detects retry storms and runaway behavior, and enforces decisions <strong>onchain via BNB Chain (BSC)</strong>.
+              Every decision is backed by a cryptographic <code>proceed_token</code>.
+              Friction is resolved via onchain micropayments, verified against real blockchain receipts.
+              An AI agent that doesn't just analyze — it <strong>executes onchain</strong>.
             </p>
             <div class="note" style="margin: 16px 0 0; padding: 14px 18px; background: rgba(45,212,191,.08); border: 1px solid rgba(45,212,191,.15); border-radius: 10px;">
-              <span style="font-weight: 700;">🤖 Live Agent Demo:</span>
-              <span class="muted">CryptoScraper — an autonomous AI agent that scrapes 5 real exchange APIs (CoinGecko, Binance, Kraken, CoinMarketCap, CoinPaprika), gated by ProceedGate. When CMC's API key expires, the agent retries → ProceedGate detects the storm → applies escalating friction → agent autonomously decides to stop. Real BSC testnet transactions included.</span>
-              <code style="display: block; margin-top: 8px; font-size: 13px;">npm run demo:agent</code>
+              <span style="font-weight: 700;">🛡️ TreasuryGuardian — Onchain AI Agent:</span>
+              <span class="muted">An autonomous agent that executes treasury operations on BSC Testnet, governed by ProceedGate. Plans 14 onchain transfers → ProceedGate approves the first 3 → applies friction (agent pays onchain) → detects storm at #11 → agent halts autonomously. 10 real BSC transactions, LLM-powered decisions.</span>
+              <code style="display: block; margin-top: 8px; font-size: 13px;">npm run demo:guardian</code>
+              <span class="muted" style="display: block; margin-top: 4px; font-size: 12px;">Also: <code>npm run demo:agent</code> (CryptoScraper — 5 real exchange APIs + BSC payments)</span>
             </div>
 
             <div class="cta-row">
@@ -78,8 +79,8 @@
                 <div class="stat-v">No token, no step</div>
               </div>
               <div class="stat" role="listitem">
-                <div class="stat-k">Thin boundary</div>
-                <div class="stat-v">Runner / middleware</div>
+                <div class="stat-k">Agent-native</div>
+                <div class="stat-v">Autonomous decisions</div>
               </div>
               <div class="stat" role="listitem">
                 <div class="stat-k">Onchain verified</div>
@@ -88,7 +89,7 @@
             </div>
 
             <ul class="fineprint">
-              <li>Works with any agent framework (you control the runner/middleware).</li>
+              <li>Works with any agent framework — sits alongside your agents as a security guard.</li>
               <li>Two outcomes only: <code>200</code> (go) or <code>402</code> (friction).</li>
               <li>Enforcement sits outside the agent loop (and survives prompt failures).</li>
               <li><strong>Micro-proof:</strong> Used in early production setups to stop retry storms and runaway tool calls before they burn budget.</li>
@@ -700,7 +701,7 @@ npm run demo:storm:block    # retry storm detection demo</code></pre>
         <div class="container cta-inner">
           <div>
             <h2>Integrate in 30 minutes</h2>
-            <p class="muted">Keep your agent. Add enforceable cost-control.</p>
+            <p class="muted">Your agents execute. ProceedGate governs — onchain.</p>
           </div>
           <div class="cta-row">
             <a class="btn primary" href="https://github.com/loquit-doru/agent-cost-governor/blob/main/INTEGRATION.md" target="_blank" rel="noreferrer">Read integration guide</a>
@@ -718,7 +719,7 @@ npm run demo:storm:block    # retry storm detection demo</code></pre>
               <span class="brand-mark" aria-hidden="true"></span>
               <span class="brand-name">ProceedGate</span>
             </div>
-            <p class="muted" style="margin-top: 8px; font-size: 14px;">Prevent runaway AI costs in production.<br>Stop expensive mistakes before they happen.</p>
+            <p class="muted" style="margin-top: 8px; font-size: 14px;">An onchain security agent for AI operations.<br>Detects storms. Enforces limits. Executes on BSC.</p>
           </div>
           <div class="footer-links">
             <div class="footer-col">
