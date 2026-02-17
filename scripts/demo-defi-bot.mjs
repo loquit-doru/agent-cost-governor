@@ -7,19 +7,18 @@
  *
  * Scenario:
  *   - Bot scans price differences across PancakeSwap, Uniswap, SushiSwap
- *   - Each swap is gated through ProceedGate (gas + slippage = cost)
+ *   - Each swap is gated through ProceedGate (/v1/governor/check)
  *   - A flash crash causes the bot to spam swaps → ProceedGate blocks the storm
  *   - Budget cap prevents draining the wallet
  *
- * Usage: node scripts/demo-defi-bot.mjs [--base-url URL]
+ * Usage: node scripts/demo-defi-bot.mjs
  */
 
 import { spawn } from 'node:child_process';
 
 const PORT = 8820 + Math.floor(Math.random() * 100);
-const CUSTOM_URL = process.argv.find(a => a.startsWith('--base-url='))?.split('=')[1];
-const GOVERNOR_URL = CUSTOM_URL || `http://127.0.0.1:${PORT}`;
-const USE_LOCAL = !CUSTOM_URL;
+const GOVERNOR_URL = `http://127.0.0.1:${PORT}`;
+const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 
 const c = {
   reset: '\x1b[0m', bold: '\x1b[1m', dim: '\x1b[2m', italic: '\x1b[3m',
@@ -38,12 +37,24 @@ function fail(t) { console.log(`     ${c.red}🚫 ${t}${c.reset}`); }
 function info(t) { console.log(`  ${c.dim}▸ ${t}${c.reset}`); }
 function money(t) { console.log(`  ${c.bold}${c.green}💰 ${t}${c.reset}`); }
 
-async function http(method, path, body, headers = {}) {
+async function httpJson(method, path, body, headers = {}) {
   const res = await fetch(`${GOVERNOR_URL}${path}`, {
     method, headers: { 'content-type': 'application/json', ...headers },
     body: body ? JSON.stringify(body) : undefined,
   });
-  return { status: res.status, data: await res.json().catch(() => ({})) };
+  const text = await res.text();
+  let json = null;
+  try { json = JSON.parse(text); } catch { /* text */ }
+  return { status: res.status, headers: Object.fromEntries(res.headers), json, text };
+}
+
+async function waitForHealth(url, timeoutMs = 30_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try { const r = await fetch(url); if (r.ok) return; } catch { /* retry */ }
+    await sleep(300);
+  }
+  throw new Error(`Worker did not start within ${timeoutMs}ms`);
 }
 
 const DEXES = ['PancakeSwap', 'Uniswap V3', 'SushiSwap', '1inch'];
@@ -70,6 +81,8 @@ const ROUNDS = [
   { pair: 'BNB/USDT', dex: 'PancakeSwap', type: 'panic_swap', spread: -9.0, gasUsd: 5.00, amount: 10000 },
   { pair: 'BNB/USDT', dex: 'PancakeSwap', type: 'panic_swap', spread: -10.0, gasUsd: 6.00, amount: 15000 },
   { pair: 'BNB/USDT', dex: 'PancakeSwap', type: 'panic_swap', spread: -12.0, gasUsd: 8.00, amount: 20000 },
+  { pair: 'BNB/USDT', dex: 'PancakeSwap', type: 'panic_swap', spread: -14.0, gasUsd: 10.00, amount: 25000 },
+  { pair: 'BNB/USDT', dex: 'PancakeSwap', type: 'panic_swap', spread: -15.0, gasUsd: 12.00, amount: 30000 },
   // Post-storm: this should be blocked
   { pair: 'ETH/USDC', dex: 'Uniswap V3', type: 'swap', spread: 0.6, gasUsd: 1.80, amount: 1000 },
 ];
@@ -79,33 +92,7 @@ let totalSwaps = 0;
 let totalBlocked = 0;
 let gasSaved = 0;
 let slippageSaved = 0;
-let workerProc = null;
-let wsId = null;
-
-async function startLocalWorker() {
-  if (!USE_LOCAL) return;
-  info(`Starting local worker on port ${PORT}...`);
-  workerProc = spawn('npx', ['wrangler', 'dev', '--local', '--port', String(PORT), '--config', 'worker/wrangler.toml'], {
-    cwd: process.cwd(), shell: true, stdio: 'pipe',
-  });
-  let ready = false;
-  workerProc.stderr.on('data', d => { if (d.toString().includes('Ready')) ready = true; });
-  workerProc.stdout.on('data', d => { if (d.toString().includes('Ready')) ready = true; });
-  for (let i = 0; i < 40 && !ready; i++) await sleep(500);
-  if (!ready) await sleep(3000);
-  ok('Local worker ready');
-}
-
-async function setupWorkspace() {
-  const adminKey = 'demo_admin_' + Date.now();
-  const { data } = await http('POST', '/v1/workspaces', {
-    name: 'DeFi Arb Bot',
-    budget_usd: 5.00,
-    owner: 'demo-defi-bot',
-  }, { 'x-api-admin-key': adminKey });
-  wsId = data.workspace_id || data.id || 'ws_demo';
-  ok(`Workspace: ${wsId} (budget: $5.00)`);
-}
+let AUTH = {};
 
 async function executeRound(round, idx) {
   const isPanic = round.type === 'panic_swap';
@@ -117,19 +104,23 @@ async function executeRound(round, idx) {
     info(`Amount: $${round.amount} | Gas: $${round.gasUsd} | Spread: ${round.spread > 0 ? '+' : ''}${round.spread}%`);
   }
 
-  const { status, data } = await http('POST', `/v1/workspaces/${wsId}/check`, {
-    action: `defi.${round.dex.toLowerCase().replace(/\s/g, '_')}.${round.type}`,
+  // Use same task_hash for panic swaps → triggers loop detection
+  const taskHash = isPanic ? 'panic-bnb-usdt' : `trade-${idx}`;
+  const stepHash = isPanic ? 'panic-bnb-usdt' : `step-${idx}`;  // same for panic = same pattern
+
+  const { status, json: data } = await httpJson('POST', '/v1/governor/check', {
+    policy_id: 'retry_friction_v1',
+    action: 'tool_call',
+    actor: { id: 'defi-arb-bot', project: 'defi-demo' },
     context: {
-      pair: round.pair,
-      dex: round.dex,
-      amount_usd: round.amount,
-      gas_estimate_usd: round.gasUsd,
-      spread_percent: round.spread,
-      estimated_cost_usd: costEst,
-      round: idx + 1,
+      attempt_in_window: idx + 1,
+      window_seconds: 60,
+      task_hash: taskHash,
+      step_hash: stepHash,
+      context_hash: `ctx-defi-${idx}`,
+      tool: `${round.dex.toLowerCase().replace(/\s/g, '_')}.${round.type}`,
     },
-    idempotency_key: `defi_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-  });
+  }, AUTH);
 
   if (status === 200) {
     if (round.type === 'quote') {
@@ -142,20 +133,24 @@ async function executeRound(round, idx) {
     }
   } else if (status === 402) {
     warn(`402 — Friction on $${round.amount} ${round.pair} swap (high cost)`);
-    // DeFi bot pays friction automatically
-    const txHash = '0x' + Array.from({ length: 64 }, () => '0123456789abcdef'[Math.floor(Math.random() * 16)]).join('');
-    await http('POST', `/v1/workspaces/${wsId}/redeem`, {
-      tx_hash: txHash, chain: 'bsc-testnet', action: `defi.swap`,
-    });
+    const txHash = '0xstub:defi-demo-' + Date.now();
+    const decisionId = data?.decision_id;
+    if (decisionId) {
+      await httpJson('POST', '/v1/governor/redeem', {
+        decision_id: decisionId,
+      }, { ...AUTH, 'x402-tx-hash': txHash });
+    }
     totalGas += round.gasUsd;
     ok(`Friction paid, swap proceeding`);
   } else if (status === 429) {
     fail(`🛑 BLOCKED — Storm detected! ${isPanic ? 'Panic selling stopped!' : 'Rate limited'}`);
-    fail(`Governor: "${data.error || data.message || 'too many requests'}"`);
+    fail(`Governor: "${data?.error || data?.reason || 'loop_detected'}"`);
     totalBlocked++;
     gasSaved += round.gasUsd;
     slippageSaved += Math.abs(round.spread) * round.amount / 100;
     return 'blocked';
+  } else {
+    warn(`Unexpected ${status}: ${JSON.stringify(data)}`);
   }
 
   await sleep(isPanic ? 100 : 400); // Panic swaps are fast
@@ -165,12 +160,47 @@ async function executeRound(round, idx) {
 async function main() {
   banner('DeFi Trading Bot — ProceedGate Demo');
   info('Use case: Arbitrage bot with per-swap cost gating and storm detection');
-  info(`Governor: ${GOVERNOR_URL}`);
+  info(`Governor: ${GOVERNOR_URL}\n`);
 
-  await startLocalWorker();
+  // ── Start local worker ──
+  info('Starting ProceedGate Governor...');
+  const worker = spawn(npm, [
+    '--workspace', 'worker', 'run', 'dev', '--',
+    '--env', 'billing', '--local', '--port', String(PORT),
+  ], {
+    stdio: 'ignore',
+    shell: process.platform === 'win32',
+    env: process.env,
+  });
 
-  phase(1, 'Setup');
-  await setupWorkspace();
+  try {
+    await waitForHealth(`${GOVERNOR_URL}/health`);
+    ok(`Governor running on port ${PORT}`);
+    await sleep(400);
+
+    phase(1, 'Setup');
+    const ws = await httpJson('POST', '/v1/workspaces/create',
+      { workspace_id: 'defi-demo' },
+      { 'x-admin-key': 'dev-admin-key' },
+    );
+    const apiKey = ws.json?.api_key ?? '';
+    if (apiKey) {
+      AUTH = { authorization: `Bearer ${apiKey}` };
+      ok('Workspace created, API key obtained');
+    } else {
+      warn(`Workspace response: ${JSON.stringify(ws.json)}`);
+    }
+
+    // Add credits
+    const quote = await httpJson('POST', '/v1/billing/quote',
+      { workspace_id: 'defi-demo', credits: 50 }, AUTH);
+    const quoteId = quote.json?.quote_id;
+    if (quoteId) {
+      await httpJson('POST', '/v1/billing/redeem',
+        { quote_id: quoteId, tx_hash: `0xstub:defi-demo-${quoteId}` }, AUTH);
+      ok('50 credits loaded');
+    }
+    await sleep(400);
 
   phase(2, 'Normal Trading');
   for (let i = 0; i < 5; i++) {
@@ -223,8 +253,13 @@ async function main() {
   during the flash crash, losing $${totalSaved.toFixed(2)} in gas + slippage.
   ProceedGate detected the swap storm and blocked after ~${totalSwaps + 1} trades.${c.reset}
   `);
-
-  if (workerProc) workerProc.kill();
+  } finally {
+    try { worker.kill('SIGINT'); } catch {}
+    await sleep(500);
+    if (process.platform === 'win32' && worker.pid) {
+      try { spawn('taskkill', ['/PID', String(worker.pid), '/T', '/F'], { stdio: 'ignore' }); } catch {}
+    }
+  }
 }
 
-main().catch(err => { console.error(err); if (workerProc) workerProc.kill(); process.exit(1); });
+main().catch(err => { console.error(err); process.exit(1); });

@@ -7,19 +7,18 @@
  *
  * Scenario:
  *   - Agent processes user tickets requiring code generation
- *   - Each LLM call is gated through ProceedGate
+ *   - Each LLM call is gated through ProceedGate (/v1/governor/check)
  *   - A buggy ticket causes an infinite reasoning loop → ProceedGate detects & blocks
  *   - Budget cap prevents runaway spending
  *
- * Usage: node scripts/demo-llm-gateway.mjs [--base-url URL]
+ * Usage: node scripts/demo-llm-gateway.mjs
  */
 
 import { spawn } from 'node:child_process';
 
 const PORT = 8810 + Math.floor(Math.random() * 100);
-const CUSTOM_URL = process.argv.find(a => a.startsWith('--base-url='))?.split('=')[1];
-const GOVERNOR_URL = CUSTOM_URL || `http://127.0.0.1:${PORT}`;
-const USE_LOCAL = !CUSTOM_URL;
+const GOVERNOR_URL = `http://127.0.0.1:${PORT}`;
+const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 
 const c = {
   reset: '\x1b[0m', bold: '\x1b[1m', dim: '\x1b[2m', italic: '\x1b[3m',
@@ -42,13 +41,25 @@ function fail(t) { console.log(`     ${c.red}🚫 ${t}${c.reset}`); }
 function info(t) { console.log(`  ${c.dim}▸ ${t}${c.reset}`); }
 function money(t) { console.log(`  ${c.bold}${c.green}💰 ${t}${c.reset}`); }
 
-async function http(method, path, body, headers = {}) {
+async function httpJson(method, path, body, headers = {}) {
   const res = await fetch(`${GOVERNOR_URL}${path}`, {
     method,
     headers: { 'content-type': 'application/json', ...headers },
     body: body ? JSON.stringify(body) : undefined,
   });
-  return { status: res.status, data: await res.json().catch(() => ({})), headers: Object.fromEntries(res.headers) };
+  const text = await res.text();
+  let json = null;
+  try { json = JSON.parse(text); } catch { /* text */ }
+  return { status: res.status, headers: Object.fromEntries(res.headers), json, text };
+}
+
+async function waitForHealth(url, timeoutMs = 30_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try { const r = await fetch(url); if (r.ok) return; } catch { /* retry */ }
+    await sleep(300);
+  }
+  throw new Error(`Worker did not start within ${timeoutMs}ms`);
 }
 
 // ── Simulated LLM models with pricing ──────────────────────────────────────
@@ -64,49 +75,23 @@ const TICKETS = [
   { id: 'TICK-201', title: 'Add pagination to user list', model: 0, calls: 2 },
   { id: 'TICK-202', title: 'Fix login redirect loop', model: 1, calls: 1 },
   { id: 'TICK-203', title: 'Implement OAuth2 PKCE flow', model: 2, calls: 3 },
-  { id: 'TICK-204', title: '⚠️ BUGGY: Recursive type resolution (infinite loop!)', model: 3, calls: 15 }, // This triggers storm
+  { id: 'TICK-204', title: '⚠️ BUGGY: Recursive type resolution (infinite loop!)', model: 3, calls: 15 }, // triggers storm
   { id: 'TICK-205', title: 'Update README with API docs', model: 0, calls: 1 },
 ];
 
+let AUTH = {};
 let totalCost = 0;
 let totalBlocked = 0;
 let costSaved = 0;
-let workerProc = null;
-let wsId = null;
-let adminKey = null;
-
-async function startLocalWorker() {
-  if (!USE_LOCAL) return;
-  info(`Starting local worker on port ${PORT}...`);
-  workerProc = spawn('npx', ['wrangler', 'dev', '--local', '--port', String(PORT), '--config', 'worker/wrangler.toml'], {
-    cwd: process.cwd(), shell: true, stdio: 'pipe',
-  });
-  let ready = false;
-  workerProc.stderr.on('data', d => { if (d.toString().includes('Ready')) ready = true; });
-  workerProc.stdout.on('data', d => { if (d.toString().includes('Ready')) ready = true; });
-  for (let i = 0; i < 40 && !ready; i++) await sleep(500);
-  if (!ready) { await sleep(3000); }
-  ok('Local worker ready');
-}
-
-async function setupWorkspace() {
-  adminKey = 'demo_admin_' + Date.now();
-  const { data } = await http('POST', '/v1/workspaces', {
-    name: 'LLM Gateway Demo',
-    budget_usd: 2.50,
-    owner: 'demo-llm-gateway',
-  }, { 'x-api-admin-key': adminKey });
-  wsId = data.workspace_id || data.id || 'ws_demo';
-  ok(`Workspace: ${wsId} (budget: $2.50)`);
-}
 
 async function gateCheck(action, context) {
-  const { status, data } = await http('POST', `/v1/workspaces/${wsId}/check`, {
+  const { status, json } = await httpJson('POST', '/v1/governor/check', {
+    policy_id: 'retry_friction_v1',
     action,
+    actor: { id: 'llm-gateway-agent', project: 'llm-demo' },
     context,
-    idempotency_key: `llm_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-  });
-  return { status, data };
+  }, AUTH);
+  return { status, data: json || {} };
 }
 
 async function processTicket(ticket) {
@@ -120,47 +105,57 @@ async function processTicket(ticket) {
 
     info(`LLM call ${call}/${ticket.calls} — ~${tokens} tokens ($${estCost.toFixed(4)})`);
 
-    // Gate through ProceedGate
-    const { status, data } = await gateCheck(`llm.${model.name}.completion`, {
-      ticket_id: ticket.id,
-      model: model.name,
-      estimated_tokens: tokens,
-      estimated_cost_usd: estCost,
-      call_number: call,
+    // Use same task_hash for same ticket → loop detection triggers on repeated calls
+    const taskHash = `ticket-${ticket.id}`;
+    const stepHash = ticket.calls > 5 ? taskHash : `call-${call}`; // buggy ticket: same step = same pattern → storm
+
+    const { status, data } = await gateCheck('model_call', {
+      attempt_in_window: call,
+      window_seconds: 60,
+      task_hash: taskHash,
+      step_hash: stepHash,
+      context_hash: `ctx-${ticket.id}-${call}`,
+      tool: model.name,
     });
 
     if (status === 200) {
-      // Simulate LLM response
       llm(call === 1 ? `Analyzing ${ticket.title}...` : `Iteration ${call}: refining solution...`);
       totalCost += estCost;
       ok(`✓ Gated & executed ($${estCost.toFixed(4)}) — running total: $${totalCost.toFixed(4)}`);
-      await sleep(300);
+      await sleep(150);
     } else if (status === 402) {
       warn(`402 Payment Required — friction applied for $${estCost.toFixed(4)} call`);
-      // Simulate payment
-      const txHash = '0x' + Array.from({ length: 64 }, () => '0123456789abcdef'[Math.floor(Math.random() * 16)]).join('');
-      const redeem = await http('POST', `/v1/workspaces/${wsId}/redeem`, {
-        tx_hash: txHash, chain: 'bsc-testnet', action: `llm.${model.name}.completion`,
-      });
-      if (redeem.status === 200) {
-        llm(`Paid friction, continuing: ${ticket.title}...`);
-        totalCost += estCost;
-        ok(`Friction paid, proceeding ($${totalCost.toFixed(4)} total)`);
+      const txHash = '0xstub:llm-demo-' + Date.now();
+      const decisionId = data?.decision_id;
+      if (decisionId) {
+        const redeem = await httpJson('POST', '/v1/governor/redeem', {
+          decision_id: decisionId,
+        }, { ...AUTH, 'x402-tx-hash': txHash });
+        if (redeem.status === 200) {
+          llm(`Paid friction, continuing: ${ticket.title}...`);
+          totalCost += estCost;
+          ok(`Friction paid — proceeding ($${totalCost.toFixed(4)} total)`);
+        } else {
+          fail(`Redeem rejected (${redeem.status})`);
+          costSaved += estCost;
+          totalBlocked++;
+        }
       } else {
-        fail(`Payment rejected — skipping`);
+        fail(`No decision_id — skipping`);
         costSaved += estCost;
         totalBlocked++;
       }
-      await sleep(200);
+      await sleep(100);
     } else if (status === 429) {
       fail(`🛑 BLOCKED — Retry storm detected on ${ticket.id}!`);
-      fail(`ProceedGate says: "${data.error || data.message || 'rate limited'}"`);
-      costSaved += estCost * (ticket.calls - call + 1);
-      totalBlocked += ticket.calls - call + 1;
-      money(`Saved ~$${(estCost * (ticket.calls - call + 1)).toFixed(4)} from remaining ${ticket.calls - call + 1} calls`);
+      fail(`ProceedGate says: "${data?.error || data?.reason || 'loop_detected'}"`);
+      const remaining = ticket.calls - call + 1;
+      costSaved += estCost * remaining;
+      totalBlocked += remaining;
+      money(`Saved ~$${(estCost * remaining).toFixed(4)} from remaining ${remaining} calls`);
       return 'storm_blocked';
     } else {
-      warn(`Unexpected ${status} — skipping call`);
+      warn(`Unexpected ${status}: ${JSON.stringify(data)}`);
       await sleep(100);
     }
   }
@@ -170,24 +165,62 @@ async function processTicket(ticket) {
 async function main() {
   banner('LLM Gateway Agent — ProceedGate Demo');
   info('Use case: Coding assistant with GPT-4/Claude, cost-gated per LLM call');
-  info(`Governor: ${GOVERNOR_URL}`);
+  info(`Governor: ${GOVERNOR_URL}\n`);
 
-  await startLocalWorker();
+  // ── Start local worker ──
+  info('Starting ProceedGate Governor...');
+  const worker = spawn(npm, [
+    '--workspace', 'worker', 'run', 'dev', '--',
+    '--env', 'billing', '--local', '--port', String(PORT),
+  ], {
+    stdio: 'ignore',
+    shell: process.platform === 'win32',
+    env: process.env,
+  });
 
-  phase(1, 'Setup Workspace');
-  await setupWorkspace();
+  try {
+    await waitForHealth(`${GOVERNOR_URL}/health`);
+    ok(`Governor running on port ${PORT}`);
+    await sleep(400);
 
-  phase(2, 'Process Tickets');
-  const results = [];
-  for (const ticket of TICKETS) {
-    const result = await processTicket(ticket);
-    results.push({ ticket: ticket.id, result });
-    console.log();
-    await sleep(500);
-  }
+    // ── Create workspace ──
+    phase(1, 'Setup Workspace');
+    const ws = await httpJson('POST', '/v1/workspaces/create',
+      { workspace_id: 'llm-demo' },
+      { 'x-admin-key': 'dev-admin-key' },
+    );
+    const apiKey = ws.json?.api_key ?? '';
+    if (apiKey) {
+      AUTH = { authorization: `Bearer ${apiKey}` };
+      ok('Workspace created, API key obtained');
+    } else {
+      warn(`Workspace response: ${JSON.stringify(ws.json)}`);
+    }
 
-  phase(3, 'Summary');
-  console.log(`
+    // Add credits
+    const quote = await httpJson('POST', '/v1/billing/quote',
+      { workspace_id: 'llm-demo', credits: 50 }, AUTH);
+    const quoteId = quote.json?.quote_id;
+    if (quoteId) {
+      await httpJson('POST', '/v1/billing/redeem',
+        { quote_id: quoteId, tx_hash: `0xstub:llm-demo-${quoteId}` }, AUTH);
+      ok('50 credits loaded into workspace');
+    }
+    await sleep(400);
+
+    // ── Process Tickets ──
+    phase(2, 'Process Tickets');
+    const results = [];
+    for (const ticket of TICKETS) {
+      const result = await processTicket(ticket);
+      results.push({ ticket: ticket.id, result });
+      console.log();
+      await sleep(300);
+    }
+
+    // ── Summary ──
+    phase(3, 'Summary');
+    console.log(`
   ${c.bold}╔══════════════════════════════════════════════╗
   ║   LLM Gateway Agent — Session Summary         ║
   ╠══════════════════════════════════════════════╣${c.reset}
@@ -201,9 +234,14 @@ async function main() {
   ${c.dim}Without ProceedGate, the buggy ticket TICK-204 would have
   made 15 Claude calls (~$${(15 * 0.015 * 2).toFixed(2)}) before timing out.
   ProceedGate detected the storm after ~10 calls and saved $${costSaved.toFixed(4)}.${c.reset}
-  `);
-
-  if (workerProc) { workerProc.kill(); }
+    `);
+  } finally {
+    try { worker.kill('SIGINT'); } catch {}
+    await sleep(500);
+    if (process.platform === 'win32' && worker.pid) {
+      try { spawn('taskkill', ['/PID', String(worker.pid), '/T', '/F'], { stdio: 'ignore' }); } catch {}
+    }
+  }
 }
 
-main().catch(err => { console.error(err); if (workerProc) workerProc.kill(); process.exit(1); });
+main().catch(err => { console.error(err); process.exit(1); });
