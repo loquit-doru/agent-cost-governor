@@ -11,3 +11,46 @@ worker/.secrets/
 *.mov
 *.mkv
 *.avi
+
+# IDE / AI config
+.claude/
+.vscode/
+.github/copilot-instructions.md
+skills/
+
+# Internal docs (not for public repo)
+AI_BUILD_LOG.md
+HOMEPAGE_COPY.md
+LAUNCH_CHECKLIST.md
+ONE_PAGER.md
+OPENCLAW_SETUP.md
+OPERATIONS.md
+PAYMENT_VERIFICATION.md
+PRODUCTION_CHECKLIST.md
+SMOKE_TEST.md
+SECURITY_AUDIT.md
+DEEP_TECHNICAL_RESEARCH.md
+RESEARCH_REPORT.md
+OBSERVABILITY.md
+X_THREAD_TEMPLATE.md
+HACKATHON_SUBMISSION_CHECKLIST.md
+
+# Random assets
+*.jpg
+*.jpeg
+*.png
+
+# Internal scripts
+scripts/prod-provision.ps1
+scripts/setup-prod.ps1
+scripts/test-prod-billing.ps1
+scripts/generate-deploy-wallet.mjs
+scripts/generate-signing-key.mjs
+scripts/hackathon-proof.mjs
+scripts/redeploy-and-verify.mjs
+scripts/verify-sourcify.mjs
+scripts/VOICEOVER_SCRIPT.md
+
+# Dead code
+worker/src/index.old.ts
+worker/CONFIG.md
