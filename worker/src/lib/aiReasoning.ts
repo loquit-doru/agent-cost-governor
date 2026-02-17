@@ -64,7 +64,7 @@ Rules:
 
 const DECISION_SYSTEM_PROMPT = `You are an AI security analyst deciding whether to allow or block an AI agent's request.
 
-You are given behavioral signals: request count, timing regularity, action type.
+You are given behavioral signals: request count, timing regularity, action type, cost, backoff pattern.
 You must decide: ALLOW or BLOCK.
 
 Decision factors:
@@ -72,6 +72,9 @@ Decision factors:
 - requests_per_sec: >0.5 in gray zone is suspicious, <0.2 is probably fine.
 - action type: scraping/crawl actions are more prone to loops than read/query actions.
 - count relative to threshold: 6 is barely suspicious, 9 is very suspicious.
+- cost_window_usd: higher accumulated cost = more reason to be cautious.
+- backoff_detected: if true, the agent is slowing down (backing off), which is GOOD behavior — lean towards ALLOW.
+- similar_pattern_count: many similar-but-not-identical requests suggest parameter enumeration (e.g. page=1, page=2) — can be legitimate pagination or a crawl sweep.
 
 You MUST respond with EXACTLY one line in this format:
 DECISION: ALLOW | reason here
@@ -91,6 +94,13 @@ export interface GrayZoneInput {
   window_elapsed_ms: number;
   task_hash?: string;
   step_hash?: string;
+  // ── Smart pattern signals ──────────────────────────────────
+  /** Accumulated cost in this window (USD) */
+  cost_window_usd?: number;
+  /** True if intervals are growing → exponential backoff detected */
+  backoff_detected?: boolean;
+  /** Number of similar (not identical) patterns in this window */
+  similar_pattern_count?: number;
 }
 
 export interface GrayZoneDecision {
@@ -163,6 +173,9 @@ function buildDecisionPrompt(input: GrayZoneInput): string {
     `Request count: ${input.count} in ${Math.round(input.window_elapsed_ms / 1000)}s (threshold: ${input.max_count})`,
     `Timing: avg interval ${input.avg_interval_ms}ms, regularity CV=${input.interval_cv.toFixed(3)} (0=perfectly regular/bot, >0.4=irregular/human)`,
     `Rate: ${input.requests_per_sec.toFixed(2)} requests/sec`,
+    input.cost_window_usd !== undefined ? `Cost accumulated in window: $${input.cost_window_usd.toFixed(2)}` : '',
+    input.backoff_detected !== undefined ? `Backoff detected: ${input.backoff_detected} (true = agent is slowing down → good)` : '',
+    input.similar_pattern_count !== undefined && input.similar_pattern_count > 1 ? `Similar patterns in window: ${input.similar_pattern_count} (parameter variants of same action)` : '',
     input.task_hash ? `Task: ${input.task_hash}` : '',
     input.step_hash ? `Step: ${input.step_hash}` : '',
     '',
@@ -192,7 +205,7 @@ function parseDecisionResponse(response: string): { decision: 'allow' | 'block';
 
 /**
  * Heuristic fallback for gray zone decisions when AI is unavailable.
- * Uses timing regularity + count proximity to threshold.
+ * Uses timing regularity + count proximity to threshold + smart signals.
  */
 function heuristicGrayZone(input: GrayZoneInput): GrayZoneDecision {
   // Very regular timing (cv < 0.15) + high count = likely bot
@@ -210,18 +223,32 @@ function heuristicGrayZone(input: GrayZoneInput): GrayZoneDecision {
   // Low CV + high count is the strongest bot signal
   if (isRegular && isHighCount) suspicion += 2;
 
+  // ── Smart signal adjustments ─────────────────────────────────
+  // Backoff detected → agent is being responsible → reduce suspicion
+  if (input.backoff_detected) suspicion -= 3;
+  // High accumulated cost → more reason to protect
+  if (input.cost_window_usd !== undefined && input.cost_window_usd > 0.50) suspicion += 1;
+  // Many similar patterns → parameter sweep (could be legitimate pagination or a crawl)
+  if (input.similar_pattern_count !== undefined && input.similar_pattern_count > 5) suspicion += 1;
+
   const shouldBlock = suspicion >= 5;
 
+  const signals: string[] = [];
+  if (isRegular) signals.push('mechanical timing');
+  if (input.backoff_detected) signals.push('backoff detected (good)');
+  if (input.cost_window_usd !== undefined && input.cost_window_usd > 0) signals.push(`$${input.cost_window_usd.toFixed(2)} accumulated`);
+  if (input.similar_pattern_count !== undefined && input.similar_pattern_count > 1) signals.push(`${input.similar_pattern_count} similar patterns`);
+
   const reasoning = shouldBlock
-    ? `Heuristic: ${input.count} requests with ${isRegular ? 'mechanical' : 'semi-regular'} timing (CV=${input.interval_cv.toFixed(3)}), ${input.requests_per_sec.toFixed(1)} req/s. Pattern suggests automated retry loop.`
-    : `Heuristic: ${input.count} requests with ${isRegular ? 'regular' : 'irregular'} timing (CV=${input.interval_cv.toFixed(3)}), ${input.requests_per_sec.toFixed(1)} req/s. Pattern within acceptable burst range.`;
+    ? `Heuristic: ${input.count} requests, ${input.requests_per_sec.toFixed(1)} req/s, CV=${input.interval_cv.toFixed(3)}. ${signals.join(', ')}. Pattern suggests automated retry loop.`
+    : `Heuristic: ${input.count} requests, ${input.requests_per_sec.toFixed(1)} req/s, CV=${input.interval_cv.toFixed(3)}. ${signals.join(', ')}. Pattern within acceptable burst range.`;
 
   return {
     decision: shouldBlock ? 'block' : 'allow',
     reasoning,
     ai_decided: false,
     confidence: shouldBlock ? 0.7 : 0.65,
-    model: 'heuristic-v1',
+    model: 'heuristic-v2',
   };
 }
 

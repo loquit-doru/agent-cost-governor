@@ -78,6 +78,8 @@ export type LoopPattern = {
   lastSeenMs: number;
   /** Last N timestamps for interval analysis (max 20 kept) */
   timestamps: number[];
+  /** Accumulated cost in this window (USD) */
+  costUsd: number;
 };
 
 // Decision log entry — stored per demo/workspace for real dashboard data
@@ -220,6 +222,56 @@ export class BillingStoreDO {
 
   private async deleteAuth(workspaceId: string): Promise<void> {
     await this.state.storage.delete(`auth:${workspaceId}`);
+  }
+
+  // ── Smart Pattern Matching helpers ────────────────────────────────────────
+
+  /**
+   * Detect exponential backoff in request intervals.
+   * Returns true if intervals are consistently increasing (agent is backing off).
+   * Requires at least 3 intervals to be meaningful.
+   */
+  private detectBackoff(intervals: number[]): boolean {
+    if (intervals.length < 3) return false;
+
+    // Check last 5 intervals (most recent behavior matters most)
+    const recent = intervals.slice(-5);
+    let increasing = 0;
+    for (let i = 1; i < recent.length; i++) {
+      // Each interval should be at least 20% larger than the previous
+      if (recent[i] > recent[i - 1] * 1.2) increasing++;
+    }
+    // If >60% of intervals are increasing → backoff pattern
+    return increasing / (recent.length - 1) > 0.6;
+  }
+
+  /**
+   * Track and count similar patterns using a shared prefix.
+   * Groups actions like "scrape:page=1", "scrape:page=2" under the same prefix "scrape:pag".
+   * Returns total unique patterns in the similarity group within the window.
+   */
+  private async trackSimilarityGroup(
+    workspaceId: string,
+    prefix: string,
+    nowMs: number,
+    windowMs: number,
+  ): Promise<number> {
+    const simKey = `sim:${workspaceId}:${prefix}`;
+    const existing = await this.state.storage.get<{ hashes: string[]; lastMs: number }>(simKey);
+
+    if (!existing || (nowMs - existing.lastMs) > windowMs) {
+      // Expired or new — start fresh
+      await this.state.storage.put(simKey, { hashes: [prefix], lastMs: nowMs });
+      return 1;
+    }
+
+    // Add this prefix variant if not already tracked (max 50)
+    if (!existing.hashes.includes(prefix) && existing.hashes.length < 50) {
+      existing.hashes.push(prefix);
+    }
+    existing.lastMs = nowMs;
+    await this.state.storage.put(simKey, existing);
+    return existing.hashes.length;
   }
 
   // Budget management
@@ -902,11 +954,14 @@ export class BillingStoreDO {
 
       // Loop detection - check if action pattern is repeating too fast
       // ======================================================================
+      // Enhanced with: similarity grouping, cost accumulation, backoff detection
       if (request.method === 'POST' && parts.length === 3 && parts[2] === 'check-loop') {
         const body = await request.json().catch(() => null) as { 
           pattern_hash: string; // Hash of action + task context
           window_ms?: number; // Time window (default 60s)
           max_count?: number; // Max allowed in window (default 10)
+          cost_usd?: number; // Cost of this request in USD (optional)
+          similarity_prefix?: string; // First N chars of hash — groups similar requests
         } | null;
         
         if (!body?.pattern_hash) {
@@ -915,9 +970,10 @@ export class BillingStoreDO {
         
         const windowMs = body.window_ms ?? 60000; // 60 seconds default
         const maxCount = body.max_count ?? 10; // 10 requests per minute default
+        const costUsd = body.cost_usd ?? 0;
         const nowMs = Date.now();
         
-        // Get or create loop tracking for this pattern
+        // ── Exact pattern tracking ────────────────────────────────────────
         const key = `loop:${workspaceId}:${body.pattern_hash}`;
         const existing = await this.state.storage.get<LoopPattern>(key);
         
@@ -930,9 +986,14 @@ export class BillingStoreDO {
             firstSeenMs: nowMs,
             lastSeenMs: nowMs,
             timestamps: [nowMs],
+            costUsd,
           };
           await this.state.storage.put(key, fresh);
-          return Response.json({ ok: true, loop_detected: false, count: 1, zone: 'safe' }, { status: 200 });
+
+          // Track similarity group (fire and forget)
+          const simCount = await this.trackSimilarityGroup(workspaceId, body.similarity_prefix || body.pattern_hash.slice(0, 8), nowMs, windowMs);
+
+          return Response.json({ ok: true, loop_detected: false, count: 1, zone: 'safe', similar_pattern_count: simCount }, { status: 200 });
         }
         
         if (!existing) {
@@ -942,18 +1003,23 @@ export class BillingStoreDO {
             firstSeenMs: nowMs,
             lastSeenMs: nowMs,
             timestamps: [nowMs],
+            costUsd,
           };
           await this.state.storage.put(key, fresh);
-          return Response.json({ ok: true, loop_detected: false, count: 1, zone: 'safe' }, { status: 200 });
+
+          const simCount = await this.trackSimilarityGroup(workspaceId, body.similarity_prefix || body.pattern_hash.slice(0, 8), nowMs, windowMs);
+
+          return Response.json({ ok: true, loop_detected: false, count: 1, zone: 'safe', similar_pattern_count: simCount }, { status: 200 });
         }
         
-        // Increment count and track timestamp (keep last 20)
+        // ── Increment count, track timestamp (keep last 20), accumulate cost ──
         existing.count += 1;
         existing.lastSeenMs = nowMs;
         existing.timestamps = [...(existing.timestamps || []), nowMs].slice(-20);
+        existing.costUsd = (existing.costUsd || 0) + costUsd;
         await this.state.storage.put(key, existing);
         
-        // Compute timing metadata for AI decision zone
+        // ── Timing analysis ───────────────────────────────────────────────
         const intervals: number[] = [];
         const ts = existing.timestamps;
         for (let i = 1; i < ts.length; i++) intervals.push(ts[i] - ts[i - 1]);
@@ -967,11 +1033,21 @@ export class BillingStoreDO {
         const windowSec = (existing.lastSeenMs - existing.firstSeenMs) / 1000 || 1;
         const requestsPerSec = existing.count / windowSec;
 
-        // Determine zone: safe (<6), gray (6-10), storm (>10)
-        const zone = existing.count <= 5 ? 'safe' : existing.count <= maxCount ? 'gray' : 'storm';
+        // ── Backoff detection ─────────────────────────────────────────────
+        // If intervals are increasing → agent is backing off (good behavior)
+        // If intervals are constant/decreasing → storm pattern (bad behavior)
+        const backoffDetected = this.detectBackoff(intervals);
+
+        // ── Similarity group count ────────────────────────────────────────
+        const simCount = await this.trackSimilarityGroup(workspaceId, body.similarity_prefix || body.pattern_hash.slice(0, 8), nowMs, windowMs);
+
+        // ── Determine zone ────────────────────────────────────────────────
+        // Backoff detected → be more lenient (shift zone boundary up)
+        const effectiveMaxCount = backoffDetected ? maxCount + 3 : maxCount;
+        const zone = existing.count <= 5 ? 'safe' : existing.count <= effectiveMaxCount ? 'gray' : 'storm';
         
-        // Check if loop detected (hard block above maxCount)
-        const loopDetected = existing.count > maxCount;
+        // Check if loop detected (hard block above effective maxCount)
+        const loopDetected = existing.count > effectiveMaxCount;
         
         if (loopDetected) {
           // Track as blocked for cost_saved metric
@@ -983,7 +1059,7 @@ export class BillingStoreDO {
             updatedAtMs: nowMs,
           };
           blocked.blockedRequests += 1;
-          blocked.estimatedCostSavedUsd += 0.05; // Loop blocks are more valuable
+          blocked.estimatedCostSavedUsd += Math.max(0.05, costUsd);
           blocked.blockedByReason['loop_detected'] = (blocked.blockedByReason['loop_detected'] ?? 0) + 1;
           blocked.lastBlockedAtMs = nowMs;
           blocked.updatedAtMs = nowMs;
@@ -1003,6 +1079,10 @@ export class BillingStoreDO {
             requests_per_sec: Math.round(requestsPerSec * 100) / 100,
             window_elapsed_ms: existing.lastSeenMs - existing.firstSeenMs,
           },
+          // ── New smart signals ──────────────────────────────────────────
+          cost_window_usd: Math.round(existing.costUsd * 100) / 100,
+          backoff_detected: backoffDetected,
+          similar_pattern_count: simCount,
         }, { status: loopDetected ? 429 : 200 });
       }
 

@@ -45,6 +45,12 @@ checkRoutes.post('/v1/governor/check', async (c) => {
       new TextEncoder().encode(`${parsed.data.action}:${parsed.data.context.task_hash || ''}:${parsed.data.context.step_hash || ''}`)
     ).then(buf => Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 16));
 
+    // Similarity prefix: hash of just the action (groups variants like page=1, page=2)
+    const similarityPrefix = await crypto.subtle.digest(
+      'SHA-256',
+      new TextEncoder().encode(parsed.data.action)
+    ).then(buf => Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 8));
+
     const loopCheckRes = await stub.fetch(doUrl(`/workspaces/${workspaceId}/check-loop`), {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -52,6 +58,8 @@ checkRoutes.post('/v1/governor/check', async (c) => {
         pattern_hash: patternHash,
         window_ms: 60000, // 1 minute window
         max_count: 10, // Max 10 identical patterns per minute
+        cost_usd: 0.05, // estimated cost per API check
+        similarity_prefix: similarityPrefix,
       }),
     });
 
@@ -64,6 +72,9 @@ checkRoutes.post('/v1/governor/check', async (c) => {
         requests_per_sec: number;
         window_elapsed_ms: number;
       };
+      cost_window_usd?: number;
+      backoff_detected?: boolean;
+      similar_pattern_count?: number;
     };
 
     // ─── ZONE: STORM (count > 10) — Hard block, no AI needed ──────────
@@ -148,6 +159,10 @@ checkRoutes.post('/v1/governor/check', async (c) => {
         window_elapsed_ms: loopData.timing.window_elapsed_ms,
         task_hash: parsed.data.context.task_hash,
         step_hash: parsed.data.context.step_hash,
+        // Smart pattern signals
+        cost_window_usd: loopData.cost_window_usd,
+        backoff_detected: loopData.backoff_detected,
+        similar_pattern_count: loopData.similar_pattern_count,
       });
 
       c.header('X-Proceedgate-Zone', 'gray');
@@ -522,6 +537,17 @@ checkRoutes.post('/v1/demo/check', async (c) => {
       .slice(0, 16),
   );
 
+  // Similarity prefix: hash of just the action (groups parameter variants)
+  const similarityPrefix = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(action),
+  ).then(buf =>
+    Array.from(new Uint8Array(buf))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('')
+      .slice(0, 8),
+  );
+
   const loopCheckRes = await stub.fetch(doUrl(`/workspaces/${demoWs}/check-loop`), {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -529,11 +555,13 @@ checkRoutes.post('/v1/demo/check', async (c) => {
       pattern_hash: patternHash,
       window_ms: 60_000,
       max_count: 10,
+      cost_usd: 0.05,
+      similarity_prefix: similarityPrefix,
     }),
   });
 
   if (loopCheckRes.status === 429) {
-    const loopData = (await loopCheckRes.json()) as { count: number; zone: string; timing?: { avg_interval_ms: number; interval_cv: number; requests_per_sec: number; window_elapsed_ms: number } };
+    const loopData = (await loopCheckRes.json()) as { count: number; zone: string; timing?: { avg_interval_ms: number; interval_cv: number; requests_per_sec: number; window_elapsed_ms: number }; cost_window_usd?: number; backoff_detected?: boolean; similar_pattern_count?: number };
     const latencyMs = Date.now() - startMs;
 
     writeMetric(c.env, {
@@ -594,7 +622,7 @@ checkRoutes.post('/v1/demo/check', async (c) => {
   }
 
   // ─── GRAY ZONE: AI decides (count 6-10) for demo ──────────────────
-  const loopData = (await loopCheckRes.json()) as { count: number; zone: string; timing?: { avg_interval_ms: number; interval_cv: number; requests_per_sec: number; window_elapsed_ms: number } };
+  const loopData = (await loopCheckRes.json()) as { count: number; zone: string; timing?: { avg_interval_ms: number; interval_cv: number; requests_per_sec: number; window_elapsed_ms: number }; cost_window_usd?: number; backoff_detected?: boolean; similar_pattern_count?: number };
 
   if (loopData.zone === 'gray' && loopData.timing) {
     const grayDecision = await aiDecideGrayZone(c.env, {
@@ -608,6 +636,10 @@ checkRoutes.post('/v1/demo/check', async (c) => {
       window_elapsed_ms: loopData.timing.window_elapsed_ms,
       task_hash,
       step_hash,
+      // Smart pattern signals
+      cost_window_usd: loopData.cost_window_usd,
+      backoff_detected: loopData.backoff_detected,
+      similar_pattern_count: loopData.similar_pattern_count,
     });
 
     if (grayDecision.decision === 'block') {
@@ -711,6 +743,10 @@ checkRoutes.post('/v1/demo/check', async (c) => {
       zone: loopData.zone,
       pattern_count: loopData.count,
       ...(loopData.timing ? { timing: loopData.timing } : {}),
+      // Smart pattern signals
+      ...(loopData.cost_window_usd !== undefined ? { cost_window_usd: loopData.cost_window_usd } : {}),
+      ...(loopData.backoff_detected !== undefined ? { backoff_detected: loopData.backoff_detected } : {}),
+      ...(loopData.similar_pattern_count !== undefined ? { similar_pattern_count: loopData.similar_pattern_count } : {}),
       message: loopData.zone === 'gray'
         ? `✅ AI allowed your request (${loopData.count} requests — gray zone, but timing looks human).`
         : '✅ Request allowed through the gate.',
