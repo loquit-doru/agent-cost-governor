@@ -78,6 +78,20 @@ export type LoopPattern = {
   lastSeenMs: number;
 };
 
+// Decision log entry — stored per demo/workspace for real dashboard data
+export type DemoDecisionEntry = {
+  id: string;
+  timestamp: string;
+  action: string;
+  task_hash: string;
+  step_hash: string;
+  decision: 'allowed' | 'blocked_storm' | 'blocked_credits' | 'friction_required';
+  latency_ms: number;
+  pattern_count?: number;
+  cost_saved_usd?: number;
+  ai_reasoning?: string;
+};
+
 type PutQuoteBody = { record: BillingQuoteRecord };
 
 type ConsumeBody = { n: number; action?: string; tool?: string };
@@ -1016,6 +1030,67 @@ export class BillingStoreDO {
             avg_daily_credits: Math.round(totalCredits / days),
           },
         }, { status: 200 });
+      }
+
+      // Decision logging — store each governance decision for real dashboard
+      // ======================================================================
+      if (request.method === 'POST' && parts.length === 3 && parts[2] === 'log-decision') {
+        const body = await request.json().catch(() => null) as DemoDecisionEntry | null;
+        if (!body?.id) return new Response('invalid_request', { status: 400 });
+
+        const nowMs = Date.now();
+        const key = `dlog:${workspaceId}:${String(nowMs).padStart(15, '0')}:${body.id.slice(0, 6)}`;
+        await this.state.storage.put(key, body);
+
+        // Also increment per-minute counter for storm chart
+        const minuteKey = `dmin:${workspaceId}:${Math.floor(nowMs / 60000)}`;
+        const minData = await this.state.storage.get<{ total: number; blocked: number }>(minuteKey) || { total: 0, blocked: 0 };
+        minData.total += 1;
+        if (body.decision === 'blocked_storm' || body.decision === 'blocked_credits') {
+          minData.blocked += 1;
+        }
+        await this.state.storage.put(minuteKey, minData);
+
+        // Also increment total decision counter
+        const counterKey = `dcnt:${workspaceId}`;
+        const counter = await this.state.storage.get<number>(counterKey) || 0;
+        await this.state.storage.put(counterKey, counter + 1);
+
+        // Prune: keep only last 200 decision log entries
+        const allKeys = await this.state.storage.list({ prefix: `dlog:${workspaceId}:` });
+        if (allKeys.size > 200) {
+          const sorted = [...allKeys.keys()].sort();
+          const deleteKeys = sorted.slice(0, sorted.length - 200);
+          for (const dk of deleteKeys) {
+            await this.state.storage.delete(dk);
+          }
+        }
+
+        return Response.json({ ok: true });
+      }
+
+      // Decision log — return recent governance decisions
+      // ======================================================================
+      if (request.method === 'GET' && parts.length === 3 && parts[2] === 'decision-log') {
+        const limit = Math.min(Number(url.searchParams.get('limit') || '50'), 200);
+        const allEntries = await this.state.storage.list<DemoDecisionEntry>({ prefix: `dlog:${workspaceId}:`, reverse: true, limit });
+        const decisions = [...allEntries.values()];
+        const totalCount = await this.state.storage.get<number>(`dcnt:${workspaceId}`) || decisions.length;
+
+        return Response.json({ ok: true, decisions, total_count: totalCount });
+      }
+
+      // Storm chart — per-minute request counts for last 60 minutes
+      // ======================================================================
+      if (request.method === 'GET' && parts.length === 3 && parts[2] === 'storm-chart') {
+        const nowMinute = Math.floor(Date.now() / 60000);
+        const buckets: { minutes_ago: number; total: number; blocked: number }[] = [];
+        for (let i = 59; i >= 0; i--) {
+          const minuteKey = `dmin:${workspaceId}:${nowMinute - i}`;
+          const data = await this.state.storage.get<{ total: number; blocked: number }>(minuteKey) || { total: 0, blocked: 0 };
+          buckets.push({ minutes_ago: i, total: data.total, blocked: data.blocked });
+        }
+        return Response.json({ ok: true, buckets });
       }
 
       return new Response('method_not_allowed', { status: 405 });

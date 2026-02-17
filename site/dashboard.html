@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>Live Dashboard — ProceedGate</title>
   <meta name="description" content="Real-time cost governance dashboard. Monitor agent decisions, retry storms, and savings.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -246,7 +249,7 @@
     .live-btn.reset { background: transparent; border: 1px solid var(--border); color: var(--text-secondary); box-shadow: none; }
     .live-results { display: flex; flex-direction: column; gap: 8px; max-height: 420px; overflow-y: auto; }
     .live-result {
-      display: flex; align-items: center; gap: 12px;
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
       padding: 10px 14px; border-radius: 8px; font-size: 13px;
       font-family: 'JetBrains Mono', monospace;
       animation: fadeIn 0.3s ease-out;
@@ -261,11 +264,10 @@
     .live-status.err { color: var(--warning); }
     .live-msg { color: var(--text-secondary); flex: 1; }
     .live-latency { color: var(--text-muted); font-size: 11px; min-width: 50px; text-align: right; }
-    .live-reasoning { width: 100%; margin-top: 8px; padding: 12px 14px; border-radius: 8px; font-size: 12px; line-height: 1.6; color: #e0d4f7; background: rgba(139,92,246,0.15); border: 1px solid rgba(139,92,246,0.4); font-family: 'Inter', sans-serif; box-shadow: 0 2px 12px rgba(139,92,246,0.1); }
+    .live-reasoning { display: block; margin-top: 0; margin-bottom: 8px; padding: 14px 16px; border-radius: 8px; font-size: 12px; line-height: 1.6; color: #e0d4f7; background: rgba(139,92,246,0.18); border: 1px solid rgba(139,92,246,0.5); font-family: 'Inter', sans-serif; box-shadow: 0 2px 16px rgba(139,92,246,0.15); animation: fadeIn 0.3s ease-out; }
     .live-reasoning strong { color: #c4b5fd; font-weight: 700; font-size: 13px; display: block; margin-bottom: 6px; }
     .live-reasoning .chain-step { display: block; padding: 3px 0 3px 8px; margin-top: 4px; font-size: 11px; color: #c4b5fd; border-left: 2px solid rgba(139,92,246,0.4); margin-left: 2px; }
     .live-reasoning .chain-step::before { content: '→ '; color: #a78bfa; font-weight: 600; }
-    .live-result { flex-wrap: wrap; }
     .live-confidence { font-size: 11px; color: #c4b5fd; margin-left: auto; font-weight: 600; }
     .live-counter { display: flex; gap: 20px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
     .live-counter-item { font-size: 12px; color: var(--text-muted); }
@@ -332,7 +334,7 @@
     <div class="dash-header">
       <div>
         <h1 class="dash-title">Live <span class="accent">Dashboard</span></h1>
-        <p class="dash-subtitle">Real-time cost governance monitoring · Workspace: <code style="color: var(--brand-light); font-family: 'JetBrains Mono', monospace;">hackathon-demo</code></p>
+        <p class="dash-subtitle">Real-time data from Durable Object storage · Workspace: <code style="color: var(--brand-light); font-family: 'JetBrains Mono', monospace;">demo-public</code></p>
       </div>
       <div class="api-status" id="apiStatus">
         <span class="status-dot" id="statusDot"></span>
@@ -346,7 +348,7 @@
         <div class="stat-icon">🛡️</div>
         <div class="stat-label">Total Decisions</div>
         <div class="stat-value brand" id="totalDecisions">0</div>
-        <div class="stat-change up" id="decisionsChange">↑ +47 last hour</div>
+        <div class="stat-change up" id="decisionsChange">— Loading real data...</div>
       </div>
       <div class="stat-card">
         <div class="stat-icon">🚫</div>
@@ -358,7 +360,7 @@
         <div class="stat-icon">💰</div>
         <div class="stat-label">Cost Saved</div>
         <div class="stat-value success" id="costSaved">$0</div>
-        <div class="stat-change up" id="savingsChange">↑ vs unprotected agents</div>
+        <div class="stat-change up" id="savingsChange">— Loading real data...</div>
       </div>
       <div class="stat-card">
         <div class="stat-icon">⛓️</div>
@@ -399,9 +401,9 @@
         <div class="section-header">
           <h2 class="section-title">
             Recent Decisions
-            <span class="section-badge">LIVE</span>
+            <span class="section-badge">REAL DATA</span>
           </h2>
-          <span style="font-size: 12px; color: var(--text-muted);" id="feedCount">0 decisions</span>
+          <span style="font-size: 12px; color: var(--text-muted);" id="feedCount">Loading...</span>
         </div>
         <div class="feed" id="decisionsFeed"></div>
       </div>
@@ -477,9 +479,9 @@
       <div class="openclaw-features">
         <div class="openclaw-feat"><span class="check">✓</span> AgentSkill: onchain-cost-governor</div>
         <div class="openclaw-feat"><span class="check">✓</span> SOUL.md — Agent identity &amp; safety policy</div>
-        <div class="openclaw-feat"><span class="check">✓</span> AGENTS.md — Multi-agent coordination</div>
-        <div class="openclaw-feat"><span class="check">✓</span> Skill auto-discovery via file watcher</div>
-        <div class="openclaw-feat"><span class="check">✓</span> Channel routing (Discord / Telegram / Slack)</div>
+        <div class="openclaw-feat"><span class="check">✓</span> AGENTS.md — Multi-agent coordination spec</div>
+        <div class="openclaw-feat"><span class="check">✓</span> Workers AI reasoning (Llama 3.1 8B, real LLM)</div>
+        <div class="openclaw-feat"><span class="check">✓</span> Real-time decision logging in Durable Objects</div>
         <div class="openclaw-feat"><span class="check">✓</span> Session-based audit trail with decision_id</div>
         <div class="openclaw-feat"><span class="check">✓</span> Coordinator → Governor → Executor pipeline</div>
         <div class="openclaw-feat"><span class="check">✓</span> ES256 JWT proceed tokens (P-256, 45s TTL)</div>
@@ -507,7 +509,7 @@
     <div class="section">
       <div class="section-header">
         <h2 class="section-title">📋 Agent Activity Log</h2>
-        <span style="font-size: 12px; color: var(--text-muted);">Last 20 events · CryptoScraper demo</span>
+        <span style="font-size: 12px; color: var(--text-muted);">Last 20 events · Real data from DO storage</span>
       </div>
       <table class="activity-table">
         <thead>
@@ -544,8 +546,8 @@
 
   <script>
     // ═══════════════════════════════════════════════════════════════════════════
-    // ProceedGate Live Dashboard
-    // Shows real API status + simulated agent activity data for judges
+    // ProceedGate Live Dashboard — REAL DATA from Durable Object storage
+    // All stats, decisions, and storm chart data come from the live API.
     // ═══════════════════════════════════════════════════════════════════════════
 
     const API_BASE = 'https://agent-cost-governor-hackathon.apiworkersdev.workers.dev';
@@ -554,22 +556,7 @@
     const PROOF_TX = '0xd97039268c048cafd45c0f3b870111b1dcd22f3fdfd62a47e75ae843eb13b548';
     const DEPLOY_TX = '0x262ed0540a4518e2472eda194eede4b2a1872aaa0373647faa2b4e4203c9d845';
 
-    // ─── Agent data ───────────────────────────────────────────────────────────
-    const AGENTS = [
-      'CryptoScraper', 'PriceFetcher', 'SwapBot-v3',
-      'ArbitrageAgent', 'NFTIndexer', 'DeFiWatcher',
-    ];
-    const ACTIONS = [
-      'CoinGecko price fetch', 'Binance ticker query', 'CMC API call (expired key)',
-      'Kraken orderbook pull', 'PancakeSwap quote', 'BSC node RPC call',
-      'CoinPaprika fetch', 'DEX price aggregation', 'LP position check',
-      'Token metadata lookup', 'Retry: CMC API (attempt 4)',
-      'Retry: CMC API (attempt 7)', 'Retry: CMC API (attempt 12)',
-      'Gas estimation call', 'Wallet balance check',
-    ];
-    const DECISION_POOL = ['allowed','allowed','allowed','allowed','allowed','friction','blocked','allowed','friction','allowed'];
-
-    // Real verified transactions on BSC Testnet
+    // Real verified transactions on BSC (immutable)
     const TX_DATA = [
       { hash: DEPLOY_TX, type: 'Contract Deploy (Sourcify ✓)', chain: 'BSC Testnet', block: '90853272', status: 'confirmed' },
       { hash: PROOF_TX, type: 'Governor Proof', chain: 'BSC Mainnet', block: '46812355', status: 'confirmed' },
@@ -609,93 +596,155 @@
       }
     }
 
-    // ─── Counters ─────────────────────────────────────────────────────────────
-    let totalDec = 1247, stormsB = 23, costS = 847.32, onchainP = TX_DATA.length;
+    // ─── Real Dashboard Data ──────────────────────────────────────────────────
+    let dashboardData = null;
 
-    function animateCounter(id, from, to, dur, fmt) {
-      const el = document.getElementById(id);
-      const t0 = performance.now();
-      (function tick(now) {
-        const p = Math.min((now - t0) / dur, 1);
-        const e = 1 - Math.pow(1 - p, 3);
-        el.textContent = fmt(from + (to - from) * e);
-        if (p < 1) requestAnimationFrame(tick);
-      })(t0);
+    async function fetchDashboardData() {
+      try {
+        const res = await fetch(API_BASE + '/v1/demo/stats', { signal: AbortSignal.timeout(8000) });
+        if (res.ok) {
+          dashboardData = await res.json();
+          renderDashboard(dashboardData);
+        }
+      } catch (err) {
+        console.warn('Dashboard fetch failed:', err.message);
+      }
     }
 
-    // ─── Decisions Feed ───────────────────────────────────────────────────────
-    function genFeedItem(secsAgo) {
-      const agent = AGENTS[Math.floor(Math.random() * AGENTS.length)];
-      const action = ACTIONS[Math.floor(Math.random() * ACTIONS.length)];
-      let decision = DECISION_POOL[Math.floor(Math.random() * DECISION_POOL.length)];
-      if (action.startsWith('Retry:')) decision = Math.random() > 0.3 ? 'blocked' : 'friction';
-      return { agent, action, decision, secsAgo: Math.round(secsAgo) };
+    function renderDashboard(data) {
+      // Stats cards — REAL numbers from Durable Object
+      document.getElementById('totalDecisions').textContent = (data.total_decisions || 0).toLocaleString();
+      document.getElementById('stormsBlocked').textContent = String(data.storms_blocked || 0);
+      document.getElementById('costSaved').textContent = '$' + (data.cost_saved_usd || 0).toFixed(2);
+      document.getElementById('onchainProofs').textContent = String(TX_DATA.length);
+
+      // Update change labels with real context
+      document.getElementById('decisionsChange').textContent = data.total_decisions > 0
+        ? '↑ Real decisions from DO storage'
+        : '— No decisions yet. Try the Live Test!';
+      document.getElementById('savingsChange').textContent = data.cost_saved_usd > 0
+        ? '↑ $' + data.cost_saved_usd.toFixed(2) + ' blocked from storms'
+        : '— Trigger a storm to see savings';
+
+      // Decisions feed — REAL recent decisions
+      renderDecisionsFeed(data.decisions || []);
+
+      // Storm chart — REAL per-minute data
+      renderStormChart(data.storm_chart || []);
+
+      // Activity log — REAL decisions table
+      renderActivityLog(data.decisions || []);
+
+      // Feed count
+      document.getElementById('feedCount').textContent = (data.total_decisions || 0).toLocaleString() + ' real decisions';
     }
 
-    function feedEl(item) {
-      const el = document.createElement('div');
-      el.className = 'feed-item';
-      const label = item.decision === 'allowed' ? '200 OK' : item.decision === 'friction' ? '402 PAY' : '429 BLOCK';
-      el.innerHTML =
-        '<span class="feed-dot ' + item.decision + '"></span>' +
-        '<span class="feed-agent">' + item.agent + '</span>' +
-        '<span class="feed-action">' + item.action + '</span>' +
-        '<span class="feed-result ' + item.decision + '">' + label + '</span>' +
-        '<span class="feed-time">' + (item.secsAgo === 0 ? 'now' : item.secsAgo + 's') + '</span>';
-      return el;
-    }
-
-    function initFeed() {
+    // ─── Decisions Feed (REAL data) ───────────────────────────────────────────
+    function renderDecisionsFeed(decisions) {
       const feed = document.getElementById('decisionsFeed');
-      const items = [];
-      for (let i = 0; i < 15; i++) items.push(genFeedItem(i * 12 + Math.random() * 10));
-      items.reverse().forEach(it => feed.appendChild(feedEl(it)));
-      document.getElementById('feedCount').textContent = totalDec.toLocaleString() + ' decisions';
-    }
+      feed.innerHTML = '';
 
-    function addDecision() {
-      const feed = document.getElementById('decisionsFeed');
-      const item = genFeedItem(0);
-      feed.insertBefore(feedEl(item), feed.firstChild);
-      while (feed.children.length > 20) feed.removeChild(feed.lastChild);
-
-      totalDec++;
-      document.getElementById('totalDecisions').textContent = totalDec.toLocaleString();
-      document.getElementById('feedCount').textContent = totalDec.toLocaleString() + ' decisions';
-
-      if (item.decision === 'blocked') {
-        costS += 2.5 + Math.random() * 15;
-        stormsB++;
-        document.getElementById('costSaved').textContent = '$' + costS.toFixed(0);
-        document.getElementById('stormsBlocked').textContent = String(stormsB);
+      if (decisions.length === 0) {
+        feed.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);font-size:13px;">No decisions yet.<br>Click <b>Send Check</b> or <b>Trigger Storm</b> below to generate real data.</div>';
+        return;
       }
 
-      // Update elapsed times
-      feed.querySelectorAll('.feed-time').forEach((t, i) => {
-        const s = i * 4 + Math.floor(Math.random() * 3);
-        t.textContent = s === 0 ? 'now' : s + 's';
+      decisions.slice(0, 20).forEach(function(d) {
+        const el = document.createElement('div');
+        el.className = 'feed-item';
+        const decision = d.decision || 'allowed';
+        const label = decision === 'allowed' ? '200 OK' : decision === 'blocked_storm' ? '429 BLOCK' : decision === 'friction_required' ? '402 PAY' : '429 BLOCK';
+        const feedClass = decision === 'allowed' ? 'allowed' : decision.startsWith('blocked') ? 'blocked' : 'friction';
+        const timeAgo = getTimeAgo(d.timestamp);
+
+        el.innerHTML =
+          '<span class="feed-dot ' + feedClass + '"></span>' +
+          '<span class="feed-agent" title="' + (d.task_hash || '') + '">' + (d.action || 'tool_call') + '</span>' +
+          '<span class="feed-action">' + (d.task_hash || '—') + '</span>' +
+          '<span class="feed-result ' + feedClass + '">' + label + '</span>' +
+          '<span class="feed-time">' + timeAgo + '</span>';
+        feed.appendChild(el);
       });
     }
 
-    // ─── Storm Chart ──────────────────────────────────────────────────────────
-    function renderStormChart() {
-      const chart = document.getElementById('stormChart');
-      for (let i = 0; i < 60; i++) {
-        const bar = document.createElement('div');
-        bar.className = 'storm-bar';
-        let val;
-        if (i >= 18 && i <= 24) { val = 60 + Math.random() * 40; bar.classList.add('storm'); }
-        else if (i >= 42 && i <= 47) { val = 50 + Math.random() * 35; bar.classList.add('storm'); }
-        else if ((i >= 14 && i <= 17) || (i >= 25 && i <= 28) || (i >= 39 && i <= 41) || (i >= 48 && i <= 50)) { val = 25 + Math.random() * 25; bar.classList.add('warning'); }
-        else { val = 5 + Math.random() * 15; bar.classList.add('normal'); }
-        bar.style.height = val + '%';
-        const type = bar.classList.contains('storm') ? 'STORM' : bar.classList.contains('warning') ? 'Elevated' : 'Normal';
-        bar.setAttribute('data-tooltip', (60 - i) + 'm ago · ' + Math.round(val / 10) + ' req/s · ' + type);
-        chart.appendChild(bar);
-      }
+    function getTimeAgo(isoStr) {
+      if (!isoStr) return '—';
+      const secs = Math.round((Date.now() - new Date(isoStr).getTime()) / 1000);
+      if (secs < 5) return 'now';
+      if (secs < 60) return secs + 's';
+      if (secs < 3600) return Math.floor(secs / 60) + 'm';
+      if (secs < 86400) return Math.floor(secs / 3600) + 'h';
+      return Math.floor(secs / 86400) + 'd';
     }
 
-    // ─── Tx Table ─────────────────────────────────────────────────────────────
+    // ─── Storm Chart (REAL per-minute data) ───────────────────────────────────
+    function renderStormChart(buckets) {
+      const chart = document.getElementById('stormChart');
+      chart.innerHTML = '';
+
+      if (!buckets || buckets.length === 0) {
+        chart.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-size:13px;">No activity data yet. Use the Live Test to generate traffic.</div>';
+        return;
+      }
+
+      const maxTotal = Math.max(1, ...buckets.map(function(b) { return b.total; }));
+
+      buckets.forEach(function(b) {
+        const bar = document.createElement('div');
+        bar.className = 'storm-bar';
+        const pct = Math.max(2, (b.total / maxTotal) * 100);
+        bar.style.height = pct + '%';
+
+        if (b.blocked > 0 && b.blocked >= b.total * 0.5) {
+          bar.classList.add('storm');
+        } else if (b.blocked > 0) {
+          bar.classList.add('warning');
+        } else if (b.total > 0) {
+          bar.classList.add('normal');
+        } else {
+          bar.classList.add('normal');
+          bar.style.height = '2px';
+          bar.style.opacity = '0.3';
+        }
+
+        bar.setAttribute('data-tooltip', b.minutes_ago + 'm ago · ' + b.total + ' req · ' + b.blocked + ' blocked');
+        chart.appendChild(bar);
+      });
+    }
+
+    // ─── Activity Log (REAL data) ─────────────────────────────────────────────
+    function renderActivityLog(decisions) {
+      const tbody = document.getElementById('activityBody');
+      tbody.innerHTML = '';
+
+      if (decisions.length === 0) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = '<td colspan="6" style="text-align:center;color:var(--text-muted);padding:20px;">No activity yet. Try the Live Test panel to generate real governance decisions.</td>';
+        tbody.appendChild(tr);
+        return;
+      }
+
+      decisions.slice(0, 20).forEach(function(d) {
+        const tr = document.createElement('tr');
+        const decision = d.decision || 'allowed';
+        const timeAgo = getTimeAgo(d.timestamp);
+        const latency = d.latency_ms ? d.latency_ms + 'ms' : '—';
+        const costSaved = decision.startsWith('blocked') ? '$' + (d.cost_saved_usd || 0.05).toFixed(2) + ' saved' : '—';
+        const decColor = decision === 'allowed' ? 'var(--success)' : decision === 'friction_required' ? 'var(--warning)' : 'var(--danger)';
+        const decLabel = decision === 'allowed' ? '✓ Allowed' : decision === 'friction_required' ? '⚡ 402 Friction' : '✕ Blocked';
+
+        tr.innerHTML =
+          '<td style="font-family:\'JetBrains Mono\',monospace;font-size:12px;color:var(--text-muted);">' + timeAgo + '</td>' +
+          '<td style="font-weight:600;">' + (d.action || 'tool_call') + '</td>' +
+          '<td style="color:var(--text-secondary);font-size:12px;" title="' + (d.ai_reasoning || '') + '">' + (d.task_hash || '—') + '</td>' +
+          '<td style="color:' + decColor + ';font-weight:600;">' + decLabel + '</td>' +
+          '<td style="font-family:\'JetBrains Mono\',monospace;font-size:12px;">' + latency + '</td>' +
+          '<td style="font-size:12px;color:' + (decision.startsWith('blocked') ? 'var(--success)' : 'var(--text-muted)') + ';">' + costSaved + '</td>';
+        tbody.appendChild(tr);
+      });
+    }
+
+    // ─── Tx Table (immutable on-chain data) ────────────────────────────────────
     function renderTxTable() {
       const tbody = document.getElementById('txTableBody');
       TX_DATA.forEach(tx => {
@@ -712,50 +761,16 @@
       });
     }
 
-    // ─── Activity Log ─────────────────────────────────────────────────────────
-    function renderActivityLog() {
-      const tbody = document.getElementById('activityBody');
-      for (let i = 0; i < 20; i++) {
-        const agent = AGENTS[Math.floor(Math.random() * AGENTS.length)];
-        const action = ACTIONS[Math.floor(Math.random() * ACTIONS.length)];
-        let decision = DECISION_POOL[Math.floor(Math.random() * DECISION_POOL.length)];
-        if (action.startsWith('Retry:')) decision = 'blocked';
-        const latency = decision === 'allowed' ? (2 + Math.random() * 6).toFixed(1) : (5 + Math.random() * 15).toFixed(1);
-        const cost = decision === 'blocked' ? '$' + (1.5 + Math.random() * 12).toFixed(2) + ' saved'
-                   : decision === 'friction' ? '$0.001 friction' : '—';
-        const mins = i * 3 + Math.floor(Math.random() * 3);
-        const time = mins === 0 ? 'just now' : mins + 'm ago';
-        const decColor = decision === 'allowed' ? 'var(--success)' : decision === 'friction' ? 'var(--warning)' : 'var(--danger)';
-        const decLabel = decision === 'allowed' ? '✓ Allowed' : decision === 'friction' ? '⚡ 402 Friction' : '✕ Blocked';
-
-        const tr = document.createElement('tr');
-        tr.innerHTML =
-          '<td style="font-family:\'JetBrains Mono\',monospace;font-size:12px;color:var(--text-muted);">' + time + '</td>' +
-          '<td style="font-weight:600;">' + agent + '</td>' +
-          '<td style="color:var(--text-secondary);">' + action + '</td>' +
-          '<td style="color:' + decColor + ';font-weight:600;">' + decLabel + '</td>' +
-          '<td style="font-family:\'JetBrains Mono\',monospace;font-size:12px;">' + latency + 'ms</td>' +
-          '<td style="font-size:12px;color:' + (decision === 'blocked' ? 'var(--success)' : 'var(--text-muted)') + ';">' + cost + '</td>';
-        tbody.appendChild(tr);
-      }
-    }
-
     // ─── Boot ─────────────────────────────────────────────────────────────────
     document.addEventListener('DOMContentLoaded', function() {
       checkApiStatus();
       setInterval(checkApiStatus, 30000);
 
-      animateCounter('totalDecisions', 0, totalDec, 1500, function(v) { return Math.round(v).toLocaleString(); });
-      animateCounter('stormsBlocked', 0, stormsB, 1200, function(v) { return String(Math.round(v)); });
-      animateCounter('costSaved', 0, costS, 2000, function(v) { return '$' + Math.round(v); });
-      animateCounter('onchainProofs', 0, onchainP, 1000, function(v) { return String(Math.round(v)); });
-
-      initFeed();
-      renderStormChart();
       renderTxTable();
-      renderActivityLog();
 
-      setInterval(addDecision, 3000 + Math.random() * 5000);
+      // Fetch real dashboard data immediately and every 10 seconds
+      fetchDashboardData();
+      setInterval(fetchDashboardData, 10000);
     });
 
     // ─── Live API Test ────────────────────────────────────────────────────────
@@ -774,29 +789,37 @@
         '<span class="live-msg">' + msg + '</span>' +
         '<span class="live-latency">' + latencyMs + 'ms</span>';
 
-      // Show AI reasoning if present
+      el.innerHTML = html;
+      results.insertBefore(el, results.firstChild);
+
+      // Show AI reasoning as a SEPARATE element right after the result
       if (data && data.ai_reasoning) {
+        const rEl = document.createElement('div');
+        rEl.className = 'live-reasoning';
         const conf = data.confidence ? (data.confidence * 100).toFixed(0) + '%' : '';
         const model = data.model || '';
-        html += '<div class="live-reasoning">';
-        html += '<strong>🧠 AI Governance Reasoning</strong>';
-        html += '<span style="display:block;margin-top:4px;">' + data.ai_reasoning + '</span>';
+        const isRealAI = model.includes('llama') || model.includes('governance');
+        let rHtml = '<strong>🧠 ' + (isRealAI ? 'AI Reasoning (Llama 3.1 8B)' : 'AI Governance Reasoning') + '</strong>';
+        rHtml += '<span style="display:block;margin-top:4px;">' + data.ai_reasoning + '</span>';
         if (data.reasoning_chain && data.reasoning_chain.length > 0) {
           data.reasoning_chain.forEach(function(step) {
-            html += '<span class="chain-step"><b>' + step.step.replace(/_/g, ' ') + ':</b> ' + step.conclusion + '</span>';
+            rHtml += '<span class="chain-step"><b>' + step.step.replace(/_/g, ' ') + ':</b> ' + step.conclusion + '</span>';
           });
         }
         if (conf || model) {
-          html += '<span class="chain-step" style="color:#c4b5fd;border-left-color:#a78bfa;font-weight:600;">Model: ' + model + (conf ? ' · Confidence: ' + conf : '') + '</span>';
+          rHtml += '<div style="margin-top:6px;font-size:10px;color:#a78bfa;font-weight:600;">' + model + (conf ? ' · Confidence: ' + conf : '') + '</div>';
         }
-        html += '</div>';
+        rEl.innerHTML = rHtml;
+        if (el.nextSibling) {
+          results.insertBefore(rEl, el.nextSibling);
+        } else {
+          results.appendChild(rEl);
+        }
       }
 
-      el.innerHTML = html;
-      results.insertBefore(el, results.firstChild);
-      while (results.children.length > 20) results.removeChild(results.lastChild);
+      while (results.children.length > 30) results.removeChild(results.lastChild);
 
-      // Update counters
+      // Update live test counters
       liveLatencies.push(latencyMs);
       if (status === 200) liveAllowedCount++;
       else { liveBlockedCount++; liveSavedUsd += 0.05; }
@@ -807,15 +830,8 @@
       const avg = Math.round(liveLatencies.reduce((a,b) => a+b, 0) / liveLatencies.length);
       document.getElementById('liveAvgMs').textContent = avg + 'ms';
 
-      // Also update main dashboard counters
-      totalDec++;
-      document.getElementById('totalDecisions').textContent = totalDec.toLocaleString();
-      if (status === 429) {
-        stormsB++;
-        costS += 0.05;
-        document.getElementById('stormsBlocked').textContent = String(stormsB);
-        document.getElementById('costSaved').textContent = '$' + costS.toFixed(0);
-      }
+      // Refresh main dashboard from real data after each live action
+      fetchDashboardData();
     }
 
     async function doLiveCheck(taskHash, stepHash) {
@@ -829,7 +845,7 @@
             task_hash: taskHash || 'live-dashboard-' + Math.random().toString(36).slice(2, 8),
             step_hash: stepHash || 'step-' + Math.random().toString(36).slice(2, 6),
           }),
-          signal: AbortSignal.timeout(8000),
+          signal: AbortSignal.timeout(10000),
         });
         const ms = Math.round(performance.now() - t0);
         const data = await res.json();
@@ -858,7 +874,7 @@
       for (let i = 1; i <= 11; i++) {
         btn.textContent = '🌪️ Call ' + i + '/11...';
         const status = await doLiveCheck(stormTask, stormStep);
-        if (i < 11) await new Promise(r => setTimeout(r, 150)); // small delay between calls
+        if (i < 11) await new Promise(r => setTimeout(r, 200)); // small delay between calls
       }
 
       btn.textContent = '🌪️ Trigger Storm (11 rapid calls)';

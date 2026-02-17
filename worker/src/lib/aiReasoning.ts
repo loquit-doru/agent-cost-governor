@@ -1,14 +1,15 @@
 /**
  * AI Reasoning Engine — Explainable AI governance
  *
- * Generates human-readable, context-aware explanations for every governance
- * decision. Template-based (zero latency, zero LLM cost) but produces
- * genuinely intelligent reasoning that adapts to each situation.
+ * Two modes:
+ * 1. Template-based (zero latency fallback) — deterministic, instant
+ * 2. Workers AI (real LLM) — Llama 3.1 8B via Cloudflare Workers AI
  *
- * This gives ProceedGate an "AI-explained governance" narrative:
- * every block, friction, or approval comes with a reasoning chain
+ * Every governance decision comes with a reasoning chain
  * that the agent (or human) can read to understand WHY.
  */
+
+import type { Env } from '../types.js';
 
 export interface ReasoningContext {
   decision: 'allowed' | 'blocked_storm' | 'blocked_credits' | 'friction_required';
@@ -42,7 +43,74 @@ interface ReasoningStep {
   conclusion: string;
 }
 
-const MODEL_VERSION = 'proceedgate-governance-v1';
+const TEMPLATE_MODEL = 'proceedgate-governance-v1';
+const LLM_MODEL = 'llama-3.1-8b-governance';
+const WORKERS_AI_MODEL = '@cf/meta/llama-3.1-8b-instruct';
+
+const GOVERNANCE_SYSTEM_PROMPT = `You are ProceedGate's AI governance engine analyzing agent behavior in real-time.
+You explain cost governance decisions for autonomous AI agents.
+
+Rules:
+- 2-3 sentences maximum
+- Be specific: reference the exact action, pattern count, timing
+- Sound like a security analyst monitoring live traffic, not a chatbot
+- Focus on WHY the decision was made and what cost impact it prevents
+- Never use emojis or markdown formatting
+- Be direct and factual`;
+
+/**
+ * Generate AI reasoning with real LLM when available, template fallback.
+ * Adds ~200-500ms when using Workers AI. Template is instant.
+ */
+export async function generateReasoningWithAI(
+  env: Env | undefined,
+  ctx: ReasoningContext,
+): Promise<ReasoningOutput> {
+  // Get template as deterministic baseline
+  const template = generateReasoning(ctx);
+
+  // If Workers AI is available, enhance with real LLM reasoning
+  if (env?.AI) {
+    try {
+      const prompt = buildLLMPrompt(ctx);
+      const result = await env.AI.run(WORKERS_AI_MODEL, {
+        messages: [
+          { role: 'system', content: GOVERNANCE_SYSTEM_PROMPT },
+          { role: 'user', content: prompt },
+        ],
+        max_tokens: 200,
+        temperature: 0.3,
+      }) as { response?: string };
+
+      if (result.response && result.response.trim().length > 20) {
+        return {
+          ...template,
+          ai_reasoning: result.response.trim(),
+          model: LLM_MODEL,
+        };
+      }
+    } catch {
+      // Workers AI failed — fall through to template
+    }
+  }
+
+  return template;
+}
+
+function buildLLMPrompt(ctx: ReasoningContext): string {
+  const parts: string[] = [`Governance decision: ${ctx.decision.toUpperCase()}`];
+  parts.push(`Action requested: "${ctx.action}"`);
+  if (ctx.actor_id) parts.push(`Agent: ${ctx.actor_id}`);
+  if (ctx.pattern_count) parts.push(`Identical requests detected: ${ctx.pattern_count} in ${ctx.window_seconds || 60}s window`);
+  if (ctx.cost_saved_usd) parts.push(`Estimated cost prevented: $${ctx.cost_saved_usd.toFixed(2)}`);
+  if (ctx.credits_remaining !== undefined) parts.push(`Credits remaining: ${ctx.credits_remaining}`);
+  if (ctx.friction_price) parts.push(`Friction price required: ${ctx.friction_price}`);
+  if (ctx.task_hash) parts.push(`Task context: ${ctx.task_hash}`);
+  if (ctx.attempt) parts.push(`Attempt number: ${ctx.attempt}`);
+
+  parts.push('\nExplain this governance decision concisely. Why was this decision made? What does it protect against?');
+  return parts.join('\n');
+}
 
 /**
  * Generate AI reasoning for a governance decision.
@@ -110,7 +178,7 @@ function stormReasoning(ctx: ReasoningContext): ReasoningOutput {
       },
     ],
     confidence: Math.min(0.95, 0.7 + (count - 10) * 0.025),
-    model: MODEL_VERSION,
+    model: TEMPLATE_MODEL,
   };
 }
 
@@ -143,7 +211,7 @@ function creditsReasoning(ctx: ReasoningContext): ReasoningOutput {
       },
     ],
     confidence: 0.99,
-    model: MODEL_VERSION,
+    model: TEMPLATE_MODEL,
   };
 }
 
@@ -190,7 +258,7 @@ function frictionReasoning(ctx: ReasoningContext): ReasoningOutput {
       },
     ],
     confidence: 0.92,
-    model: MODEL_VERSION,
+    model: TEMPLATE_MODEL,
   };
 }
 
@@ -226,7 +294,7 @@ function allowedReasoning(ctx: ReasoningContext): ReasoningOutput {
       },
     ],
     confidence: 0.98,
-    model: MODEL_VERSION,
+    model: TEMPLATE_MODEL,
   };
 }
 
@@ -241,7 +309,7 @@ function fallbackReasoning(ctx: ReasoningContext): ReasoningOutput {
       conclusion: 'Standard governance policy applied',
     }],
     confidence: 0.85,
-    model: MODEL_VERSION,
+    model: TEMPLATE_MODEL,
   };
 }
 

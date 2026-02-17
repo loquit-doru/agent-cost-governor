@@ -13,7 +13,7 @@ import { webhookCreditsLow } from '../services/webhook.js';
 import { getBillingStub, doUrl } from '../lib/do.js';
 import { hashApiKey } from '../lib/crypto.js';
 import { API_KEY_PREFIXES } from '../lib/constants.js';
-import { generateReasoning } from '../lib/aiReasoning.js';
+import { generateReasoning, generateReasoningWithAI } from '../lib/aiReasoning.js';
 
 const checkRoutes = new Hono<{ Bindings: Env; Variables: Vars }>();
 
@@ -342,6 +342,8 @@ checkRoutes.post('/v1/governor/check', async (c) => {
 // Lets anyone test loop detection from the website.
 // Uses a fixed "demo-public" workspace internally.
 // Rate limited per IP via the standard middleware.
+// Uses real Workers AI (Llama 3.1 8B) for reasoning when available.
+// Every decision is logged for real-time dashboard.
 // ============================================================================
 
 const demoCheckSchema = z.object({
@@ -386,26 +388,49 @@ checkRoutes.post('/v1/demo/check', async (c) => {
 
   if (loopCheckRes.status === 429) {
     const loopData = (await loopCheckRes.json()) as { count: number };
+    const latencyMs = Date.now() - startMs;
+
     writeMetric(c.env, {
       indexes: ['demo_loop_blocked', 'demo', action, 'loop_detected'],
-      doubles: [1, Date.now() - startMs],
+      doubles: [1, latencyMs],
     });
 
-    const reasoning = generateReasoning({
+    // Real AI reasoning (Workers AI) with template fallback
+    const reasoning = await generateReasoningWithAI(c.env, {
       decision: 'blocked_storm',
       action,
       actor_id: 'demo-user',
       pattern_count: loopData.count,
       window_seconds: 60,
       cost_saved_usd: 0.05,
-      task_hash: task_hash,
-      step_hash: step_hash,
+      task_hash,
+      step_hash,
     });
+
+    // Fire-and-forget: log this decision for the real-time dashboard
+    const decisionId = crypto.randomUUID();
+    stub.fetch(doUrl(`/workspaces/${demoWs}/log-decision`), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        id: decisionId,
+        timestamp: new Date().toISOString(),
+        action,
+        task_hash,
+        step_hash,
+        decision: 'blocked_storm',
+        latency_ms: latencyMs,
+        pattern_count: loopData.count,
+        cost_saved_usd: 0.05,
+        ai_reasoning: reasoning.ai_reasoning,
+      }),
+    }).catch(() => {});
 
     return c.json(
       {
         allowed: false,
         demo: true,
+        decision_id: decisionId,
         error: 'loop_detected',
         reason: 'Too many identical requests. ProceedGate caught the storm!',
         pattern_count: loopData.count,
@@ -418,21 +443,42 @@ checkRoutes.post('/v1/demo/check', async (c) => {
     );
   }
 
+  const latencyMs = Date.now() - startMs;
+
   writeMetric(c.env, {
     indexes: ['demo_check_ok', 'demo', action, 'allowed'],
-    doubles: [1, Date.now() - startMs],
+    doubles: [1, latencyMs],
   });
 
-  const allowReasoning = generateReasoning({
+  // Real AI reasoning (Workers AI) with template fallback
+  const allowReasoning = await generateReasoningWithAI(c.env, {
     decision: 'allowed',
     action,
     actor_id: 'demo-user',
   });
 
+  // Fire-and-forget: log this decision
+  const decisionId = crypto.randomUUID();
+  stub.fetch(doUrl(`/workspaces/${demoWs}/log-decision`), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      id: decisionId,
+      timestamp: new Date().toISOString(),
+      action,
+      task_hash,
+      step_hash,
+      decision: 'allowed',
+      latency_ms: latencyMs,
+      ai_reasoning: allowReasoning.ai_reasoning,
+    }),
+  }).catch(() => {});
+
   return c.json(
     {
       allowed: true,
       demo: true,
+      decision_id: decisionId,
       action,
       task_hash,
       step_hash,
@@ -443,6 +489,41 @@ checkRoutes.post('/v1/demo/check', async (c) => {
     },
     200,
   );
+});
+
+// ============================================================================
+// /v1/demo/stats - Real-time dashboard data (public, no auth)
+// ============================================================================
+// Returns aggregated stats from the demo workspace for the live dashboard.
+// All data is REAL — sourced from Durable Object storage.
+// ============================================================================
+
+checkRoutes.get('/v1/demo/stats', async (c) => {
+  const demoWs = 'demo-public';
+  const stub = getBillingStub(c.env);
+
+  // Fetch stats, decision log, and storm chart in parallel
+  const [statsRes, logRes, stormRes] = await Promise.all([
+    stub.fetch(doUrl(`/workspaces/${demoWs}/stats`)),
+    stub.fetch(doUrl(`/workspaces/${demoWs}/decision-log?limit=50`)),
+    stub.fetch(doUrl(`/workspaces/${demoWs}/storm-chart`)),
+  ]);
+
+  const stats = await statsRes.json() as Record<string, unknown>;
+  const log = await logRes.json() as { decisions: unknown[]; total_count: number };
+  const storm = await stormRes.json() as { buckets: unknown[] };
+
+  return c.json({
+    ok: true,
+    total_decisions: log.total_count,
+    storms_blocked: (stats as { blocked_requests?: number }).blocked_requests ?? 0,
+    cost_saved_usd: (stats as { cost_saved_usd?: number }).cost_saved_usd ?? 0,
+    blocked_by_reason: (stats as { blocked_by_reason?: Record<string, number> }).blocked_by_reason ?? {},
+    last_blocked_at: (stats as { last_blocked_at?: string }).last_blocked_at ?? null,
+    decisions: log.decisions,
+    storm_chart: storm.buckets,
+    data_source: 'real-time Durable Object storage',
+  });
 });
 
 // ============================================================================

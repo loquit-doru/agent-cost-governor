@@ -27,6 +27,11 @@ export type Env = {
   // Signing key: P-256 private JWK JSON string (stored as secret in prod)
   GOVERNOR_SIGNING_JWK?: string;
 
+  // Workers AI (optional — used for real LLM-powered reasoning)
+  AI?: {
+    run(model: string, input: Record<string, unknown>): Promise<{ response?: string }>;
+  };
+
   // Durable Objects
   DECISIONS: DurableObjectNamespace;
   BILLING: DurableObjectNamespace;

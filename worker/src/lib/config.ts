@@ -147,5 +147,8 @@ export function getAllowedOrigins(env: Env): Set<string> {
 export function isOriginAllowed(env: Env, origin: string): boolean {
   if (!origin) return true; // No origin header = same-origin or non-browser
   const allowed = getAllowedOrigins(env);
-  return allowed.has(origin);
+  if (allowed.has(origin)) return true;
+  // Allow Cloudflare Pages preview subdomains
+  if (/^https:\/\/[a-z0-9-]+\.proceedgate\.pages\.dev$/.test(origin)) return true;
+  return false;
 }

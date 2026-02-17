@@ -2,6 +2,9 @@ name = "agent-cost-governor"
 main = "src/index.ts"
 compatibility_date = "2025-07-18"
 
+[ai]
+binding = "AI"
+
 [[durable_objects.bindings]]
 name = "DECISIONS"
 class_name = "DecisionStoreDO"
@@ -158,3 +161,6 @@ class_name = "DecisionStoreDO"
 [[env.hackathon.durable_objects.bindings]]
 name = "BILLING"
 class_name = "BillingStoreDO"
+
+[env.hackathon.ai]
+binding = "AI"
