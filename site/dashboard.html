@@ -496,7 +496,7 @@
       <div style="margin-top: 20px; padding: 16px; background: rgba(0,0,0,0.3); border-radius: 10px; border: 1px solid var(--border); font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.8; color: var(--text-secondary);">
         <div style="color: var(--text-muted); margin-bottom: 8px;">┌─── OpenClaw Multi-Agent Flow ───┐</div>
         <div><span style="color: var(--blue);">Coordinator</span> receives task → estimates cost</div>
-        <div>  ↓ <span style="color: var(--text-muted);">sessions_send</span></div>
+        <div>  ↓ <span style="color: var(--text-muted);">HTTP POST /v1/check</span></div>
         <div><span style="color: var(--brand);">Governor</span> (ProceedGate) → check → <span style="color: var(--success);">200 OK</span> | <span style="color: var(--warning);">402 Pay</span> | <span style="color: var(--danger);">429 Block</span></div>
         <div>  ↓ <span style="color: var(--text-muted);">proceed_token (ES256, 45s TTL)</span></div>
         <div><span style="color: var(--purple);">Executor</span> runs tool call only with valid token</div>

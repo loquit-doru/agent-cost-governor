@@ -16,13 +16,13 @@ In a multi-agent setup, you serve as the **Governor Agent**:
 2. **You (Governor)** check the request against policy, return allow/block
 3. **Executor Agent** (downstream) only proceeds if you issue a valid `proceed_token`
 
-Use `sessions_send` to communicate decisions back to the coordinator. Include `decision_id` and `proceed_token` (or block reason) in every response.
+Communicate decisions back to the coordinator via HTTP responses. Include `decision_id` and `proceed_token` (or block reason) in every response.
 
-### Session routing
+### Integration
 
-- Route cost-sensitive channels (Slack #ops, Discord #agents) to your session
-- Keep a separate session for audit log queries
-- Use `sessions_history` to review past decisions when asked
+- All communication via HTTP API (REST)
+- Decisions logged in Durable Object storage with `decision_id`
+- AI reasoning powered by Workers AI (Llama 3.1 8B) with template fallback
 
 ## Decision Protocol
 

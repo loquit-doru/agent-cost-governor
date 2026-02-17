@@ -186,8 +186,8 @@
           <p class="eyebrow" style="color: #ef4444;">Works with Apify, SerpAPI, Firecrawl</p>
           <h1>Stop retry storms in <span class="accent">scraping agents</span></h1>
           <p class="lead" style="max-width: 700px; margin-bottom: 8px;">
-            Estimated savings: <strong style="color: #10b981;">~$847 in the first week</strong><br>
-            …by blocking scraping retry storms
+            Block retry storms <strong style="color: #10b981;">before they drain your API budget</strong><br>
+            Loop detection + automatic blocking in 3 lines of code
           </p>
           
           <!-- Skimmable bullets -->
@@ -202,19 +202,19 @@
             <a class="btn" href="#how">See how it works</a>
           </div>
 
-          <!-- Social proof - concrete numbers -->
+          <!-- How it works - quick stats -->
           <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; margin-top: 48px; text-align: center;">
             <div>
-              <div class="pain-stat" style="color: #10b981;">$847</div>
-              <div class="pain-label">estimated savings per week</div>
+              <div class="pain-stat" style="color: #10b981;">10/min</div>
+              <div class="pain-label">loop detection threshold</div>
             </div>
             <div>
-              <div class="pain-stat" style="color: #10b981;">3,482</div>
-              <div class="pain-label">Apify/SerpAPI retries blocked</div>
+              <div class="pain-stat" style="color: #10b981;">3 lines</div>
+              <div class="pain-label">of code to integrate</div>
             </div>
             <div>
-              <div class="pain-stat" style="color: #10b981;">47</div>
-              <div class="pain-label">retry storms stopped today</div>
+              <div class="pain-stat" style="color: #10b981;">&lt;50ms</div>
+              <div class="pain-label">check latency (p95)</div>
             </div>
           </div>
           
@@ -255,18 +255,13 @@
             <div class="card" style="border-left: 4px solid #ef4444;">
               <h3>😱 No kill switch</h3>
               <p><code>Ctrl+C</code> doesn't work when it's running on a server. You notice at 3am.</p>
-              <p class="muted" style="font-size: 0.875rem; margin-top: 8px;">"Woke up to a $340 bill" — solo founder</p>
+              <p class="muted" style="font-size: 0.875rem; margin-top: 8px;">No kill switch when running on a server</p>
             </div>
           </div>
 
           <div class="horror-story" style="margin-top: 32px;">
-            <div class="horror-quote">"Saved $340 this month. That's my entire Apify budget."</div>
-            <div class="horror-source">— Solo founder using ProceedGate</div>
-          </div>
-
-          <div class="horror-story">
-            <div class="horror-quote">"Blocked 847 SerpAPI retries in first week. ROI was instant."</div>
-            <div class="horror-source">— SEO tool developer</div>
+            <div class="horror-quote">"Every scraping dev has that 3am moment when an agent loops and the bill explodes."</div>
+            <div class="horror-source">— The problem ProceedGate solves</div>
           </div>
         </div>
       </section>
@@ -377,8 +372,8 @@
           </div>
 
           <div class="savings-box">
-            <div class="savings-amount">$63.20</div>
-            <div class="savings-label">Average weekly savings per workspace</div>
+            <div class="savings-amount">10×/min</div>
+            <div class="savings-label">Threshold — anything above this gets blocked instantly</div>
           </div>
 
           <h3>3 lines to stop scraping retries</h3>
@@ -499,13 +494,13 @@ async function scrapeWithProtection(url: string) {
       <section class="section" id="pricing">
         <div class="container">
           <h2>Pricing</h2>
-          <p class="muted">Estimated savings: <strong style="color: #10b981;">~$847/week</strong>. Pays for itself after one retry storm.</p>
+          <p class="muted">Pays for itself after blocking one retry storm. <strong style="color: #10b981;">Free tier available.</strong></p>
 
           <div class="cards" style="margin-top: 32px;">
             <div class="card" style="border: 2px solid #374151;">
               <h3>Free</h3>
               <p style="font-size: 2rem; font-weight: 700;">$0</p>
-              <p style="color: #10b981; font-size: 0.875rem; margin-top: -8px;">Avg saves: $50/mo</p>
+              <p style="color: #10b981; font-size: 0.875rem; margin-top: -8px;">2,000 checks/mo free</p>
               <ul style="text-align: left; margin-top: 16px;">
                 <li>2,000 checks/month</li>
                 <li>Unlimited retries blocked</li>
@@ -518,26 +513,26 @@ async function scrapeWithProtection(url: string) {
               <div style="background: #6366f1; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.75rem; display: inline-block; margin-bottom: 12px;">MOST POPULAR</div>
               <h3>Starter</h3>
               <p style="font-size: 2rem; font-weight: 700;">$19<span style="font-size: 1rem; color: #9ca3af;">/mo</span></p>
-              <p style="color: #10b981; font-size: 0.875rem; margin-top: -8px;">Avg saves: $340/mo</p>
+              <p style="color: #10b981; font-size: 0.875rem; margin-top: -8px;">25K checks + alerts</p>
               <ul style="text-align: left; margin-top: 16px;">
                 <li>25,000 checks/month</li>
                 <li>Unlimited retries blocked</li>
                 <li>Per-agent budgets</li>
-                <li>Slack/Discord alerts</li>
-                <li style="color: #10b981; font-weight: 600;">+ "You saved $X" weekly email</li>
+                <li>Webhook alerts</li>
+                <li style="color: #10b981; font-weight: 600;">+ Per-agent budget caps</li>
               </ul>
               <a class="btn primary" href="#signup" style="width: 100%; margin-top: 16px;">Protect my budget →</a>
             </div>
             <div class="card" style="border: 2px solid #374151;">
               <h3>Pro</h3>
               <p style="font-size: 2rem; font-weight: 700;">$59<span style="font-size: 1rem; color: #9ca3af;">/mo</span></p>
-              <p style="color: #10b981; font-size: 0.875rem; margin-top: -8px;">Avg saves: $847/mo</p>
+              <p style="color: #10b981; font-size: 0.875rem; margin-top: -8px;">100K checks + policies</p>
               <ul style="text-align: left; margin-top: 16px;">
                 <li>100,000 checks/month</li>
                 <li>Everything in Starter</li>
                 <li>Hard budget cap: stop at $X</li>
                 <li>Custom policies per agent</li>
-                <li>Priority Slack support</li>
+                <li>Priority support</li>
               </ul>
               <a class="btn" href="#signup" style="width: 100%; margin-top: 16px;">Contact us</a>
             </div>

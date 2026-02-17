@@ -342,7 +342,7 @@ openclaw agent --message "Gate my next API call"</code></pre>
                 <li><strong>SOUL.md</strong> — agent identity with cost governance safety policies</li>
                 <li><strong>AGENTS.md</strong> — multi-agent coordination protocol (Governor ↔ Coordinator ↔ Executor)</li>
                 <li><strong>Onchain gating</strong> — BSC/opBNB/Base payment verification via smart contract</li>
-                <li><strong>Channel-ready</strong> — works with Discord, Telegram, Slack, WhatsApp</li>
+                <li><strong>AI Reasoning</strong> — every decision explained by Llama 3.1 8B (Workers AI)</li>
               </ul>
             </div>
           </div>
@@ -350,7 +350,7 @@ openclaw agent --message "Gate my next API call"</code></pre>
           <div class="note" style="margin-top: 16px;">
             <div class="note-title">Multi-agent architecture</div>
             <div class="note-body">
-              ProceedGate's OpenClaw skill enables a 3-agent setup: <strong>Coordinator</strong> receives tasks and estimates costs → <strong>Governor</strong> (ProceedGate) gates via the API → <strong>Executor</strong> runs only with a valid <code>proceed_token</code>. Agent-to-agent communication uses OpenClaw's <code>sessions_send</code> protocol.
+              ProceedGate's OpenClaw skill enables a 3-agent setup: <strong>Coordinator</strong> receives tasks and estimates costs → <strong>Governor</strong> (ProceedGate) gates via the HTTP API → <strong>Executor</strong> runs only with a valid <code>proceed_token</code>. Decisions logged with AI reasoning in Durable Object storage.
             </div>
           </div>
         </div>
