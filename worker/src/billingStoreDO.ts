@@ -76,6 +76,8 @@ export type LoopPattern = {
   count: number;
   firstSeenMs: number;
   lastSeenMs: number;
+  /** Last N timestamps for interval analysis (max 20 kept) */
+  timestamps: number[];
 };
 
 // Decision log entry — stored per demo/workspace for real dashboard data
@@ -927,9 +929,10 @@ export class BillingStoreDO {
             count: 1,
             firstSeenMs: nowMs,
             lastSeenMs: nowMs,
+            timestamps: [nowMs],
           };
           await this.state.storage.put(key, fresh);
-          return Response.json({ ok: true, loop_detected: false, count: 1 }, { status: 200 });
+          return Response.json({ ok: true, loop_detected: false, count: 1, zone: 'safe' }, { status: 200 });
         }
         
         if (!existing) {
@@ -938,17 +941,36 @@ export class BillingStoreDO {
             count: 1,
             firstSeenMs: nowMs,
             lastSeenMs: nowMs,
+            timestamps: [nowMs],
           };
           await this.state.storage.put(key, fresh);
-          return Response.json({ ok: true, loop_detected: false, count: 1 }, { status: 200 });
+          return Response.json({ ok: true, loop_detected: false, count: 1, zone: 'safe' }, { status: 200 });
         }
         
-        // Increment count
+        // Increment count and track timestamp (keep last 20)
         existing.count += 1;
         existing.lastSeenMs = nowMs;
+        existing.timestamps = [...(existing.timestamps || []), nowMs].slice(-20);
         await this.state.storage.put(key, existing);
         
-        // Check if loop detected
+        // Compute timing metadata for AI decision zone
+        const intervals: number[] = [];
+        const ts = existing.timestamps;
+        for (let i = 1; i < ts.length; i++) intervals.push(ts[i] - ts[i - 1]);
+        const avgIntervalMs = intervals.length > 0 ? intervals.reduce((a, b) => a + b, 0) / intervals.length : 0;
+        const intervalVariance = intervals.length > 1
+          ? intervals.reduce((sum, v) => sum + Math.pow(v - avgIntervalMs, 2), 0) / intervals.length
+          : 0;
+        // Coefficient of variation: low = mechanical (bot), high = irregular (human-like)
+        const intervalCv = avgIntervalMs > 0 ? Math.sqrt(intervalVariance) / avgIntervalMs : 0;
+        // Requests per second in the window
+        const windowSec = (existing.lastSeenMs - existing.firstSeenMs) / 1000 || 1;
+        const requestsPerSec = existing.count / windowSec;
+
+        // Determine zone: safe (<6), gray (6-10), storm (>10)
+        const zone = existing.count <= 5 ? 'safe' : existing.count <= maxCount ? 'gray' : 'storm';
+        
+        // Check if loop detected (hard block above maxCount)
         const loopDetected = existing.count > maxCount;
         
         if (loopDetected) {
@@ -972,8 +994,15 @@ export class BillingStoreDO {
           ok: true, 
           loop_detected: loopDetected,
           count: existing.count,
+          zone,
           window_ms: windowMs,
           max_count: maxCount,
+          timing: {
+            avg_interval_ms: Math.round(avgIntervalMs),
+            interval_cv: Math.round(intervalCv * 1000) / 1000, // 0 = perfectly regular (bot), >0.5 = irregular
+            requests_per_sec: Math.round(requestsPerSec * 100) / 100,
+            window_elapsed_ms: existing.lastSeenMs - existing.firstSeenMs,
+          },
         }, { status: loopDetected ? 429 : 200 });
       }
 

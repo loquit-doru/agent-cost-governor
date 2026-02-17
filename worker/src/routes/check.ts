@@ -13,7 +13,7 @@ import { webhookCreditsLow } from '../services/webhook.js';
 import { getBillingStub, doUrl } from '../lib/do.js';
 import { hashApiKey } from '../lib/crypto.js';
 import { API_KEY_PREFIXES } from '../lib/constants.js';
-import { generateReasoning, generateReasoningWithAI } from '../lib/aiReasoning.js';
+import { generateReasoning, generateReasoningWithAI, aiDecideGrayZone } from '../lib/aiReasoning.js';
 
 const checkRoutes = new Hono<{ Bindings: Env; Variables: Vars }>();
 
@@ -55,8 +55,19 @@ checkRoutes.post('/v1/governor/check', async (c) => {
       }),
     });
 
+    const loopData = await loopCheckRes.json() as {
+      count: number;
+      zone: 'safe' | 'gray' | 'storm';
+      timing?: {
+        avg_interval_ms: number;
+        interval_cv: number;
+        requests_per_sec: number;
+        window_elapsed_ms: number;
+      };
+    };
+
+    // ─── ZONE: STORM (count > 10) — Hard block, no AI needed ──────────
     if (loopCheckRes.status === 429) {
-      const loopData = await loopCheckRes.json() as { count: number };
       logEvent({
         event: 'loop_detected',
         workspace_id: workspaceId,
@@ -64,6 +75,7 @@ checkRoutes.post('/v1/governor/check', async (c) => {
         action: parsed.data.action,
         pattern_hash: patternHash,
         count: loopData.count,
+        zone: 'storm',
       });
 
       writeMetric(c.env, {
@@ -73,6 +85,7 @@ checkRoutes.post('/v1/governor/check', async (c) => {
 
       c.header('cache-control', 'no-store');
       c.header('X-Proceedgate-Loop-Detected', 'true');
+      c.header('X-Proceedgate-Zone', 'storm');
 
       const reasoning = generateReasoning({
         decision: 'blocked_storm',
@@ -85,12 +98,35 @@ checkRoutes.post('/v1/governor/check', async (c) => {
         step_hash: parsed.data.context.step_hash,
       });
 
+      // Log decision asynchronously
+      const logBody = JSON.stringify({
+        id: makeDecisionId(),
+        timestamp: new Date().toISOString(),
+        action: parsed.data.action,
+        task_hash: parsed.data.context.task_hash || '',
+        step_hash: parsed.data.context.step_hash || '',
+        decision: 'blocked_storm',
+        latency_ms: Date.now() - startMs,
+        pattern_count: loopData.count,
+        cost_saved_usd: 0.05,
+        ai_reasoning: reasoning.ai_reasoning,
+        zone: 'storm',
+      });
+      c.executionCtx.waitUntil(
+        stub.fetch(doUrl(`/workspaces/${workspaceId}/log-decision`), {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: logBody,
+        }).catch(() => {})
+      );
+
       return c.json({
         allowed: false,
         error: 'loop_detected',
         workspace_id: workspaceId,
         reason: 'Too many identical requests detected. Possible agent loop.',
         pattern_count: loopData.count,
+        zone: 'storm',
         cost_saved: '$0.05',
         cost_saved_usd: 0.05,
         message: `🚫 Blocked retry storm. You just saved $0.05`,
@@ -98,6 +134,116 @@ checkRoutes.post('/v1/governor/check', async (c) => {
         ...reasoning,
       }, 429);
     }
+
+    // ─── ZONE: GRAY (count 6-10) — AI decides allow/block ─────────────
+    if (loopData.zone === 'gray' && loopData.timing) {
+      const grayDecision = await aiDecideGrayZone(c.env, {
+        action: parsed.data.action,
+        actor_id: parsed.data.actor.id,
+        count: loopData.count,
+        max_count: 10,
+        avg_interval_ms: loopData.timing.avg_interval_ms,
+        interval_cv: loopData.timing.interval_cv,
+        requests_per_sec: loopData.timing.requests_per_sec,
+        window_elapsed_ms: loopData.timing.window_elapsed_ms,
+        task_hash: parsed.data.context.task_hash,
+        step_hash: parsed.data.context.step_hash,
+      });
+
+      c.header('X-Proceedgate-Zone', 'gray');
+      c.header('X-Proceedgate-AI-Decided', String(grayDecision.ai_decided));
+      c.header('X-Proceedgate-AI-Model', grayDecision.model);
+
+      if (grayDecision.decision === 'block') {
+        logEvent({
+          event: 'gray_zone_blocked',
+          workspace_id: workspaceId,
+          actor_key: await actorKey(parsed.data.actor.id),
+          action: parsed.data.action,
+          pattern_hash: patternHash,
+          count: loopData.count,
+          zone: 'gray',
+          ai_decided: grayDecision.ai_decided,
+          ai_model: grayDecision.model,
+        });
+
+        writeMetric(c.env, {
+          indexes: ['check_gray_blocked', parsed.data.policy_id, parsed.data.action, 'ai_block'],
+          doubles: [1, Date.now() - startMs],
+        });
+
+        c.header('cache-control', 'no-store');
+        c.header('X-Proceedgate-Loop-Detected', 'true');
+
+        const logBody = JSON.stringify({
+          id: makeDecisionId(),
+          timestamp: new Date().toISOString(),
+          action: parsed.data.action,
+          task_hash: parsed.data.context.task_hash || '',
+          step_hash: parsed.data.context.step_hash || '',
+          decision: 'blocked_storm',
+          latency_ms: Date.now() - startMs,
+          pattern_count: loopData.count,
+          cost_saved_usd: 0.03,
+          ai_reasoning: grayDecision.reasoning,
+          zone: 'gray',
+          ai_decided: grayDecision.ai_decided,
+        });
+        c.executionCtx.waitUntil(
+          stub.fetch(doUrl(`/workspaces/${workspaceId}/log-decision`), {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: logBody,
+          }).catch(() => {})
+        );
+
+        return c.json({
+          allowed: false,
+          error: 'ai_blocked',
+          workspace_id: workspaceId,
+          reason: grayDecision.reasoning,
+          pattern_count: loopData.count,
+          zone: 'gray',
+          ai_decided: grayDecision.ai_decided,
+          ai_model: grayDecision.model,
+          cost_saved: '$0.03',
+          cost_saved_usd: 0.03,
+          message: `🤖 AI blocked suspicious pattern (${loopData.count} requests in gray zone)`,
+          hint: 'AI analyzed timing patterns and decided to block. Vary your request timing or add variation to step_hash.',
+          ai_reasoning: grayDecision.reasoning,
+          reasoning_chain: [{
+            step: 'gray_zone_analysis',
+            observation: `${loopData.count} requests, interval CV=${loopData.timing.interval_cv.toFixed(3)}, ${loopData.timing.requests_per_sec.toFixed(2)} req/s`,
+            conclusion: grayDecision.reasoning,
+          }],
+          confidence: grayDecision.confidence,
+          model: grayDecision.model,
+        }, 429);
+      }
+
+      // AI decided to ALLOW in gray zone — log it and continue normal flow
+      logEvent({
+        event: 'gray_zone_allowed',
+        workspace_id: workspaceId,
+        actor_key: await actorKey(parsed.data.actor.id),
+        action: parsed.data.action,
+        count: loopData.count,
+        zone: 'gray',
+        ai_decided: grayDecision.ai_decided,
+        ai_model: grayDecision.model,
+      });
+
+      writeMetric(c.env, {
+        indexes: ['check_gray_allowed', parsed.data.policy_id, parsed.data.action, 'ai_allow'],
+        doubles: [1, Date.now() - startMs],
+      });
+
+      // Gray zone allow: continue to normal credit consumption below
+      // but attach the gray zone metadata to the final response later
+      c.set('grayZoneDecision' as never, grayDecision as never);
+    }
+
+    // ─── ZONE: SAFE (count <= 5) or GRAY-ALLOWED — proceed to credits ─
 
     const consumed = await consumeWorkspaceCredits(c.env, workspaceId, 1, {
       action: parsed.data.action,
@@ -387,7 +533,7 @@ checkRoutes.post('/v1/demo/check', async (c) => {
   });
 
   if (loopCheckRes.status === 429) {
-    const loopData = (await loopCheckRes.json()) as { count: number };
+    const loopData = (await loopCheckRes.json()) as { count: number; zone: string; timing?: { avg_interval_ms: number; interval_cv: number; requests_per_sec: number; window_elapsed_ms: number } };
     const latencyMs = Date.now() - startMs;
 
     writeMetric(c.env, {
@@ -424,6 +570,7 @@ checkRoutes.post('/v1/demo/check', async (c) => {
           pattern_count: loopData.count,
           cost_saved_usd: 0.05,
           ai_reasoning: reasoning.ai_reasoning,
+          zone: 'storm',
         }),
       }).catch((err) => console.error('log-decision failed:', err))
     );
@@ -436,6 +583,7 @@ checkRoutes.post('/v1/demo/check', async (c) => {
         error: 'loop_detected',
         reason: 'Too many identical requests. ProceedGate caught the storm!',
         pattern_count: loopData.count,
+        zone: 'storm',
         cost_saved_usd: 0.05,
         message: '🚫 Blocked retry storm. You just saved $0.05',
         hint: 'Change task_hash/step_hash to vary the pattern, or wait 60 s.',
@@ -443,6 +591,79 @@ checkRoutes.post('/v1/demo/check', async (c) => {
       },
       429,
     );
+  }
+
+  // ─── GRAY ZONE: AI decides (count 6-10) for demo ──────────────────
+  const loopData = (await loopCheckRes.json()) as { count: number; zone: string; timing?: { avg_interval_ms: number; interval_cv: number; requests_per_sec: number; window_elapsed_ms: number } };
+
+  if (loopData.zone === 'gray' && loopData.timing) {
+    const grayDecision = await aiDecideGrayZone(c.env, {
+      action,
+      actor_id: 'demo-user',
+      count: loopData.count,
+      max_count: 10,
+      avg_interval_ms: loopData.timing.avg_interval_ms,
+      interval_cv: loopData.timing.interval_cv,
+      requests_per_sec: loopData.timing.requests_per_sec,
+      window_elapsed_ms: loopData.timing.window_elapsed_ms,
+      task_hash,
+      step_hash,
+    });
+
+    if (grayDecision.decision === 'block') {
+      const latencyMs = Date.now() - startMs;
+
+      writeMetric(c.env, {
+        indexes: ['demo_gray_blocked', 'demo', action, 'ai_block'],
+        doubles: [1, latencyMs],
+      });
+
+      const decisionId = crypto.randomUUID();
+      c.executionCtx.waitUntil(
+        stub.fetch(doUrl(`/workspaces/${demoWs}/log-decision`), {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            id: decisionId,
+            timestamp: new Date().toISOString(),
+            action,
+            task_hash,
+            step_hash,
+            decision: 'blocked_storm',
+            latency_ms: latencyMs,
+            pattern_count: loopData.count,
+            cost_saved_usd: 0.03,
+            ai_reasoning: grayDecision.reasoning,
+            zone: 'gray',
+            ai_decided: grayDecision.ai_decided,
+          }),
+        }).catch((err) => console.error('log-decision failed:', err))
+      );
+
+      return c.json(
+        {
+          allowed: false,
+          demo: true,
+          decision_id: decisionId,
+          error: 'ai_blocked',
+          reason: grayDecision.reasoning,
+          pattern_count: loopData.count,
+          zone: 'gray',
+          ai_decided: grayDecision.ai_decided,
+          ai_model: grayDecision.model,
+          cost_saved_usd: 0.03,
+          message: `🤖 AI blocked suspicious pattern (${loopData.count} requests in gray zone)`,
+          hint: 'AI analyzed your timing patterns. Vary your request intervals to appear more human-like.',
+          ai_reasoning: grayDecision.reasoning,
+          confidence: grayDecision.confidence,
+          model: grayDecision.model,
+        },
+        429,
+      );
+    }
+
+    // Gray zone allowed — fall through to normal allowed response
+    // but add gray zone metadata
   }
 
   const latencyMs = Date.now() - startMs;
@@ -487,8 +708,15 @@ checkRoutes.post('/v1/demo/check', async (c) => {
       task_hash,
       step_hash,
       pattern_hash: patternHash,
-      message: '✅ Request allowed through the gate.',
-      hint: 'Click rapidly (>10×) with the same task_hash to trigger storm detection.',
+      zone: loopData.zone,
+      pattern_count: loopData.count,
+      ...(loopData.timing ? { timing: loopData.timing } : {}),
+      message: loopData.zone === 'gray'
+        ? `✅ AI allowed your request (${loopData.count} requests — gray zone, but timing looks human).`
+        : '✅ Request allowed through the gate.',
+      hint: loopData.zone === 'gray'
+        ? `AI analyzed ${loopData.count} requests and decided they look legitimate. ${10 - loopData.count} more identical requests before hard block.`
+        : 'Click rapidly (>10×) with the same task_hash to trigger storm detection.',
       ...allowReasoning,
     },
     200,

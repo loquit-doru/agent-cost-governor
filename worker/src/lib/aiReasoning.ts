@@ -58,6 +58,173 @@ Rules:
 - Never use emojis or markdown formatting
 - Be direct and factual`;
 
+// ─── AI Decision Zone ─────────────────────────────────────────────────────────
+// When pattern count is in the gray zone (6-10), AI makes the actual decision.
+// This is NOT cosmetic — the LLM decides allow/block based on behavioral signals.
+
+const DECISION_SYSTEM_PROMPT = `You are an AI security analyst deciding whether to allow or block an AI agent's request.
+
+You are given behavioral signals: request count, timing regularity, action type.
+You must decide: ALLOW or BLOCK.
+
+Decision factors:
+- interval_cv (coefficient of variation): <0.15 means very regular timing = likely bot/loop. >0.4 means irregular = more likely legitimate.
+- requests_per_sec: >0.5 in gray zone is suspicious, <0.2 is probably fine.
+- action type: scraping/crawl actions are more prone to loops than read/query actions.
+- count relative to threshold: 6 is barely suspicious, 9 is very suspicious.
+
+You MUST respond with EXACTLY one line in this format:
+DECISION: ALLOW | reason here
+or
+DECISION: BLOCK | reason here
+
+Nothing else. One line only.`;
+
+export interface GrayZoneInput {
+  action: string;
+  actor_id: string;
+  count: number;
+  max_count: number;
+  avg_interval_ms: number;
+  interval_cv: number;
+  requests_per_sec: number;
+  window_elapsed_ms: number;
+  task_hash?: string;
+  step_hash?: string;
+}
+
+export interface GrayZoneDecision {
+  /** AI decided: allow or block */
+  decision: 'allow' | 'block';
+  /** AI's reasoning for the decision */
+  reasoning: string;
+  /** Whether AI actually decided (false = fell back to heuristic) */
+  ai_decided: boolean;
+  /** Confidence score */
+  confidence: number;
+  /** Model used */
+  model: string;
+}
+
+/**
+ * AI-powered decision for the gray zone (count 6-10).
+ * The LLM actually DECIDES whether to allow or block — not just explain.
+ * Falls back to heuristic if AI is unavailable or times out.
+ */
+export async function aiDecideGrayZone(
+  env: Env | undefined,
+  input: GrayZoneInput,
+): Promise<GrayZoneDecision> {
+  // Heuristic fallback: use timing regularity + count proximity to threshold
+  const heuristic = heuristicGrayZone(input);
+
+  if (!env?.AI) return heuristic;
+
+  try {
+    const prompt = buildDecisionPrompt(input);
+    const aiCall = env.AI.run(WORKERS_AI_MODEL, {
+      messages: [
+        { role: 'system', content: DECISION_SYSTEM_PROMPT },
+        { role: 'user', content: prompt },
+      ],
+      max_tokens: 60,
+      temperature: 0.1, // Low temperature = more deterministic decisions
+    }) as Promise<{ response?: string }>;
+
+    const result = await Promise.race([
+      aiCall,
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), AI_TIMEOUT_MS)),
+    ]);
+
+    if (result?.response) {
+      const parsed = parseDecisionResponse(result.response.trim());
+      if (parsed) {
+        return {
+          decision: parsed.decision,
+          reasoning: parsed.reasoning,
+          ai_decided: true,
+          confidence: parsed.decision === 'block'
+            ? Math.min(0.95, 0.6 + (input.count - 5) * 0.07)
+            : Math.min(0.9, 0.5 + input.interval_cv * 0.5),
+          model: LLM_MODEL,
+        };
+      }
+    }
+  } catch {
+    // AI failed — fall through to heuristic
+  }
+
+  return heuristic;
+}
+
+function buildDecisionPrompt(input: GrayZoneInput): string {
+  return [
+    `Agent "${input.actor_id}" is requesting "${input.action}".`,
+    `Request count: ${input.count} in ${Math.round(input.window_elapsed_ms / 1000)}s (threshold: ${input.max_count})`,
+    `Timing: avg interval ${input.avg_interval_ms}ms, regularity CV=${input.interval_cv.toFixed(3)} (0=perfectly regular/bot, >0.4=irregular/human)`,
+    `Rate: ${input.requests_per_sec.toFixed(2)} requests/sec`,
+    input.task_hash ? `Task: ${input.task_hash}` : '',
+    input.step_hash ? `Step: ${input.step_hash}` : '',
+    '',
+    'Should this request be ALLOWED or BLOCKED?',
+  ].filter(Boolean).join('\n');
+}
+
+function parseDecisionResponse(response: string): { decision: 'allow' | 'block'; reasoning: string } | null {
+  // Parse "DECISION: ALLOW | reason" or "DECISION: BLOCK | reason"
+  const match = response.match(/DECISION:\s*(ALLOW|BLOCK)\s*\|\s*(.+)/i);
+  if (match) {
+    return {
+      decision: match[1].toLowerCase() as 'allow' | 'block',
+      reasoning: match[2].trim(),
+    };
+  }
+  // Fallback: check if first word is ALLOW or BLOCK
+  const first = response.split(/[\s|,]/)[0].toUpperCase();
+  if (first === 'ALLOW' || first === 'BLOCK') {
+    return {
+      decision: first.toLowerCase() as 'allow' | 'block',
+      reasoning: response,
+    };
+  }
+  return null;
+}
+
+/**
+ * Heuristic fallback for gray zone decisions when AI is unavailable.
+ * Uses timing regularity + count proximity to threshold.
+ */
+function heuristicGrayZone(input: GrayZoneInput): GrayZoneDecision {
+  // Very regular timing (cv < 0.15) + high count = likely bot
+  const isRegular = input.interval_cv < 0.15;
+  const isHighCount = input.count >= 8;
+  const isFastRate = input.requests_per_sec > 0.5;
+  const isSuspiciousAction = /scrape|crawl|swap|transfer/i.test(input.action);
+
+  // Score: higher = more suspicious
+  let suspicion = 0;
+  if (isRegular) suspicion += 3;
+  if (isHighCount) suspicion += 2;
+  if (isFastRate) suspicion += 2;
+  if (isSuspiciousAction) suspicion += 1;
+  // Low CV + high count is the strongest bot signal
+  if (isRegular && isHighCount) suspicion += 2;
+
+  const shouldBlock = suspicion >= 5;
+
+  const reasoning = shouldBlock
+    ? `Heuristic: ${input.count} requests with ${isRegular ? 'mechanical' : 'semi-regular'} timing (CV=${input.interval_cv.toFixed(3)}), ${input.requests_per_sec.toFixed(1)} req/s. Pattern suggests automated retry loop.`
+    : `Heuristic: ${input.count} requests with ${isRegular ? 'regular' : 'irregular'} timing (CV=${input.interval_cv.toFixed(3)}), ${input.requests_per_sec.toFixed(1)} req/s. Pattern within acceptable burst range.`;
+
+  return {
+    decision: shouldBlock ? 'block' : 'allow',
+    reasoning,
+    ai_decided: false,
+    confidence: shouldBlock ? 0.7 : 0.65,
+    model: 'heuristic-v1',
+  };
+}
+
 /** Max time to wait for Workers AI before falling back to template */
 const AI_TIMEOUT_MS = 800;
 
