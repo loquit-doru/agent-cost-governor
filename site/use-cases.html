@@ -217,8 +217,8 @@
 }</code></div>
         <div class="api-test">
           <h4>🔴 Try it live — Hit the real API</h4>
-          <div class="api-test-result" id="llmTestResult">Click "Test API" to call the real ProceedGate endpoint</div>
-          <button class="btn btn-brand" onclick="testApi('llm', 'openai.gpt4.completion')">Test API →</button>
+          <div class="api-test-result" id="llmTestResult">Click "Test API" to call the live ProceedGate API. Click 10+ times rapidly to trigger storm detection!</div>
+          <button class="btn btn-brand" onclick="testApi('llm', 'model_call')">Test API →</button>
         </div>
       </div>
       <div class="uc-footer">
@@ -265,7 +265,7 @@
         <div class="api-test">
           <h4>🔴 Try it live</h4>
           <div class="api-test-result" id="defiTestResult">Click "Test API" to simulate a DeFi swap check</div>
-          <button class="btn btn-brand" onclick="testApi('defi', 'defi.pancakeswap.swap')">Test API →</button>
+          <button class="btn btn-brand" onclick="testApi('defi', 'tool_call')">Test API →</button>
         </div>
       </div>
       <div class="uc-footer">
@@ -310,7 +310,7 @@
         <div class="api-test">
           <h4>🔴 Try it live</h4>
           <div class="api-test-result" id="scrapingTestResult">Click "Test API" to simulate a scraping check</div>
-          <button class="btn btn-brand" onclick="testApi('scraping', 'scraper.coinmarketcap.fetch')">Test API →</button>
+          <button class="btn btn-brand" onclick="testApi('scraping', 'tool_call')">Test API →</button>
         </div>
       </div>
       <div class="uc-footer">
@@ -359,7 +359,7 @@
         <div class="api-test">
           <h4>🔴 Try it live</h4>
           <div class="api-test-result" id="multiTestResult">Click "Test API" to simulate a multi-agent check</div>
-          <button class="btn btn-brand" onclick="testApi('multi', 'serpapi.search')">Test API →</button>
+          <button class="btn btn-brand" onclick="testApi('multi', 'tool_call')">Test API →</button>
         </div>
       </div>
       <div class="uc-footer">
@@ -475,39 +475,28 @@ POST https://governor.proceedgate.dev/v1/workspaces/{{wsId}}/check
 
   <script>
     const API_BASE = 'https://agent-cost-governor-hackathon.apiworkersdev.workers.dev';
-    let testWsId = null;
 
-    async function ensureWorkspace() {
-      if (testWsId) return testWsId;
-      try {
-        const res = await fetch(API_BASE + '/v1/workspaces', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json', 'x-api-admin-key': 'demo_visitor_' + Date.now() },
-          body: JSON.stringify({ name: 'Use Cases Live Test', budget_usd: 1.00, owner: 'visitor' }),
-        });
-        const data = await res.json();
-        testWsId = data.workspace_id || data.id || 'ws_demo';
-        return testWsId;
-      } catch {
-        return 'ws_demo_fallback';
-      }
-    }
+    // Per use-case click counters (to show storm detection)
+    const clickCounts = {};
 
     async function testApi(useCase, action) {
       const resultEl = document.getElementById(useCase + 'TestResult');
       resultEl.textContent = 'Calling API...';
       resultEl.style.color = 'var(--warning)';
 
+      // Track clicks: same task_hash per use-case → triggers loop after 10
+      clickCounts[useCase] = (clickCounts[useCase] || 0) + 1;
+      const count = clickCounts[useCase];
+
       try {
-        const wsId = await ensureWorkspace();
         const t0 = performance.now();
-        const res = await fetch(API_BASE + '/v1/workspaces/' + wsId + '/check', {
+        const res = await fetch(API_BASE + '/v1/demo/check', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
             action: action,
-            context: { use_case: useCase, source: 'use-cases-page', timestamp: new Date().toISOString() },
-            idempotency_key: 'uc_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+            task_hash: 'demo-' + useCase,
+            step_hash: 'demo-' + useCase,   // same hash each time → storm!
           }),
         });
         const ms = Math.round(performance.now() - t0);
@@ -515,20 +504,17 @@ POST https://governor.proceedgate.dev/v1/workspaces/{{wsId}}/check
 
         if (res.status === 200) {
           resultEl.style.color = 'var(--success)';
-          resultEl.textContent = `✓ ${res.status} OK — ${ms}ms\n${JSON.stringify(data, null, 2)}`;
-        } else if (res.status === 402) {
-          resultEl.style.color = 'var(--warning)';
-          resultEl.textContent = `⚡ ${res.status} Payment Required — ${ms}ms\n${JSON.stringify(data, null, 2)}`;
+          resultEl.textContent = `✅ ${res.status} ALLOWED — ${ms}ms  (click ${count}/10)\n${JSON.stringify(data, null, 2)}\n\n💡 Click 10+ times rapidly to trigger storm detection!`;
         } else if (res.status === 429) {
-          resultEl.style.color = 'var(--danger)';
-          resultEl.textContent = `🛑 ${res.status} BLOCKED (storm detected!) — ${ms}ms\n${JSON.stringify(data, null, 2)}`;
+          resultEl.style.color = '#ef4444';
+          resultEl.textContent = `🛑 ${res.status} BLOCKED — Storm detected! — ${ms}ms  (click ${count})\n${JSON.stringify(data, null, 2)}\n\n🔥 ProceedGate caught the retry storm! Wait 60s to reset.`;
         } else {
           resultEl.style.color = 'var(--text-muted)';
           resultEl.textContent = `${res.status} — ${ms}ms\n${JSON.stringify(data, null, 2)}`;
         }
       } catch (err) {
-        resultEl.style.color = 'var(--danger)';
-        resultEl.textContent = `Error: ${err.message}`;
+        resultEl.style.color = '#ef4444';
+        resultEl.textContent = `Error: ${err.message}\n\nMake sure the API is reachable.`;
       }
     }
   </script>

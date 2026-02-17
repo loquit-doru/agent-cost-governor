@@ -297,6 +297,95 @@ checkRoutes.post('/v1/governor/check', async (c) => {
 });
 
 // ============================================================================
+// /v1/demo/check - Public demo endpoint (no auth needed)
+// ============================================================================
+// Lets anyone test loop detection from the website.
+// Uses a fixed "demo-public" workspace internally.
+// Rate limited per IP via the standard middleware.
+// ============================================================================
+
+const demoCheckSchema = z.object({
+  action: z.string().max(200).optional().default('tool_call'),
+  task_hash: z.string().max(200).optional().default('demo-task'),
+  step_hash: z.string().max(200).optional().default('demo-step'),
+});
+
+checkRoutes.post('/v1/demo/check', async (c) => {
+  const startMs = Date.now();
+  const body = await c.req.json().catch(() => null);
+  const parsed = demoCheckSchema.safeParse(body ?? {});
+
+  if (!parsed.success) {
+    return c.json({ error: 'invalid_request', issues: parsed.error.issues }, 400);
+  }
+
+  const { action, task_hash, step_hash } = parsed.data;
+  const demoWs = 'demo-public';
+
+  // Loop detection — same logic as the real endpoint
+  const stub = getBillingStub(c.env);
+  const patternHash = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(`${action}:${task_hash}:${step_hash}`),
+  ).then(buf =>
+    Array.from(new Uint8Array(buf))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('')
+      .slice(0, 16),
+  );
+
+  const loopCheckRes = await stub.fetch(doUrl(`/workspaces/${demoWs}/check-loop`), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      pattern_hash: patternHash,
+      window_ms: 60_000,
+      max_count: 10,
+    }),
+  });
+
+  if (loopCheckRes.status === 429) {
+    const loopData = (await loopCheckRes.json()) as { count: number };
+    writeMetric(c.env, {
+      indexes: ['demo_loop_blocked', 'demo', action, 'loop_detected'],
+      doubles: [1, Date.now() - startMs],
+    });
+    return c.json(
+      {
+        allowed: false,
+        demo: true,
+        error: 'loop_detected',
+        reason: 'Too many identical requests. ProceedGate caught the storm!',
+        pattern_count: loopData.count,
+        cost_saved_usd: 0.05,
+        message: '🚫 Blocked retry storm. You just saved $0.05',
+        hint: 'Change task_hash/step_hash to vary the pattern, or wait 60 s.',
+      },
+      429,
+    );
+  }
+
+  writeMetric(c.env, {
+    indexes: ['demo_check_ok', 'demo', action, 'allowed'],
+    doubles: [1, Date.now() - startMs],
+  });
+
+  return c.json(
+    {
+      allowed: true,
+      demo: true,
+      action,
+      task_hash,
+      step_hash,
+      pattern_hash: patternHash,
+      message: '✅ Request allowed through the gate.',
+      hint: 'Click rapidly (>10×) with the same task_hash to trigger storm detection.',
+    },
+    200,
+  );
+});
+
+// ============================================================================
 // /v1/check/simple - Simplified billing-only check endpoint
 // ============================================================================
 // This endpoint is for customers who only need credit-based billing
