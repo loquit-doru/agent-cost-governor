@@ -261,6 +261,12 @@
     .live-status.err { color: var(--warning); }
     .live-msg { color: var(--text-secondary); flex: 1; }
     .live-latency { color: var(--text-muted); font-size: 11px; min-width: 50px; text-align: right; }
+    .live-reasoning { width: 100%; margin-top: 6px; padding: 8px 10px; border-radius: 6px; font-size: 11px; line-height: 1.5; color: var(--text-secondary); background: rgba(139,92,246,0.06); border: 1px solid rgba(139,92,246,0.15); font-family: 'Inter', sans-serif; }
+    .live-reasoning strong { color: #a78bfa; font-weight: 600; }
+    .live-reasoning .chain-step { display: block; padding: 2px 0; margin-top: 3px; font-size: 10px; color: var(--text-muted); }
+    .live-reasoning .chain-step::before { content: '→ '; color: #7c3aed; }
+    .live-result { flex-wrap: wrap; }
+    .live-confidence { font-size: 10px; color: #a78bfa; margin-left: auto; }
     .live-counter { display: flex; gap: 20px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
     .live-counter-item { font-size: 12px; color: var(--text-muted); }
     .live-counter-item span { font-weight: 700; font-family: 'JetBrains Mono', monospace; }
@@ -756,16 +762,36 @@
     let liveAllowedCount = 0, liveBlockedCount = 0, liveLatencies = [], liveSavedUsd = 0;
     let stormRunning = false;
 
-    function addLiveResult(status, msg, latencyMs) {
+    function addLiveResult(status, msg, latencyMs, data) {
       const results = document.getElementById('liveResults');
       const el = document.createElement('div');
       const cls = status === 200 ? 'ok' : status === 429 ? 'storm' : 'error';
       const sCls = status === 200 ? 's200' : status === 429 ? 's429' : 'err';
       el.className = 'live-result ' + cls;
-      el.innerHTML =
+
+      let html =
         '<span class="live-status ' + sCls + '">' + status + '</span>' +
         '<span class="live-msg">' + msg + '</span>' +
         '<span class="live-latency">' + latencyMs + 'ms</span>';
+
+      // Show AI reasoning if present
+      if (data && data.ai_reasoning) {
+        const conf = data.confidence ? (data.confidence * 100).toFixed(0) + '% confidence' : '';
+        const model = data.model || '';
+        html += '<div class="live-reasoning">';
+        html += '<strong>🧠 AI Reasoning:</strong> ' + data.ai_reasoning;
+        if (data.reasoning_chain && data.reasoning_chain.length > 0) {
+          data.reasoning_chain.forEach(function(step) {
+            html += '<span class="chain-step"><b>' + step.step + ':</b> ' + step.conclusion + '</span>';
+          });
+        }
+        if (conf || model) {
+          html += '<span class="chain-step" style="color:#a78bfa;">' + model + (conf ? ' · ' + conf : '') + '</span>';
+        }
+        html += '</div>';
+      }
+
+      el.innerHTML = html;
       results.insertBefore(el, results.firstChild);
       while (results.children.length > 20) results.removeChild(results.lastChild);
 
@@ -806,11 +832,11 @@
         });
         const ms = Math.round(performance.now() - t0);
         const data = await res.json();
-        addLiveResult(res.status, data.message || data.reason || JSON.stringify(data), ms);
+        addLiveResult(res.status, data.message || data.reason || JSON.stringify(data), ms, data);
         return res.status;
       } catch (err) {
         const ms = Math.round(performance.now() - t0);
-        addLiveResult(0, '⚠️ Network error: ' + err.message, ms);
+        addLiveResult(0, '⚠️ Network error: ' + err.message, ms, null);
         return 0;
       }
     }

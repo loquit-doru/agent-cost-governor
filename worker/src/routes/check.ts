@@ -13,6 +13,7 @@ import { webhookCreditsLow } from '../services/webhook.js';
 import { getBillingStub, doUrl } from '../lib/do.js';
 import { hashApiKey } from '../lib/crypto.js';
 import { API_KEY_PREFIXES } from '../lib/constants.js';
+import { generateReasoning } from '../lib/aiReasoning.js';
 
 const checkRoutes = new Hono<{ Bindings: Env; Variables: Vars }>();
 
@@ -72,6 +73,18 @@ checkRoutes.post('/v1/governor/check', async (c) => {
 
       c.header('cache-control', 'no-store');
       c.header('X-Proceedgate-Loop-Detected', 'true');
+
+      const reasoning = generateReasoning({
+        decision: 'blocked_storm',
+        action: parsed.data.action,
+        actor_id: parsed.data.actor.id,
+        pattern_count: loopData.count,
+        window_seconds: 60,
+        cost_saved_usd: 0.05,
+        task_hash: parsed.data.context.task_hash,
+        step_hash: parsed.data.context.step_hash,
+      });
+
       return c.json({
         allowed: false,
         error: 'loop_detected',
@@ -82,6 +95,7 @@ checkRoutes.post('/v1/governor/check', async (c) => {
         cost_saved_usd: 0.05,
         message: `🚫 Blocked retry storm. You just saved $0.05`,
         hint: 'Add variation to task_hash or step_hash, or wait before retrying.',
+        ...reasoning,
       }, 429);
     }
 
@@ -115,6 +129,14 @@ checkRoutes.post('/v1/governor/check', async (c) => {
 
       c.header('cache-control', 'no-store');
       c.header('X-Proceedgate-Billing-Mode', 'credits');
+
+      const creditsReasoning = generateReasoning({
+        decision: 'blocked_credits',
+        action: parsed.data.action,
+        actor_id: parsed.data.actor.id,
+        credits_remaining: consumed.credits,
+      });
+
       return c.json(
         {
           allowed: false,
@@ -129,6 +151,7 @@ checkRoutes.post('/v1/governor/check', async (c) => {
             redeem_url: '/v1/billing/redeem',
             balance_url: `/v1/billing/balance?workspace_id=${encodeURIComponent(workspaceId)}`,
           },
+          ...creditsReasoning,
         },
         402,
       );
@@ -205,6 +228,12 @@ checkRoutes.post('/v1/governor/check', async (c) => {
       doubles: [1, Date.now() - startMs],
     });
 
+    const allowReasoning = generateReasoning({
+      decision: 'allowed',
+      action: parsed.data.action,
+      actor_id: parsed.data.actor.id,
+    });
+
     return c.json(
       {
         allowed: true,
@@ -217,6 +246,7 @@ checkRoutes.post('/v1/governor/check', async (c) => {
           friction_required: false,
           friction_price: '0 USDC',
         },
+        ...allowReasoning,
       },
       200,
     );
@@ -275,6 +305,15 @@ checkRoutes.post('/v1/governor/check', async (c) => {
     doubles: [1, Date.now() - startMs],
   });
 
+  const frictionReasoning = generateReasoning({
+    decision: 'friction_required',
+    action: parsed.data.action,
+    actor_id: parsed.data.actor.id,
+    friction_price: x402Price,
+    policy_id: parsed.data.policy_id,
+    attempt,
+  });
+
   return c.json(
     {
       allowed: false,
@@ -291,6 +330,7 @@ checkRoutes.post('/v1/governor/check', async (c) => {
         url: '/v1/governor/redeem',
         requires_header: 'x402-tx-hash',
       },
+      ...frictionReasoning,
     },
     402,
   );
@@ -350,6 +390,18 @@ checkRoutes.post('/v1/demo/check', async (c) => {
       indexes: ['demo_loop_blocked', 'demo', action, 'loop_detected'],
       doubles: [1, Date.now() - startMs],
     });
+
+    const reasoning = generateReasoning({
+      decision: 'blocked_storm',
+      action,
+      actor_id: 'demo-user',
+      pattern_count: loopData.count,
+      window_seconds: 60,
+      cost_saved_usd: 0.05,
+      task_hash: task_hash,
+      step_hash: step_hash,
+    });
+
     return c.json(
       {
         allowed: false,
@@ -360,6 +412,7 @@ checkRoutes.post('/v1/demo/check', async (c) => {
         cost_saved_usd: 0.05,
         message: '🚫 Blocked retry storm. You just saved $0.05',
         hint: 'Change task_hash/step_hash to vary the pattern, or wait 60 s.',
+        ...reasoning,
       },
       429,
     );
@@ -368,6 +421,12 @@ checkRoutes.post('/v1/demo/check', async (c) => {
   writeMetric(c.env, {
     indexes: ['demo_check_ok', 'demo', action, 'allowed'],
     doubles: [1, Date.now() - startMs],
+  });
+
+  const allowReasoning = generateReasoning({
+    decision: 'allowed',
+    action,
+    actor_id: 'demo-user',
   });
 
   return c.json(
@@ -380,6 +439,7 @@ checkRoutes.post('/v1/demo/check', async (c) => {
       pattern_hash: patternHash,
       message: '✅ Request allowed through the gate.',
       hint: 'Click rapidly (>10×) with the same task_hash to trigger storm detection.',
+      ...allowReasoning,
     },
     200,
   );
