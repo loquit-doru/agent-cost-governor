@@ -176,7 +176,7 @@ export class ProceedGateClient {
    */
   async setBudget(config: BudgetConfig): Promise<BudgetConfig> {
     return this.request<BudgetConfig>(
-      'POST',
+      'PUT',
       '/v1/billing/budget',
       {
         workspace_id: this.workspaceId,

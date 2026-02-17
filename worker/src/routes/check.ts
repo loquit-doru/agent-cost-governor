@@ -9,7 +9,7 @@ import { putDecisionRecord, consumeWorkspaceCredits } from '../services/store.js
 import { requireWorkspaceAuth } from '../middleware/auth.js';
 import { logEvent, actorKey } from '../observability.js';
 import { writeMetric } from '../metrics.js';
-import { webhookCreditsLow } from '../services/webhook.js';
+import { webhookCreditsLow, webhookBudgetExceeded } from '../services/webhook.js';
 import { getBillingStub, doUrl } from '../lib/do.js';
 import { hashApiKey } from '../lib/crypto.js';
 import { API_KEY_PREFIXES } from '../lib/constants.js';
@@ -287,6 +287,24 @@ checkRoutes.post('/v1/governor/check', async (c) => {
           action: parsed.data.action,
         }),
       }).catch(() => {}); // Fire and forget
+
+      // Send budget.exceeded webhook if a budget limit was hit
+      if (consumed.limitType) {
+        const webhookRes = await stub.fetch(doUrl(`/workspaces/${workspaceId}/webhook`));
+        if (webhookRes.ok) {
+          const webhookConfig = await webhookRes.json() as { ok: boolean; webhook_url?: string; webhook_secret?: string };
+          if (webhookConfig.ok && webhookConfig.webhook_url) {
+            webhookBudgetExceeded(c.env, {
+              webhookUrl: webhookConfig.webhook_url,
+              webhookSecret: webhookConfig.webhook_secret,
+              workspaceId,
+              limitType: consumed.limitType as 'daily' | 'weekly' | 'monthly',
+              limit: 0, // Limit value not returned from DO, use 0 as signal
+              usage: consumed.currentUsage ?? 0,
+            }).catch(err => console.error('Budget exceeded webhook failed:', err));
+          }
+        }
+      }
 
       c.header('cache-control', 'no-store');
       c.header('X-Proceedgate-Billing-Mode', 'credits');
@@ -899,6 +917,24 @@ checkRoutes.post('/v1/check/simple', async (c) => {
         action: parsed.data.action,
       }),
     }).catch(() => {}); // Fire and forget
+
+    // Send budget.exceeded webhook if a budget limit was hit
+    if (consumed.limitType) {
+      const webhookRes = await stub.fetch(doUrl(`/workspaces/${workspaceId}/webhook`));
+      if (webhookRes.ok) {
+        const webhookConfig = await webhookRes.json() as { ok: boolean; webhook_url?: string; webhook_secret?: string };
+        if (webhookConfig.ok && webhookConfig.webhook_url) {
+          webhookBudgetExceeded(c.env, {
+            webhookUrl: webhookConfig.webhook_url,
+            webhookSecret: webhookConfig.webhook_secret,
+            workspaceId,
+            limitType: consumed.limitType as 'daily' | 'weekly' | 'monthly',
+            limit: 0,
+            usage: consumed.currentUsage ?? 0,
+          }).catch(err => console.error('Budget exceeded webhook failed:', err));
+        }
+      }
+    }
 
     return c.json({
       ok: false,

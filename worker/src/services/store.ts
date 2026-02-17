@@ -106,7 +106,7 @@ export async function consumeWorkspaceCredits(
   workspaceId: string,
   n: number,
   options?: { action?: string; tool?: string },
-): Promise<{ ok: true; credits: number; creditsLow?: boolean; creditsLowNotify?: boolean; maxCredits?: number } | { ok: false; status: number; error: string; credits: number }> {
+): Promise<{ ok: true; credits: number; creditsLow?: boolean; creditsLowNotify?: boolean; maxCredits?: number } | { ok: false; status: number; error: string; credits: number; limitType?: string; currentUsage?: number }> {
   const stub = getBillingStub(env);
   const url = doUrl(`/workspaces/${encodeURIComponent(workspaceId)}/consume`);
   const res = await stub.fetch(url, {
@@ -125,6 +125,8 @@ export async function consumeWorkspaceCredits(
     credits_low?: boolean;
     credits_low_notify?: boolean;
     max_credits?: number;
+    limit_type?: string;
+    current_usage?: number;
   } | null;
   const credits = typeof body?.credits === 'number' ? body.credits : 0;
   if (res.ok && body?.ok === true) {
@@ -137,7 +139,14 @@ export async function consumeWorkspaceCredits(
     };
   }
   const err = typeof body?.error === 'string' && body.error ? body.error : 'consume_failed';
-  return { ok: false, status: res.status, error: err, credits };
+  return { 
+    ok: false, 
+    status: res.status, 
+    error: err, 
+    credits,
+    limitType: typeof body?.limit_type === 'string' ? body.limit_type : undefined,
+    currentUsage: typeof body?.current_usage === 'number' ? body.current_usage : undefined,
+  };
 }
 
 // ============================================================================
