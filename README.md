@@ -96,6 +96,22 @@ Friction is a mechanism to make enforcement real.
 
 Payment (x402-style) is **one possible** way to resolve friction. In later phases, friction can also be resolved via budgets, rate limits, or manual approvals.
 
+## Smart governance (beyond simple counting)
+
+ProceedGate doesn't just count requests — it analyzes agent behavior with 7 signals:
+
+| Signal | What it detects |
+|--------|----------------|
+| **3-zone model** | safe (≤5) → gray (6-10, AI decides) → storm (>10, hard block) |
+| **AI decision zone** | In gray zone, Llama 3.1 8B DECIDES allow/block based on behavioral signals |
+| **Interval CV** | Coefficient of variation — bot-like regularity (CV<0.15) vs human-like irregularity (CV>0.4) |
+| **Backoff detection** | Intervals growing? Agent is backing off responsibly → more lenient threshold |
+| **Cost accumulation** | Tracks USD spent per window — higher cost = more reason to protect |
+| **Similarity grouping** | Groups parameter variants (page=1, page=2, page=3) as same pattern |
+| **Heuristic fallback** | v2 scoring with 7 factors when AI is unavailable |
+
+Response headers expose governance state: `X-Proceedgate-Zone`, `X-Proceedgate-AI-Decided`, `X-Proceedgate-AI-Model`.
+
 ## What’s in this repo
 
 - Worker (Cloudflare Workers + TypeScript + Hono): Governor API.

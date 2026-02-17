@@ -206,3 +206,38 @@ $$ severity = \frac{threshold - confidence}{threshold} $$
 $$ price = \min(max\_price, base\_price \cdot (1 + mult\cdot severity) \cdot \max(1, attempt\_in\_window - 1)) $$
 
 Reason code: `low_confidence`
+
+---
+
+## Loop detection (smart pattern matching)
+
+The Governor tracks request patterns and applies a 3-zone model:
+
+| Zone | Count | Behavior |
+|------|-------|----------|
+| **safe** | ≤5 | Always allowed |
+| **gray** | 6–10 | AI decides allow/block based on behavioral signals |
+| **storm** | >10 | Hard block (429) |
+
+### Behavioral signals (gray zone)
+
+When a request enters the gray zone, the following signals are computed and passed to the AI decision engine:
+
+| Signal | Field | Description |
+|--------|-------|-------------|
+| Timing regularity | `timing.interval_cv` | Coefficient of variation. <0.15 = bot-like. >0.4 = human-like. |
+| Request rate | `timing.requests_per_sec` | Requests per second in the window. |
+| Average interval | `timing.avg_interval_ms` | Average milliseconds between requests. |
+| Window elapsed | `timing.window_elapsed_ms` | Total time since first request in window. |
+| Cost accumulated | `cost_window_usd` | Total USD spent in this window. |
+| Backoff detected | `backoff_detected` | `true` if intervals are consistently increasing (exponential backoff). Agents backing off get +3 threshold leniency. |
+| Similar patterns | `similar_pattern_count` | Number of similar-but-not-identical patterns (e.g., page=1, page=2) grouped under the same action prefix. |
+
+### Response headers
+
+| Header | Description |
+|--------|-------------|
+| `X-Proceedgate-Zone` | `safe`, `gray`, or `storm` |
+| `X-Proceedgate-Loop-Detected` | `true` when storm or AI-blocked |
+| `X-Proceedgate-AI-Decided` | `true` if AI made the decision (vs. heuristic) |
+| `X-Proceedgate-AI-Model` | Model used (e.g., `llama-3.1-8b-governance`) |
