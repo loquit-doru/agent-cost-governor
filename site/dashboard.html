@@ -845,7 +845,7 @@
             task_hash: taskHash || 'live-dashboard-' + Math.random().toString(36).slice(2, 8),
             step_hash: stepHash || 'step-' + Math.random().toString(36).slice(2, 6),
           }),
-          signal: AbortSignal.timeout(10000),
+          signal: AbortSignal.timeout(5000),
         });
         const ms = Math.round(performance.now() - t0);
         const data = await res.json();

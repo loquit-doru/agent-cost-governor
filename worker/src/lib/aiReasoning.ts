@@ -58,31 +58,40 @@ Rules:
 - Never use emojis or markdown formatting
 - Be direct and factual`;
 
+/** Max time to wait for Workers AI before falling back to template */
+const AI_TIMEOUT_MS = 800;
+
 /**
  * Generate AI reasoning with real LLM when available, template fallback.
- * Adds ~200-500ms when using Workers AI. Template is instant.
+ * Hard timeout of 1.5s — if Workers AI is slow, template returns instantly.
  */
 export async function generateReasoningWithAI(
   env: Env | undefined,
   ctx: ReasoningContext,
 ): Promise<ReasoningOutput> {
-  // Get template as deterministic baseline
+  // Get template as deterministic baseline (instant, zero-cost)
   const template = generateReasoning(ctx);
 
-  // If Workers AI is available, enhance with real LLM reasoning
+  // If Workers AI is available, race it against a timeout
   if (env?.AI) {
     try {
       const prompt = buildLLMPrompt(ctx);
-      const result = await env.AI.run(WORKERS_AI_MODEL, {
+      const aiCall = env.AI.run(WORKERS_AI_MODEL, {
         messages: [
           { role: 'system', content: GOVERNANCE_SYSTEM_PROMPT },
           { role: 'user', content: prompt },
         ],
-        max_tokens: 200,
+        max_tokens: 150,
         temperature: 0.3,
-      }) as { response?: string };
+      }) as Promise<{ response?: string }>;
 
-      if (result.response && result.response.trim().length > 20) {
+      // Race: AI vs timeout — whoever wins
+      const result = await Promise.race([
+        aiCall,
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), AI_TIMEOUT_MS)),
+      ]);
+
+      if (result && result.response && result.response.trim().length > 20) {
         return {
           ...template,
           ai_reasoning: result.response.trim(),
