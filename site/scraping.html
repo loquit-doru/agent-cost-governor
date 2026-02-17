@@ -174,7 +174,7 @@
           <a href="./index.html">Home</a>
           <a href="./demo.html">🎬 Demo</a>
           <a href="#how">How it works</a>
-          <a href="#pricing">Pricing</a>
+          <a href="#early-access">Early Access</a>
           <a class="nav-cta" href="#signup" style="background: #ef4444;">Protect my budget →</a>
         </nav>
       </div>
@@ -490,51 +490,27 @@ async function scrapeWithProtection(url: string) {
         </div>
       </section>
 
-      <!-- Pricing -->
-      <section class="section" id="pricing">
+      <!-- Early Access -->
+      <section class="section" id="early-access">
         <div class="container">
-          <h2>Pricing</h2>
-          <p class="muted">Pays for itself after blocking one retry storm. <strong style="color: #10b981;">Free tier available.</strong></p>
+          <h2>Early Access</h2>
+          <p class="muted">ProceedGate is <strong style="color: #10b981;">free and open source</strong>. Deploy it yourself or join the waitlist for hosted.</p>
 
           <div class="cards" style="margin-top: 32px;">
-            <div class="card" style="border: 2px solid #374151;">
-              <h3>Free</h3>
-              <p style="font-size: 2rem; font-weight: 700;">$0</p>
-              <p style="color: #10b981; font-size: 0.875rem; margin-top: -8px;">2,000 checks/mo free</p>
-              <ul style="text-align: left; margin-top: 16px;">
-                <li>2,000 checks/month</li>
-                <li>Unlimited retries blocked</li>
-                <li>Basic loop detection</li>
-                <li>7-day "Saved $X" history</li>
+            <div class="card" style="border: 2px solid #6366f1; text-align: center; padding: 40px;">
+              <h3 style="font-size: 1.5rem;">🛡️ Free &amp; Open Source</h3>
+              <p class="muted" style="margin-top: 12px; font-size: 1.05rem;">Full loop detection, AI decisions, budget enforcement. No payment required.</p>
+              <ul style="text-align: left; margin-top: 20px;">
+                <li><strong>7 behavioral signals</strong> for loop detection</li>
+                <li><strong>AI gray-zone decisions</strong> via LLM</li>
+                <li><strong>Per-agent budgets</strong> with hard enforcement</li>
+                <li><strong>Webhook alerts</strong> on storms &amp; budget exceeded</li>
+                <li><strong>SDK + MCP + CLI Runner</strong></li>
               </ul>
-              <a class="btn" href="#signup" style="width: 100%; margin-top: 16px;">Start free</a>
-            </div>
-            <div class="card" style="border: 2px solid #6366f1;">
-              <div style="background: #6366f1; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.75rem; display: inline-block; margin-bottom: 12px;">MOST POPULAR</div>
-              <h3>Starter</h3>
-              <p style="font-size: 2rem; font-weight: 700;">$19<span style="font-size: 1rem; color: #9ca3af;">/mo</span></p>
-              <p style="color: #10b981; font-size: 0.875rem; margin-top: -8px;">25K checks + alerts</p>
-              <ul style="text-align: left; margin-top: 16px;">
-                <li>25,000 checks/month</li>
-                <li>Unlimited retries blocked</li>
-                <li>Per-agent budgets</li>
-                <li>Webhook alerts</li>
-                <li style="color: #10b981; font-weight: 600;">+ Per-agent budget caps</li>
-              </ul>
-              <a class="btn primary" href="#signup" style="width: 100%; margin-top: 16px;">Protect my budget →</a>
-            </div>
-            <div class="card" style="border: 2px solid #374151;">
-              <h3>Pro</h3>
-              <p style="font-size: 2rem; font-weight: 700;">$59<span style="font-size: 1rem; color: #9ca3af;">/mo</span></p>
-              <p style="color: #10b981; font-size: 0.875rem; margin-top: -8px;">100K checks + policies</p>
-              <ul style="text-align: left; margin-top: 16px;">
-                <li>100,000 checks/month</li>
-                <li>Everything in Starter</li>
-                <li>Hard budget cap: stop at $X</li>
-                <li>Custom policies per agent</li>
-                <li>Priority support</li>
-              </ul>
-              <a class="btn" href="#signup" style="width: 100%; margin-top: 16px;">Contact us</a>
+              <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 24px;">
+                <a class="btn primary" href="https://github.com/loquit-doru/agent-cost-governor" target="_blank" rel="noreferrer">View on GitHub</a>
+                <a class="btn" href="#signup">Join waitlist</a>
+              </div>
             </div>
           </div>
         </div>
@@ -545,10 +521,15 @@ async function scrapeWithProtection(url: string) {
         <div class="container">
           <div class="cta-scraping">
             <h2>Stop retry storms. Save money. Start today.</h2>
-            <p>Free plan. No credit card. Setup in 5 minutes.</p>
-            <a class="btn primary" href="./pay.html" style="font-size: 1.125rem; padding: 16px 32px; background: #ef4444;">
-              Protect my scraping budget →
-            </a>
+            <p>Open source. Free to deploy. Setup in 5 minutes.</p>
+            <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+              <a class="btn primary" href="https://github.com/loquit-doru/agent-cost-governor" target="_blank" rel="noreferrer" style="font-size: 1.125rem; padding: 16px 32px;">
+                View on GitHub →
+              </a>
+              <a class="btn" href="#early-access" style="font-size: 1.125rem; padding: 16px 32px;">
+                Join waitlist
+              </a>
+            </div>
             <p style="margin-top: 16px; font-size: 0.875rem; color: #a5b4fc;">
               Or email us at <a href="mailto:support@proceedgate.dev" style="color: #fff;">support@proceedgate.dev</a>
             </p>
@@ -575,7 +556,7 @@ async function scrapeWithProtection(url: string) {
               <div class="footer-title">Product</div>
               <a href="./index.html">Home</a>
               <a href="./demo.html">Demo</a>
-              <a href="./pay.html">Pricing</a>
+              <a href="./index.html#early-access">Early Access</a>
             </div>
             <div class="footer-col">
               <div class="footer-title">Use Cases</div>

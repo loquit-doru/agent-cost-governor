@@ -29,7 +29,7 @@
           <a class="nav-demo" href="./demo.html">🎬 Demo</a>
           <a href="#how">How it works</a>
           <a href="./use-cases.html">Use Cases</a>
-          <a href="#pricing">Pricing</a>
+          <a href="#early-access">Early Access</a>
           <a href="#docs">Docs</a>
           <a href="./dashboard.html">Dashboard</a>
           <span class="nav-sep"></span>
@@ -388,120 +388,33 @@ openclaw agent --message "Gate my next API call"</code></pre>
         </div>
       </section>
 
-      <section class="section fade-in" id="pricing">
+      <section class="section fade-in" id="early-access">
         <div class="container">
-          <h2>Pricing</h2>
-          <p class="muted">Simple, predictable pricing. Start free, upgrade when you need more.</p>
+          <h2>Early Access</h2>
+          <p class="muted">ProceedGate is open source and free to use today. We're building the behavioral firewall for AI agents.</p>
 
-          <div class="pricing four-cols">
-            <div class="price-card">
-              <div class="price-head">
-                <div>
-                  <div class="price-plan">Free</div>
-                  <div class="price-tag muted">Try it out</div>
-                </div>
-                <div class="price">$0</div>
-              </div>
-              <div class="price-sub muted">Test the hard-stop behavior. See if ProceedGate fits.</div>
-              <ul class="bullets">
-                <li><strong>2k checks / month</strong></li>
-                <li><strong>1 project</strong></li>
-                <li>3-day log retention</li>
-                <li>Preset policies only</li>
-                <li>Community support</li>
+          <div class="cards" style="max-width: 800px; margin: 32px auto 0;">
+            <div class="card" style="text-align: center; border: 2px solid #6366f1; padding: 40px;">
+              <h3 style="font-size: 1.5rem; margin-bottom: 16px;">🛡️ Free &amp; Open Source</h3>
+              <p class="muted" style="font-size: 1.1rem; margin-bottom: 24px;">Run the full stack locally or deploy to Cloudflare Workers. No payment required.</p>
+              <ul class="bullets" style="text-align: left; max-width: 400px; margin: 0 auto 24px;">
+                <li><strong>Full loop detection</strong> — 7 behavioral signals</li>
+                <li><strong>AI gray-zone decisions</strong> — LLM-powered</li>
+                <li><strong>SDK + MCP + CLI Runner</strong></li>
+                <li><strong>88 tests</strong> — production-grade</li>
+                <li><strong>Multi-chain verification</strong> — BSC, opBNB, Base</li>
               </ul>
-              <div class="price-actions">
-                <a class="btn" href="#signup">Start free</a>
-              </div>
-            </div>
-
-            <div class="price-card">
-              <div class="price-head">
-                <div>
-                  <div class="price-plan">Starter</div>
-                  <div class="price-tag muted">Side projects</div>
-                </div>
-                <div>
-                  <div class="price">$19</div>
-                  <div class="price-bill muted">per month</div>
-                </div>
-              </div>
-              <div class="price-sub muted">For indie developers and small projects going to production.</div>
-              <ul class="bullets">
-                <li><strong>25k checks / month</strong></li>
-                <li><strong>3 projects</strong></li>
-                <li>14-day log retention</li>
-                <li>Basic analytics</li>
-                <li>Email support</li>
-              </ul>
-              <div class="price-actions">
-                <a class="btn" href="#signup">Get started</a>
-              </div>
-            </div>
-
-            <div class="price-card featured">
-              <div class="price-head">
-                <div>
-                  <div class="price-plan">Pro</div>
-                  <div class="price-tag muted">Production</div>
-                </div>
-                <div>
-                  <div class="price">$59</div>
-                  <div class="price-bill muted">per month</div>
-                </div>
-              </div>
-              <div class="price-sub muted">For teams shipping agents to production with real traffic.</div>
-              <ul class="bullets">
-                <li><strong>1M checks / month</strong></li>
-                <li><strong>5 projects</strong></li>
-                <li>30-day log retention</li>
-                <li>Custom policies (up to 10)</li>
-                <li>Webhooks + alerts</li>
-                <li>Priority support</li>
-              </ul>
-              <div class="price-actions">
-                <a class="btn primary" href="#signup">Get started</a>
-              </div>
-            </div>
-
-            <div class="price-card">
-              <div class="price-head">
-                <div>
-                  <div class="price-plan">Scale</div>
-                  <div class="price-tag muted">High volume</div>
-                </div>
-                <div>
-                  <div class="price">$199</div>
-                  <div class="price-bill muted">per month</div>
-                </div>
-              </div>
-              <div class="price-sub muted">For teams with serious agent traffic and compliance needs.</div>
-              <ul class="bullets">
-                <li><strong>5M checks / month</strong></li>
-                <li><strong>25 projects</strong></li>
-                <li>90-day log retention</li>
-                <li>Unlimited custom policies</li>
-                <li>Team API keys (10) + IP allowlist</li>
-                <li>Audit logs + dedicated support</li>
-              </ul>
-              <div class="price-actions">
-                <a class="btn" href="#signup">Contact us</a>
+              <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+                <a class="btn primary" href="https://github.com/loquit-doru/agent-cost-governor" target="_blank" rel="noreferrer">View on GitHub</a>
+                <a class="btn" href="#signup">Join waitlist</a>
               </div>
             </div>
           </div>
 
-          <div class="note">
+          <div class="note" style="margin-top: 32px;">
             <div class="note-title">🏆 Hackathon note</div>
             <div class="note-body">
               For the OpenClaw hackathon, the full stack runs on <strong>BSC testnet</strong> (free). Proof tx uses BSC mainnet. No subscription required to evaluate — run <code>npm run smoke</code> locally.
-            </div>
-          </div>
-
-          <div class="note">
-            <div class="note-title">💡 Overage & Annual billing</div>
-            <div class="note-body">
-              <strong>Overage:</strong> Starter +$0.50/1k, Pro +$0.04/1k, Scale +$0.03/1k — or enable hard cap to stop at limit.<br>
-              <strong>Annual:</strong> Pay yearly and get <strong>2 months free</strong> (17% off).
             </div>
           </div>
 
@@ -609,7 +522,7 @@ npm run demo:storm:block    # retry storm detection demo</code></pre>
         <div class="container" style="text-align: center; max-width: 640px;">
           <h2 style="margin-bottom: 12px;">🚀 Ready to get started?</h2>
           <p class="muted" style="margin-bottom: 24px;">
-            Start free with 2,000 checks/month. No credit card required.
+            Open source. Free to deploy. Get your API key in 30 seconds.
           </p>
           
           <!-- Free Signup Form -->
@@ -629,10 +542,10 @@ npm run demo:storm:block    # retry storm detection demo</code></pre>
             — or —
           </p>
           <div class="cta-row" style="justify-content: center;">
-            <a class="btn" href="./pay.html">💳 Subscribe to Paid Plan</a>
+            <a class="btn" href="https://github.com/loquit-doru/agent-cost-governor" target="_blank" rel="noreferrer">📦 View on GitHub</a>
           </div>
           <p class="muted" style="margin-top: 20px; font-size: 13px;">
-            Paid plans: USDC on Base • Instant activation
+            Full stack • MIT License • Deploy anywhere
           </p>
         </div>
       </section>
@@ -725,8 +638,8 @@ npm run demo:storm:block    # retry storm detection demo</code></pre>
             <div class="footer-col">
               <div class="footer-title">Product</div>
               <a href="#how">How it works</a>
-              <a href="#pricing">Pricing</a>
-              <a href="./pay.html">💳 Pay & Add Credits</a>
+              <a href="#early-access">Early Access</a>
+              <a href="./demo.html">Demo</a>
             </div>
             <div class="footer-col">
               <div class="footer-title">Resources</div>
