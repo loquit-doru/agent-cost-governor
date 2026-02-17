@@ -29,9 +29,9 @@ This folder contains the reference contract used by ProceedGate's OpenClaw compe
 
 ## Current deploy artifact (BSC Testnet)
 
-- contract address: `0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA`
+- contract address (Sourcify ✓): `0x2054Cc6Fa82e7c64b8226913c3b087CA8F18Ffd5`
 - deployment tx hash: `0x0c695608865e5cad89d9b86d0041c3ca1caf142da77cbcb08febc682567c91a7`
-- explorer (contract): `https://testnet.bscscan.com/address/0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA`
+- explorer (contract): `https://testnet.bscscan.com/address/0x2054Cc6Fa82e7c64b8226913c3b087CA8F18Ffd5`
 - explorer (tx): `https://testnet.bscscan.com/tx/0x0c695608865e5cad89d9b86d0041c3ca1caf142da77cbcb08febc682567c91a7`
 
 ## Judge artifacts

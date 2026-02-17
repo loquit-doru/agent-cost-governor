@@ -45,6 +45,6 @@ For every gated action:
 ## Environment
 
 - `GOVERNOR_API_URL` — ProceedGate API endpoint (required)
-- Smart contract: `0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA` (BSC Testnet)
+- Smart contract: `0x2054Cc6Fa82e7c64b8226913c3b087CA8F18Ffd5` (BSC Testnet, Sourcify verified)
 - Chains: BSC, opBNB, Base
 - Token signing: ES256 (P-256), JWKS at `/.well-known/jwks.json`

@@ -129,7 +129,7 @@ Expected: JSON output with `ok: true`, `paid_chain: bsc`, `has_proceed_token: tr
 | Artifact | Value |
 |---|---|
 | Governor proof tx (BSC mainnet) | [`0xd97039...b548`](https://bscscan.com/tx/0xd97039268c048cafd45c0f3b870111b1dcd22f3fdfd62a47e75ae843eb13b548) |
-| Contract (BSC Testnet) | [`0xAd8Da0...58dA`](https://testnet.bscscan.com/address/0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA) |
+| Contract (BSC Testnet, Sourcify ✓) | [`0x2054Cc...Ffd5`](https://testnet.bscscan.com/address/0x2054Cc6Fa82e7c64b8226913c3b087CA8F18Ffd5) |
 | Contract deploy tx | [`0x0c6956...91a7`](https://testnet.bscscan.com/tx/0x0c695608865e5cad89d9b86d0041c3ca1caf142da77cbcb08febc682567c91a7) |
 | Address index | `bsc.address` (repo root) |
 

@@ -12,7 +12,7 @@ ProceedGate sits **outside** the agent loop and blocks costly steps unless the a
 |---|---|
 | Live endpoint | `https://agent-cost-governor-hackathon.apiworkersdev.workers.dev` |
 | Proof tx (BSC) | [`0xd97039...b548`](https://bscscan.com/tx/0xd97039268c048cafd45c0f3b870111b1dcd22f3fdfd62a47e75ae843eb13b548) |
-| Contract (BSC Testnet) | [`0xAd8Da0...58dA`](https://testnet.bscscan.com/address/0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA) |
+| Contract (BSC Testnet, Sourcify ✓) | [`0x2054Cc...Ffd5`](https://testnet.bscscan.com/address/0x2054Cc6Fa82e7c64b8226913c3b087CA8F18Ffd5) |
 | Address index | [`bsc.address`](bsc.address) |
 | Demo video | [YouTube](https://youtu.be/3oCwey4RXG8) |
 | Full setup guide | [`docs/TECHNICAL.md`](docs/TECHNICAL.md) |

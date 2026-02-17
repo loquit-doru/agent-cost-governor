@@ -325,7 +325,7 @@ class RealLLM {
 const BSC_TESTNET_RPC = "https://data-seed-prebsc-1-s1.bnbchain.org:8545";
 const BSC_TESTNET_CHAIN_ID = 97;
 const BSC_TESTNET_EXPLORER = "https://testnet.bscscan.com/tx";
-const GOVERNOR_CONTRACT = "0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA";
+const GOVERNOR_CONTRACT = "0x2054Cc6Fa82e7c64b8226913c3b087CA8F18Ffd5"; // Sourcify verified
 const WALLET_PATH = new URL("../.secrets/bsc-testnet-deployer.json", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
 const PAYMENT_AMOUNT = "0.0001"; // 0.0001 tBNB per friction payment
 

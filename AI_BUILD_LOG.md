@@ -99,7 +99,7 @@ This file documents how AI tools were used during the development of ProceedGate
 | Smoke test | `friction_events=6`, `friction_paid_usdc~=0.027` |
 | Live proof | `ok: true`, `paid_chain: bsc`, `has_proceed_token: true` |
 | BSC proof tx | [`0xd97039...b548`](https://bscscan.com/tx/0xd97039268c048cafd45c0f3b870111b1dcd22f3fdfd62a47e75ae843eb13b548) |
-| Contract | [`0xAd8Da0...58dA`](https://testnet.bscscan.com/address/0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA) |
+| Contract (Sourcify ✓) | [`0x2054Cc...Ffd5`](https://testnet.bscscan.com/address/0x2054Cc6Fa82e7c64b8226913c3b087CA8F18Ffd5) |
 | Hackathon endpoint | `https://agent-cost-governor-hackathon.apiworkersdev.workers.dev` |
 | Website | `https://proceedgate.dev` |
 

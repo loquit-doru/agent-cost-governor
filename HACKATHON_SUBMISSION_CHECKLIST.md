@@ -77,11 +77,11 @@ All commands above have been validated and pass as of 2026-02-14.
 - Tx hashes:
   - `0xd97039268c048cafd45c0f3b870111b1dcd22f3fdfd62a47e75ae843eb13b548` (proof flow, BSC mainnet)
   - `0x0c695608865e5cad89d9b86d0041c3ca1caf142da77cbcb08febc682567c91a7` (contract deploy, BSC testnet)
-- Contract address: `0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA` (BSC testnet)
+- Contract address (Sourcify ✓): `0x2054Cc6Fa82e7c64b8226913c3b087CA8F18Ffd5` (BSC testnet)
 - Explorer links:
   - https://bscscan.com/tx/0xd97039268c048cafd45c0f3b870111b1dcd22f3fdfd62a47e75ae843eb13b548
-  - https://testnet.bscscan.com/address/0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA
-  - [BSC Testnet contract](https://testnet.bscscan.com/address/0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA)
+  - https://testnet.bscscan.com/address/0x2054Cc6Fa82e7c64b8226913c3b087CA8F18Ffd5
+  - [BSC Testnet contract (Sourcify ✓)](https://testnet.bscscan.com/address/0x2054Cc6Fa82e7c64b8226913c3b087CA8F18Ffd5)
   - [BSC Testnet deploy tx](https://testnet.bscscan.com/tx/0x0c695608865e5cad89d9b86d0041c3ca1caf142da77cbcb08febc682567c91a7)
 - Demo URL: `https://agent-cost-governor-hackathon.apiworkersdev.workers.dev`
 - Website: `https://proceedgate.dev`

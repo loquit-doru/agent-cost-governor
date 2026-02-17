@@ -69,7 +69,7 @@ Token has a 45-second TTL. Execute the gated action within that window.
 
 ## Onchain verification
 
-The smart contract `AICostGovernor` at `0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA` (BSC Testnet) provides:
+The smart contract `AICostGovernor` at `0x2054Cc6Fa82e7c64b8226913c3b087CA8F18Ffd5` (BSC Testnet, Sourcify verified) provides:
 
 - `checkApproval(address)` — verify onchain stake
 - `stakeForAction(uint256)` — stake tokens for approval
