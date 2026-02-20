@@ -79,6 +79,13 @@ export type Env = {
 
   // Dev-only escape hatch
   ALLOW_STUB_TX?: string;
+
+  // Cross-workspace intelligence (D1 analytics)
+  ANALYTICS_D1?: {
+    prepare(query: string): { bind(...values: unknown[]): { first<T = unknown>(colName?: string): Promise<T | null>; run(): Promise<unknown>; all<T = unknown>(): Promise<{ results: T[]; success: boolean }>; }; };
+    exec(query: string): Promise<{ count: number; duration: number }>;
+    batch<T = unknown>(statements: unknown[]): Promise<{ results: T[]; success: boolean }[]>;
+  };
 };
 
 export type Vars = {
@@ -93,7 +100,7 @@ export type Vars = {
 export type AppContext = Context<{ Bindings: Env; Variables: Vars }>;
 
 // Policy and action types as constants
-export const POLICY_IDS = ['retry_friction_v1', 'low_confidence_loop_v1'] as const;
+export const POLICY_IDS = ['retry_friction_v1', 'low_confidence_loop_v1', 'llm_cost_v1'] as const;
 export type PolicyId = (typeof POLICY_IDS)[number];
 
 export const ACTIONS = ['model_call', 'tool_call', 'retry', 'override', 'plan_execute'] as const;
@@ -108,3 +115,6 @@ export type SigningKeyCache =
 export type ApiAuthMode = 'off' | 'shared' | 'workspace';
 
 export type BillingMode = 'off' | 'credits';
+
+/** Governance enforcement mode per workspace */
+export type GovernanceMode = 'enforce' | 'log_only';

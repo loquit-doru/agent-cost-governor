@@ -10,6 +10,10 @@
  */
 
 import type { Env } from '../types.js';
+import { DecisionCache, cachedAiDecideGrayZone as _cachedCall } from './decisionCache.js';
+
+/** Singleton cache — lives for the DO/Worker isolate lifetime. */
+const grayZoneCache = new DecisionCache();
 
 export interface ReasoningContext {
   decision: 'allowed' | 'blocked_storm' | 'blocked_credits' | 'friction_required';
@@ -552,4 +556,24 @@ function getRecommendation(ctx: ReasoningContext): string {
     return 'add exponential backoff or adjust the prompt if the LLM consistently fails';
 
   return 'add variation to step_hash between retries, or implement exponential backoff';
+}
+
+// ─── Cached Gray Zone Decision ────────────────────────────────────────────────
+
+/**
+ * Cached wrapper around `aiDecideGrayZone()`.
+ * On cache hit: returns instantly with model='cached-llama-3.1-8b'.
+ * On miss: calls Workers AI → caches result → returns.
+ *
+ * @returns Decision + cacheHit boolean (for X-Proceedgate-Cache header)
+ */
+export async function cachedGrayZoneDecision(
+  env: Env | undefined,
+  input: GrayZoneInput,
+): Promise<{ decision: GrayZoneDecision; cacheHit: boolean }> {
+  return _cachedCall(
+    grayZoneCache,
+    input,
+    (i) => aiDecideGrayZone(env, i),
+  );
 }

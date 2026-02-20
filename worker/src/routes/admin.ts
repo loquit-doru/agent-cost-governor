@@ -8,6 +8,7 @@ import {
   deleteWorkspaceApiKey,
   getWorkspaceAuthStatus,
 } from '../services/store.js';
+import { getBillingStub, doUrl } from '../lib/do.js';
 
 const adminRoutes = new Hono<{ Bindings: Env; Variables: Vars }>();
 
@@ -103,6 +104,14 @@ adminRoutes.get('/v1/workspaces/status', async (c) => {
     },
     200,
   );
+});
+
+// Cross-workspace intelligence: global anomaly detection (admin-only)
+adminRoutes.get('/v1/admin/anomalies', requireAdminAuth, async (c) => {
+  const stub = getBillingStub(c.env);
+  const res = await stub.fetch(doUrl('/cross-intel/anomalies'));
+  const data = await res.json() as Record<string, unknown>;
+  return c.json(data, res.status as 200 | 501);
 });
 
 export { adminRoutes };

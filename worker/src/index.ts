@@ -23,6 +23,8 @@ import { adminRoutes } from './routes/admin.js';
 import { facilitatorRoutes } from './routes/facilitator.js';
 import { jwksRoutes } from './routes/jwks.js';
 import { mcpRoutes } from './routes/mcp.js';
+import { proxyRoutes } from './routes/proxy.js';
+import { badgeRoutes } from './routes/badge.js';
 
 // Durable Objects (re-export)
 export { DecisionStoreDO } from './decisionStoreDO.js';
@@ -66,6 +68,8 @@ app.route('/', billingRoutes);
 app.route('/', subscribeRoutes);
 app.route('/', adminRoutes);
 app.route('/', facilitatorRoutes);
+app.route('/', proxyRoutes);
+app.route('/', badgeRoutes);
 
 // 404 fallback
 app.notFound((c) => {

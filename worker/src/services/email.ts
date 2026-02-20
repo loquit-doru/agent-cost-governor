@@ -295,3 +295,85 @@ export async function sendExpiryWarning(
     html,
   });
 }
+
+// Weekly savings report
+interface WeeklySavingsParams {
+  to: string;
+  workspaceId: string;
+  plan: string;
+  costSavedUsd: number;
+  stormsBlocked: number;
+  totalChecks: number;
+  topActions: Array<{ action: string; count: number }>;
+  weekStart: string;
+  weekEnd: string;
+}
+
+export async function sendWeeklySavingsReport(
+  env: Env,
+  params: WeeklySavingsParams
+): Promise<{ ok: boolean }> {
+  const topActionsHtml = params.topActions.length > 0
+    ? params.topActions.map(a =>
+      `<tr><td style="color:#c8d6e5;padding:6px 12px;border-bottom:1px solid rgba(255,255,255,0.05)">${a.action}</td>` +
+      `<td style="color:#00d4aa;padding:6px 12px;border-bottom:1px solid rgba(255,255,255,0.05);text-align:right">${a.count}×</td></tr>`
+    ).join('')
+    : '<tr><td colspan="2" style="color:#556677;padding:12px;text-align:center">No blocked actions this week</td></tr>';
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Weekly Savings Report - ProceedGate</title>
+</head>
+<body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background-color:#0a0f1c;">
+  <div style="max-width:600px;margin:0 auto;padding:40px 20px;">
+    <div style="text-align:center;margin-bottom:40px;">
+      <div style="display:inline-block;background:#00d4aa;width:50px;height:50px;border-radius:12px;line-height:50px;font-size:24px;">💰</div>
+      <h1 style="color:#ffffff;margin:20px 0 10px 0;font-size:28px;">Your Weekly Savings Report</h1>
+      <p style="color:#8899aa;margin:0;">${params.weekStart} — ${params.weekEnd}</p>
+    </div>
+
+    <div style="background:rgba(0,212,170,0.1);border:1px solid rgba(0,212,170,0.3);border-radius:16px;padding:30px;margin-bottom:20px;text-align:center;">
+      <div style="color:#8899aa;font-size:14px;margin-bottom:8px;">Cost saved this week</div>
+      <div style="color:#00d4aa;font-size:52px;font-weight:700;">$${params.costSavedUsd.toFixed(2)}</div>
+    </div>
+
+    <div style="display:flex;gap:12px;margin-bottom:30px;">
+      <div style="flex:1;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:20px;text-align:center;">
+        <div style="color:#ff6b6b;font-size:32px;font-weight:700;">${params.stormsBlocked}</div>
+        <div style="color:#8899aa;font-size:13px;">Storms blocked</div>
+      </div>
+      <div style="flex:1;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:20px;text-align:center;">
+        <div style="color:#74b9ff;font-size:32px;font-weight:700;">${params.totalChecks}</div>
+        <div style="color:#8899aa;font-size:13px;">Total checks</div>
+      </div>
+    </div>
+
+    <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:20px;margin-bottom:30px;">
+      <h3 style="color:#ffffff;margin:0 0 12px 0;font-size:16px;">Top Blocked Actions</h3>
+      <table style="width:100%;border-collapse:collapse;">
+        ${topActionsHtml}
+      </table>
+    </div>
+
+    <div style="text-align:center;margin-bottom:20px;">
+      <a href="https://proceedgate.dev/dashboard?ws=${encodeURIComponent(params.workspaceId)}" style="display:inline-block;background:linear-gradient(135deg,#00d4aa,#00b894);color:#0a0f1c;text-decoration:none;padding:16px 40px;border-radius:12px;font-weight:600;font-size:16px;">View Dashboard</a>
+    </div>
+
+    <p style="color:#556677;font-size:12px;text-align:center;">
+      Workspace: ${params.workspaceId} · ${params.plan} plan<br>
+      <a href="mailto:unsubscribe@proceedgate.dev?subject=Unsubscribe%20${params.workspaceId}" style="color:#556677;">Unsubscribe</a>
+    </p>
+  </div>
+</body>
+</html>
+`;
+
+  return sendEmail(env, {
+    to: params.to,
+    subject: `💰 ProceedGate: You saved $${params.costSavedUsd.toFixed(2)} this week`,
+    html,
+  });
+}

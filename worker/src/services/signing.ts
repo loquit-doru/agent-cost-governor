@@ -1,6 +1,7 @@
 import { exportJWK, importJWK, SignJWT } from 'jose';
 import type { Env, SigningKeyCache } from '../types.js';
 import { getTtlSeconds } from '../lib/config.js';
+import { buildProof } from '../lib/jtiBlacklist.js';
 
 let cachedSigningKey: SigningKeyCache = null;
 
@@ -89,6 +90,7 @@ export async function getOrCreateSigningKey(
 
 /**
  * Sign a proceed token JWT.
+ * Includes `prf` claim: SHA-256 binding of action + task + step + context.
  */
 export async function signProceedToken(params: {
   env: Env;
@@ -107,12 +109,21 @@ export async function signProceedToken(params: {
   const now = Math.floor(Date.now() / 1000);
   const exp = now + ttl;
 
+  // Build proof binding: SHA-256(action:taskHash:stepHash:contextHash)
+  const prf = await buildProof(
+    params.action,
+    params.taskHash ?? '',
+    params.stepHash ?? '',
+    params.contextHash ?? '',
+  );
+
   const jwt = await new SignJWT({
     pol: params.policyId,
     act: params.action,
     task: params.taskHash ?? '',
     step: params.stepHash ?? '',
     ctx: params.contextHash ?? '',
+    prf,
   })
     .setProtectedHeader({ alg: 'ES256', kid })
     .setIssuer(params.origin)

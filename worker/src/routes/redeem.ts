@@ -7,6 +7,8 @@ import { getDecisionRecord, deleteDecisionRecord } from '../services/store.js';
 import { verifyPayment } from '../paymentVerify.js';
 import { logEvent, actorKey, txKey } from '../observability.js';
 import { writeMetric } from '../metrics.js';
+import { getBillingStub, doUrl } from '../lib/do.js';
+import { getTtlSeconds } from '../lib/config.js';
 
 const redeemRoutes = new Hono<{ Bindings: Env; Variables: Vars }>();
 
@@ -80,6 +82,16 @@ redeemRoutes.post('/v1/governor/redeem', async (c) => {
     stepHash: record.stepHash,
     contextHash: record.contextHash,
   });
+
+  // Fire-and-forget: mark JTI (decision_id) in DO blacklist for replay prevention
+  const ttlSec = getTtlSeconds(c.env);
+  const expiresAtSec = Math.floor(Date.now() / 1000) + ttlSec;
+  const billingStub = getBillingStub(c.env);
+  billingStub.fetch(doUrl('/jti/mark'), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ jti: record.decisionId, expires_at: expiresAtSec }),
+  }).catch(err => console.error('JTI blacklist mark failed:', err));
 
   setProceedgateHeaders(c, {
     decisionId: parsed.data.decision_id,

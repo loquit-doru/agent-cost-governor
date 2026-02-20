@@ -25,6 +25,14 @@ new_sqlite_classes = ["BillingStoreDO"]
 binding = "METRICS"
 dataset = "proceedgate_metrics"
 
+# Cross-workspace intelligence (optional — D1 analytics database)
+# Create with: npx wrangler d1 create proceedgate-analytics
+# Uncomment and set database_id after creation:
+# [[d1_databases]]
+# binding = "ANALYTICS_D1"
+# database_name = "proceedgate-analytics"
+# database_id = "YOUR_D1_DATABASE_ID"
+
 [env.prod]
 # Deploy prod config into the same worker name to own the route.
 name = "agent-cost-governor"

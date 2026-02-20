@@ -17,6 +17,13 @@ export const checkSchema = z.object({
       task_hash: z.string().max(200).optional(),
       step_hash: z.string().max(200).optional(),
       context_hash: z.string().max(200).optional(),
+      depth: z.number().int().min(0).max(100).optional(),
+      // LLM cost policy fields
+      model: z.string().max(200).optional(),
+      provider: z.string().max(200).optional(),
+      input_tokens: z.number().int().min(0).max(10_000_000).optional(),
+      output_tokens: z.number().int().min(0).max(10_000_000).optional(),
+      cost_estimate: z.number().min(0).max(10_000).optional(),
     })
     .strict(),
   idempotency_key: z.string().max(200).optional(),

@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
-import type { Env, Vars } from '../types.js';
+import type { Env, Vars, GovernanceMode } from '../types.js';
 import { checkSchema } from '../lib/schemas.js';
-import { computeRetryFrictionPrice, computeLowConfidencePrice } from '../lib/pricing.js';
+import { computeRetryFrictionPrice, computeLowConfidencePrice, computeLLMCostPrice } from '../lib/pricing.js';
 import { getBillingMode, getX402Price, getX402Chain, getX402Recipient } from '../lib/config.js';
 import { makeDecisionId, setProceedgateHeaders } from '../lib/utils.js';
 import { signProceedToken } from '../services/signing.js';
@@ -10,10 +10,11 @@ import { requireWorkspaceAuth } from '../middleware/auth.js';
 import { logEvent, actorKey } from '../observability.js';
 import { writeMetric } from '../metrics.js';
 import { webhookCreditsLow, webhookBudgetExceeded } from '../services/webhook.js';
+import { sendLowCreditsAlert } from '../services/email.js';
 import { getBillingStub, doUrl } from '../lib/do.js';
 import { hashApiKey } from '../lib/crypto.js';
 import { API_KEY_PREFIXES } from '../lib/constants.js';
-import { generateReasoning, generateReasoningWithAI, aiDecideGrayZone } from '../lib/aiReasoning.js';
+import { generateReasoning, generateReasoningWithAI, aiDecideGrayZone, cachedGrayZoneDecision } from '../lib/aiReasoning.js';
 
 const checkRoutes = new Hono<{ Bindings: Env; Variables: Vars }>();
 
@@ -38,8 +39,38 @@ checkRoutes.post('/v1/governor/check', async (c) => {
     const authErr = await requireWorkspaceAuth(c, workspaceId);
     if (authErr) return authErr;
 
-    // Loop detection - check if this action pattern is repeating too fast
+    // ── Agent Reputation: fetch trust score for threshold modulation ───
     const stub = getBillingStub(c.env);
+    let trustScore = 50; // Default: normal tier
+    let trustTier: 'trusted' | 'normal' | 'untrusted' = 'normal';
+    let loopMaxCountMultiplier = 1.0;
+    let grayZoneOffset = 0;
+    let governanceMode: GovernanceMode = 'enforce';
+    try {
+      const repRes = await stub.fetch(doUrl(`/workspaces/${workspaceId}/reputation`));
+      if (repRes.ok) {
+        const repData = await repRes.json() as {
+          ok: boolean;
+          reputation: {
+            score: number;
+            tier: 'trusted' | 'normal' | 'untrusted';
+            thresholds: { loop_max_count_multiplier: number; gray_zone_offset: number };
+          };
+          governance_mode?: string;
+        };
+        trustScore = repData.reputation.score;
+        trustTier = repData.reputation.tier;
+        loopMaxCountMultiplier = repData.reputation.thresholds.loop_max_count_multiplier;
+        grayZoneOffset = repData.reputation.thresholds.gray_zone_offset;
+        if (repData.governance_mode === 'log_only') governanceMode = 'log_only';
+      }
+    } catch { /* reputation fetch failed — use defaults */ }
+
+    c.header('X-Proceedgate-Trust-Score', String(trustScore));
+    c.header('X-Proceedgate-Trust-Tier', trustTier);
+    if (governanceMode === 'log_only') c.header('X-Proceedgate-Mode', 'log_only');
+
+    // Loop detection - check if this action pattern is repeating too fast
     const patternHash = await crypto.subtle.digest(
       'SHA-256',
       new TextEncoder().encode(`${parsed.data.action}:${parsed.data.context.task_hash || ''}:${parsed.data.context.step_hash || ''}`)
@@ -51,15 +82,21 @@ checkRoutes.post('/v1/governor/check', async (c) => {
       new TextEncoder().encode(parsed.data.action)
     ).then(buf => Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 8));
 
+    // Apply trust-modulated max_count: trusted agents get more lenient thresholds
+    const baseMaxCount = 10;
+    const effectiveMaxCount = Math.round(baseMaxCount * loopMaxCountMultiplier);
+
     const loopCheckRes = await stub.fetch(doUrl(`/workspaces/${workspaceId}/check-loop`), {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ 
         pattern_hash: patternHash,
         window_ms: 60000, // 1 minute window
-        max_count: 10, // Max 10 identical patterns per minute
+        max_count: effectiveMaxCount, // Trust-modulated threshold
         cost_usd: 0.05, // estimated cost per API check
         similarity_prefix: similarityPrefix,
+        action: parsed.data.action,
+        depth: parsed.data.context.depth ?? 0,
       }),
     });
 
@@ -75,6 +112,14 @@ checkRoutes.post('/v1/governor/check', async (c) => {
       cost_window_usd?: number;
       backoff_detected?: boolean;
       similar_pattern_count?: number;
+      fingerprint_hash?: string;
+      fingerprint?: {
+        burst_index: number;
+        entropy: number;
+        fanout_ratio: number;
+        avg_depth: number;
+        retry_distribution: [number, number, number, number];
+      };
     };
 
     // ─── ZONE: STORM (count > 10) — Hard block, no AI needed ──────────
@@ -97,6 +142,7 @@ checkRoutes.post('/v1/governor/check', async (c) => {
       c.header('cache-control', 'no-store');
       c.header('X-Proceedgate-Loop-Detected', 'true');
       c.header('X-Proceedgate-Zone', 'storm');
+      if (loopData.fingerprint_hash) c.header('X-Proceedgate-Fingerprint', loopData.fingerprint_hash);
 
       const reasoning = generateReasoning({
         decision: 'blocked_storm',
@@ -131,8 +177,17 @@ checkRoutes.post('/v1/governor/check', async (c) => {
         }).catch(() => {})
       );
 
-      return c.json({
-        allowed: false,
+      // Record reputation: storm blocked
+      c.executionCtx.waitUntil(
+        stub.fetch(doUrl(`/workspaces/${workspaceId}/reputation`), {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ blocked: true, reason: 'storm', zone: 'storm', backoff_detected: loopData.backoff_detected }),
+        }).catch(() => {})
+      );
+
+      const stormBody = {
+        allowed: false as boolean,
         error: 'loop_detected',
         workspace_id: workspaceId,
         reason: 'Too many identical requests detected. Possible agent loop.',
@@ -142,13 +197,21 @@ checkRoutes.post('/v1/governor/check', async (c) => {
         cost_saved_usd: 0.05,
         message: `🚫 Blocked retry storm. You just saved $0.05`,
         hint: 'Add variation to task_hash or step_hash, or wait before retrying.',
+        fingerprint_hash: loopData.fingerprint_hash ?? null,
+        trust_score: trustScore,
+        trust_tier: trustTier,
         ...reasoning,
-      }, 429);
+      };
+
+      if (governanceMode === 'log_only') {
+        return c.json({ ...stormBody, allowed: true, enforced: false, would_block: true, would_block_status: 429 }, 200);
+      }
+      return c.json(stormBody, 429);
     }
 
     // ─── ZONE: GRAY (count 6-10) — AI decides allow/block ─────────────
     if (loopData.zone === 'gray' && loopData.timing) {
-      const grayDecision = await aiDecideGrayZone(c.env, {
+      const grayInput = {
         action: parsed.data.action,
         actor_id: parsed.data.actor.id,
         count: loopData.count,
@@ -163,11 +226,14 @@ checkRoutes.post('/v1/governor/check', async (c) => {
         cost_window_usd: loopData.cost_window_usd,
         backoff_detected: loopData.backoff_detected,
         similar_pattern_count: loopData.similar_pattern_count,
-      });
+      };
+      const { decision: grayDecision, cacheHit } = await cachedGrayZoneDecision(c.env, grayInput);
 
       c.header('X-Proceedgate-Zone', 'gray');
       c.header('X-Proceedgate-AI-Decided', String(grayDecision.ai_decided));
       c.header('X-Proceedgate-AI-Model', grayDecision.model);
+      c.header('X-Proceedgate-Cache', cacheHit ? 'hit' : 'miss');
+      if (loopData.fingerprint_hash) c.header('X-Proceedgate-Fingerprint', loopData.fingerprint_hash);
 
       if (grayDecision.decision === 'block') {
         logEvent({
@@ -212,8 +278,17 @@ checkRoutes.post('/v1/governor/check', async (c) => {
           }).catch(() => {})
         );
 
-        return c.json({
-          allowed: false,
+        // Record reputation: gray zone blocked
+        c.executionCtx.waitUntil(
+          stub.fetch(doUrl(`/workspaces/${workspaceId}/reputation`), {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ blocked: true, reason: 'gray_blocked', zone: 'gray', backoff_detected: loopData.backoff_detected }),
+          }).catch(() => {})
+        );
+
+        const grayBlockBody = {
+          allowed: false as boolean,
           error: 'ai_blocked',
           workspace_id: workspaceId,
           reason: grayDecision.reasoning,
@@ -233,7 +308,14 @@ checkRoutes.post('/v1/governor/check', async (c) => {
           }],
           confidence: grayDecision.confidence,
           model: grayDecision.model,
-        }, 429);
+          trust_score: trustScore,
+          trust_tier: trustTier,
+        };
+
+        if (governanceMode === 'log_only') {
+          return c.json({ ...grayBlockBody, allowed: true, enforced: false, would_block: true, would_block_status: 429 }, 200);
+        }
+        return c.json(grayBlockBody, 429);
       }
 
       // AI decided to ALLOW in gray zone — log it and continue normal flow
@@ -259,6 +341,119 @@ checkRoutes.post('/v1/governor/check', async (c) => {
     }
 
     // ─── ZONE: SAFE (count <= 5) or GRAY-ALLOWED — proceed to credits ─
+
+    // ─── Custom Policy Evaluation ────────────────────────────────────
+    // Fetch workspace custom policies and evaluate them against the current request
+    {
+      const policiesRes = await stub.fetch(doUrl(`/workspaces/${workspaceId}/policies`));
+      if (policiesRes.ok) {
+        const policiesData = await policiesRes.json() as {
+          policies: Array<{
+            id: string;
+            name: string;
+            rules: {
+              max_requests_per_minute?: number;
+              blocked_actions?: string[];
+              blocked_tools?: string[];
+              max_cost_per_request?: number;
+              require_confidence_above?: number;
+              allowed_hours?: { start: number; end: number };
+            };
+          }>;
+        };
+
+        for (const policy of policiesData.policies) {
+          const rules = policy.rules;
+          if (!rules) continue;
+
+          // Check blocked actions
+          if (rules.blocked_actions?.includes(parsed.data.action)) {
+            logEvent({
+              event: 'custom_policy_blocked',
+              workspace_id: workspaceId,
+              policy_id: policy.id,
+              policy_name: policy.name,
+              reason: 'blocked_action',
+            });
+            return c.json({
+              allowed: false,
+              error: 'custom_policy_blocked',
+              workspace_id: workspaceId,
+              policy: { id: policy.id, name: policy.name },
+              reason: `Action "${parsed.data.action}" is blocked by policy "${policy.name}"`,
+              message: `🛑 Blocked by custom policy: ${policy.name}`,
+            }, 403);
+          }
+
+          // Check blocked tools
+          const tool = parsed.data.context.tool;
+          if (tool && rules.blocked_tools?.includes(tool)) {
+            logEvent({
+              event: 'custom_policy_blocked',
+              workspace_id: workspaceId,
+              policy_id: policy.id,
+              policy_name: policy.name,
+              reason: 'blocked_tool',
+            });
+            return c.json({
+              allowed: false,
+              error: 'custom_policy_blocked',
+              workspace_id: workspaceId,
+              policy: { id: policy.id, name: policy.name },
+              reason: `Tool "${tool}" is blocked by policy "${policy.name}"`,
+              message: `🛑 Blocked by custom policy: ${policy.name}`,
+            }, 403);
+          }
+
+          // Check cost limit per request
+          if (rules.max_cost_per_request !== undefined && parsed.data.context.cost_estimate !== undefined) {
+            if (parsed.data.context.cost_estimate > rules.max_cost_per_request) {
+              return c.json({
+                allowed: false,
+                error: 'custom_policy_blocked',
+                workspace_id: workspaceId,
+                policy: { id: policy.id, name: policy.name },
+                reason: `Cost estimate $${parsed.data.context.cost_estimate} exceeds policy limit $${rules.max_cost_per_request}`,
+                message: `🛑 Blocked by custom policy: ${policy.name}`,
+              }, 403);
+            }
+          }
+
+          // Check minimum confidence
+          if (rules.require_confidence_above !== undefined && parsed.data.context.confidence !== undefined) {
+            if (parsed.data.context.confidence < rules.require_confidence_above) {
+              return c.json({
+                allowed: false,
+                error: 'custom_policy_blocked',
+                workspace_id: workspaceId,
+                policy: { id: policy.id, name: policy.name },
+                reason: `Confidence ${parsed.data.context.confidence} below required ${rules.require_confidence_above}`,
+                message: `🛑 Blocked by custom policy: ${policy.name}`,
+              }, 403);
+            }
+          }
+
+          // Check time-of-day restrictions
+          if (rules.allowed_hours) {
+            const hour = new Date().getUTCHours();
+            const { start, end } = rules.allowed_hours;
+            const inWindow = start <= end
+              ? (hour >= start && hour < end)
+              : (hour >= start || hour < end); // Handles overnight ranges like 22-06
+            if (!inWindow) {
+              return c.json({
+                allowed: false,
+                error: 'custom_policy_blocked',
+                workspace_id: workspaceId,
+                policy: { id: policy.id, name: policy.name },
+                reason: `Current UTC hour ${hour} outside allowed ${start}-${end}`,
+                message: `🛑 Blocked by custom policy: ${policy.name}`,
+              }, 403);
+            }
+          }
+        }
+      }
+    }
 
     const consumed = await consumeWorkspaceCredits(c.env, workspaceId, 1, {
       action: parsed.data.action,
@@ -316,9 +511,8 @@ checkRoutes.post('/v1/governor/check', async (c) => {
         credits_remaining: consumed.credits,
       });
 
-      return c.json(
-        {
-          allowed: false,
+      const creditsBlockBody = {
+          allowed: false as boolean,
           error: 'insufficient_credits',
           workspace_id: workspaceId,
           credits_remaining: consumed.credits,
@@ -331,12 +525,15 @@ checkRoutes.post('/v1/governor/check', async (c) => {
             balance_url: `/v1/billing/balance?workspace_id=${encodeURIComponent(workspaceId)}`,
           },
           ...creditsReasoning,
-        },
-        402,
-      );
+        };
+
+      if (governanceMode === 'log_only') {
+        return c.json({ ...creditsBlockBody, allowed: true, enforced: false, would_block: true, would_block_status: 402 }, 200);
+      }
+      return c.json(creditsBlockBody, 402);
     }
 
-    // Send credits.low webhook if this is the first time crossing the threshold
+    // Send credits.low webhook + email if this is the first time crossing the threshold
     if (consumed.creditsLowNotify && consumed.maxCredits) {
       const stub = getBillingStub(c.env);
       const webhookRes = await stub.fetch(doUrl(`/workspaces/${workspaceId}/webhook`));
@@ -353,7 +550,40 @@ checkRoutes.post('/v1/governor/check', async (c) => {
           }).catch(err => console.error('Credits low webhook failed:', err));
         }
       }
+
+      // Send low credits email alert (fire-and-forget)
+      c.executionCtx.waitUntil(
+        (async () => {
+          try {
+            const emailRes = await stub.fetch(doUrl(`/workspaces/${workspaceId}/email`));
+            if (emailRes.ok) {
+              const emailData = await emailRes.json() as { ok: boolean; email?: string | null };
+              if (emailData.email) {
+                const subRes = await stub.fetch(doUrl(`/workspaces/${workspaceId}/subscription`));
+                const subData = subRes.ok ? await subRes.json() as { plan?: string } : { plan: 'starter' };
+                await sendLowCreditsAlert(c.env, {
+                  to: emailData.email,
+                  workspaceId,
+                  creditsRemaining: consumed.credits,
+                  plan: subData.plan ?? 'starter',
+                });
+              }
+            }
+          } catch (err) {
+            console.error('Low credits email failed:', err);
+          }
+        })()
+      );
     }
+
+    // Record reputation: credits consumed successfully (fire-and-forget)
+    c.executionCtx.waitUntil(
+      stub.fetch(doUrl(`/workspaces/${workspaceId}/reputation`), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ blocked: false, zone: loopData.zone ?? 'safe', backoff_detected: loopData.backoff_detected }),
+      }).catch(() => {})
+    );
   }
 
   const decisionId = makeDecisionId();
@@ -366,6 +596,16 @@ checkRoutes.post('/v1/governor/check', async (c) => {
   if (parsed.data.policy_id === 'retry_friction_v1') {
     priceInfo = computeRetryFrictionPrice(c.env, attempt);
     reasonCode = priceInfo.required ? 'retry_friction' : 'none';
+  } else if (parsed.data.policy_id === 'llm_cost_v1') {
+    priceInfo = computeLLMCostPrice(c.env, {
+      model: parsed.data.context.model ?? 'unknown',
+      provider: parsed.data.context.provider,
+      inputTokens: parsed.data.context.input_tokens,
+      outputTokens: parsed.data.context.output_tokens,
+      estimatedCost: parsed.data.context.cost_estimate,
+      attemptInWindow: attempt,
+    });
+    reasonCode = priceInfo.required ? 'llm_cost' : 'none';
   } else {
     priceInfo = computeLowConfidencePrice(c.env, { confidence, attemptInWindow: attempt });
     reasonCode = priceInfo.required ? 'low_confidence' : 'none';
@@ -575,11 +815,12 @@ checkRoutes.post('/v1/demo/check', async (c) => {
       max_count: 10,
       cost_usd: 0.05,
       similarity_prefix: similarityPrefix,
+      action,
     }),
   });
 
   if (loopCheckRes.status === 429) {
-    const loopData = (await loopCheckRes.json()) as { count: number; zone: string; timing?: { avg_interval_ms: number; interval_cv: number; requests_per_sec: number; window_elapsed_ms: number }; cost_window_usd?: number; backoff_detected?: boolean; similar_pattern_count?: number };
+    const loopData = (await loopCheckRes.json()) as { count: number; zone: string; timing?: { avg_interval_ms: number; interval_cv: number; requests_per_sec: number; window_elapsed_ms: number }; cost_window_usd?: number; backoff_detected?: boolean; similar_pattern_count?: number; fingerprint_hash?: string };
     const latencyMs = Date.now() - startMs;
 
     writeMetric(c.env, {
@@ -640,10 +881,10 @@ checkRoutes.post('/v1/demo/check', async (c) => {
   }
 
   // ─── GRAY ZONE: AI decides (count 6-10) for demo ──────────────────
-  const loopData = (await loopCheckRes.json()) as { count: number; zone: string; timing?: { avg_interval_ms: number; interval_cv: number; requests_per_sec: number; window_elapsed_ms: number }; cost_window_usd?: number; backoff_detected?: boolean; similar_pattern_count?: number };
+  const loopData = (await loopCheckRes.json()) as { count: number; zone: string; timing?: { avg_interval_ms: number; interval_cv: number; requests_per_sec: number; window_elapsed_ms: number }; cost_window_usd?: number; backoff_detected?: boolean; similar_pattern_count?: number; fingerprint_hash?: string };
 
   if (loopData.zone === 'gray' && loopData.timing) {
-    const grayDecision = await aiDecideGrayZone(c.env, {
+    const { decision: grayDecision } = await cachedGrayZoneDecision(c.env, {
       action,
       actor_id: 'demo-user',
       count: loopData.count,
@@ -765,6 +1006,7 @@ checkRoutes.post('/v1/demo/check', async (c) => {
       ...(loopData.cost_window_usd !== undefined ? { cost_window_usd: loopData.cost_window_usd } : {}),
       ...(loopData.backoff_detected !== undefined ? { backoff_detected: loopData.backoff_detected } : {}),
       ...(loopData.similar_pattern_count !== undefined ? { similar_pattern_count: loopData.similar_pattern_count } : {}),
+      ...(loopData.fingerprint_hash ? { fingerprint_hash: loopData.fingerprint_hash } : {}),
       message: loopData.zone === 'gray'
         ? `✅ AI allowed your request (${loopData.count} requests — gray zone, but timing looks human).`
         : '✅ Request allowed through the gate.',

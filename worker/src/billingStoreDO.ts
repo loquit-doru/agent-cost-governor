@@ -1,3 +1,25 @@
+import {
+  createBaseline,
+  updateAndClassify,
+  serializeState as serializeBaseline,
+  deserializeState as deserializeBaseline,
+} from './lib/adaptiveBaseline.js';
+import type { AgentBaseline } from './lib/adaptiveBaseline.js';
+import { JtiBlacklist } from './lib/jtiBlacklist.js';
+import {
+  createFingerprintState,
+  updateFingerprint,
+  serializeFingerprintState,
+  deserializeFingerprintState,
+} from './lib/behaviorFingerprint.js';
+import type { BehaviorFingerprint } from './lib/behaviorFingerprint.js';
+import {
+  exportDailyAggregate,
+  aggregateDecisions,
+  cleanupOldPatterns,
+} from './lib/crossIntelligence.js';
+import type { D1Database } from './lib/crossIntelligence.js';
+
 export type BillingQuoteRecord = {
   quoteId: string;
   workspaceId: string;
@@ -127,9 +149,21 @@ function normalizeKeyHash(input: string): string {
 
 export class BillingStoreDO {
   private state: DurableObjectState;
+  private jtiBlacklist: JtiBlacklist;
+  private d1: D1Database | null;
+  private env: Record<string, unknown>;
 
-  constructor(state: DurableObjectState) {
+  constructor(state: DurableObjectState, env?: Record<string, unknown>) {
     this.state = state;
+    this.env = env ?? {};
+    this.d1 = (env && typeof env === 'object' && 'ANALYTICS_D1' in env)
+      ? env.ANALYTICS_D1 as D1Database
+      : null;
+    this.jtiBlacklist = new JtiBlacklist(state.storage);
+    // Load JTI blacklist from storage (non-blocking, completes before first request via blockConcurrencyWhile)
+    state.blockConcurrencyWhile(async () => {
+      await this.jtiBlacklist.load();
+    });
     // Schedule daily cleanup alarm if not already set
     this.ensureAlarmScheduled();
   }
@@ -155,15 +189,184 @@ export class BillingStoreDO {
     
     // Get all workspace subscriptions and clean up old usage logs
     const allKeys = await this.state.storage.list({ prefix: 'sub:' });
+    const nowMs = Date.now();
     
     for (const [key] of allKeys) {
       const workspaceId = key.replace('sub:', '');
-      const sub = await this.state.storage.get<{ features?: { logRetentionDays?: number } }>(key);
+      const sub = await this.state.storage.get<{
+        plan?: string;
+        expiresAtMs?: number;
+        features?: { logRetentionDays?: number };
+      }>(key);
       const retentionDays = sub?.features?.logRetentionDays ?? 30;
       
       await this.cleanupOldUsageLogs(workspaceId, retentionDays);
+
+      // ── Subscription expiry enforcement ───────────────────────
+      if (sub?.expiresAtMs) {
+        const daysLeft = Math.ceil((sub.expiresAtMs - nowMs) / (24 * 60 * 60 * 1000));
+        const notifiedKey = `notified:sub_expiring:${workspaceId}`;
+        const alreadyNotified = await this.state.storage.get<boolean>(notifiedKey);
+
+        // Warn at 7, 3, 1 days before expiry
+        if (daysLeft <= 7 && daysLeft > 0 && !alreadyNotified) {
+          // Fire webhook if configured
+          const webhookData = await this.state.storage.get<{
+            webhookUrl?: string | null;
+            webhookSecret?: string | null;
+            events?: string[];
+          }>(`webhook:${workspaceId}`);
+          if (webhookData?.webhookUrl) {
+            const { webhookSubscriptionExpiring } = await import('./services/webhook.js');
+            webhookSubscriptionExpiring(this.env as unknown as import('./types.js').Env, {
+              webhookUrl: webhookData.webhookUrl,
+              webhookSecret: webhookData.webhookSecret ?? undefined,
+              workspaceId,
+              expiresAt: new Date(sub.expiresAtMs).toISOString(),
+              daysRemaining: daysLeft,
+            }).catch(err => console.error('Sub expiring webhook failed:', err));
+          }
+
+          // Send expiry warning email if configured (fire-and-forget)
+          const subData = await this.state.storage.get<{
+            email?: string | null;
+            plan?: string;
+          }>(`sub:${workspaceId}`);
+          if (subData?.email) {
+            const emailCooldownKey = `notified:expiry_email:${workspaceId}`;
+            const lastEmailMs = await this.state.storage.get<number>(emailCooldownKey);
+            const oneDayMs = 24 * 60 * 60 * 1000;
+            if (!lastEmailMs || (Date.now() - lastEmailMs) > oneDayMs) {
+              import('./services/email.js').then(({ sendExpiryWarning }) => {
+                sendExpiryWarning(this.env as unknown as import('./types.js').Env, {
+                  to: subData.email!,
+                  workspaceId,
+                  expiresAt: new Date(sub.expiresAtMs!).toISOString(),
+                  plan: subData.plan ?? 'starter',
+                  daysLeft,
+                }).catch(err => console.error('Expiry email failed:', err));
+              }).catch(() => {});
+              await this.state.storage.put(emailCooldownKey, Date.now());
+            }
+          }
+
+          await this.state.storage.put(notifiedKey, true);
+          console.log(`[BillingStoreDO] Subscription expiry warning: ${workspaceId} expires in ${daysLeft} days`);
+        }
+
+        // Reset notification flag when renewed (expiry pushed out > 7 days)
+        if (daysLeft > 7 && alreadyNotified) {
+          await this.state.storage.delete(notifiedKey);
+        }
+
+        // Hard enforcement: block workspace if subscription expired
+        if (daysLeft <= 0) {
+          const bal = await this.getBalance(workspaceId);
+          if (bal.credits > 0) {
+            console.log(`[BillingStoreDO] Subscription expired for ${workspaceId}, freezing ${bal.credits} credits`);
+            // Store frozen credits for potential reactivation
+            await this.state.storage.put(`frozen_credits:${workspaceId}`, bal.credits);
+            bal.credits = 0;
+            await this.putBalance(bal);
+          }
+        }
+      }
+    }
+
+    // Cleanup expired JTI blacklist entries + persist
+    this.jtiBlacklist.cleanupExpired();
+    await this.jtiBlacklist.persist();
+
+    // Cross-workspace intelligence: export daily aggregates to D1
+    if (this.d1) {
+      try {
+        // Collect decision logs from all workspaces and export
+        const decisionKeys = await this.state.storage.list({ prefix: 'decision_log:' });
+        for (const [logKey] of decisionKeys) {
+          const wsId = logKey.replace('decision_log:', '');
+          const rawLogs = await this.state.storage.get<Array<{
+            timestamp: string | number;
+            zone: string;
+            fingerprint_hash?: string;
+            cost_saved_usd?: number;
+            burst_index?: number;
+            entropy?: number;
+          }>>(logKey);
+          if (rawLogs && rawLogs.length > 0) {
+            const aggregates = aggregateDecisions(rawLogs);
+            await exportDailyAggregate(this.d1, wsId, aggregates);
+          }
+        }
+        // Cleanup old D1 data (90 day retention)
+        await cleanupOldPatterns(this.d1, 90);
+        console.log('[BillingStoreDO] Cross-intelligence export complete');
+      } catch (err) {
+        console.error('[BillingStoreDO] Cross-intelligence export failed:', err);
+      }
     }
     
+    // ── Weekly savings email (runs on Mondays UTC) ───────────────────
+    const today = new Date();
+    if (today.getUTCDay() === 1) { // Monday
+      const allSubKeys = await this.state.storage.list({ prefix: 'sub:' });
+      for (const [subKey] of allSubKeys) {
+        const wsId = subKey.replace('sub:', '');
+        const subData = await this.state.storage.get<{
+          plan?: string;
+          email?: string;
+        }>(subKey);
+        if (!subData?.email) continue; // No email configured, skip
+
+        // Gather last 7 days of stats
+        const blockedStats = await this.state.storage.get<BlockedStats>(`blocked:${wsId}`);
+        let weeklyCreditsUsed = 0;
+        const actionCounts: Record<string, number> = {};
+        for (let i = 0; i < 7; i++) {
+          const d = new Date(today);
+          d.setDate(d.getDate() - i);
+          const dateKey = d.toISOString().split('T')[0]!;
+          const usage = await this.state.storage.get<UsageRecord>(`usage:${wsId}:${dateKey}`);
+          if (usage) {
+            weeklyCreditsUsed += usage.credits;
+            for (const [act, cnt] of Object.entries(usage.actions)) {
+              actionCounts[act] = (actionCounts[act] ?? 0) + cnt;
+            }
+          }
+        }
+
+        const costSaved = blockedStats?.estimatedCostSavedUsd ?? 0;
+        if (costSaved <= 0 && weeklyCreditsUsed <= 0) continue; // No activity
+
+        const weekEnd = today.toISOString().split('T')[0]!;
+        const weekStartDate = new Date(today);
+        weekStartDate.setDate(weekStartDate.getDate() - 7);
+        const weekStart = weekStartDate.toISOString().split('T')[0]!;
+
+        const topActions = Object.entries(actionCounts)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5)
+          .map(([action, count]) => ({ action, count }));
+
+        try {
+          const { sendWeeklySavingsReport } = await import('./services/email.js');
+          await sendWeeklySavingsReport(this.env as unknown as import('./types.js').Env, {
+            to: subData.email,
+            workspaceId: wsId,
+            plan: subData.plan ?? 'free',
+            costSavedUsd: costSaved,
+            stormsBlocked: blockedStats?.blockedRequests ?? 0,
+            totalChecks: weeklyCreditsUsed,
+            topActions,
+            weekStart,
+            weekEnd,
+          });
+          console.log(`[BillingStoreDO] Weekly savings email sent to ${wsId}`);
+        } catch (err) {
+          console.error(`[BillingStoreDO] Weekly email failed for ${wsId}:`, err);
+        }
+      }
+    }
+
     // Schedule next alarm for tomorrow
     const tomorrow = new Date();
     tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
@@ -427,6 +630,42 @@ export class BillingStoreDO {
     // - DELETE /workspaces/:id/key
     // - POST /workspaces/:id/verify { api_key_hash }
     // - GET  /workspaces/:id/auth
+    // - POST /jti/mark { jti, expires_at }
+    // - POST /jti/check { jti }
+    // - GET  /cross-intel/anomalies
+
+    // ── Cross-Intelligence anomaly endpoint ───────────────────────────────
+    if (parts[0] === 'cross-intel' && parts[1] === 'anomalies' && request.method === 'GET') {
+      if (!this.d1) {
+        return Response.json({ ok: false, error: 'D1 not configured' }, { status: 501 });
+      }
+      const { checkGlobalAnomalies } = await import('./lib/crossIntelligence.js');
+      const result = await checkGlobalAnomalies(this.d1);
+      return Response.json({ ok: true, ...result }, { status: 200 });
+    }
+
+    // ── JTI Blacklist endpoints ───────────────────────────────────────────
+    if (parts[0] === 'jti' && parts.length === 2) {
+      if (request.method === 'POST' && parts[1] === 'mark') {
+        const body = (await request.json().catch(() => null)) as { jti?: string; expires_at?: number } | null;
+        if (!body?.jti || !body?.expires_at) {
+          return new Response('invalid_request', { status: 400 });
+        }
+        this.jtiBlacklist.markAsUsed(body.jti, body.expires_at);
+        this.jtiBlacklist.schedulePersist();
+        return Response.json({ ok: true }, { status: 200 });
+      }
+
+      if (request.method === 'POST' && parts[1] === 'check') {
+        const body = (await request.json().catch(() => null)) as { jti?: string } | null;
+        if (!body?.jti) {
+          return new Response('invalid_request', { status: 400 });
+        }
+        const blacklisted = this.jtiBlacklist.isBlacklisted(body.jti);
+        return Response.json({ ok: true, blacklisted }, { status: 200 });
+      }
+    }
+
     if (parts.length < 2) return new Response('not_found', { status: 404 });
 
     // POST /keys/lookup { api_key_hash } - Find workspace by API key hash
@@ -510,6 +749,8 @@ export class BillingStoreDO {
         credits: number;
         expires_at_ms: number;
         features?: PlanFeatures;
+        mode?: 'enforce' | 'log_only';
+        email?: string;
       };
       
       const body = (await request.json().catch(() => null)) as CreateWorkspaceBody | null;
@@ -544,6 +785,8 @@ export class BillingStoreDO {
         expiresAtMs: body.expires_at_ms,
         createdAtMs: Date.now(),
         features: body.features || null,
+        mode: body.mode || 'enforce',
+        email: body.email || null,
       });
 
       return Response.json({ 
@@ -769,6 +1012,64 @@ export class BillingStoreDO {
         }, { status: 200 });
       }
 
+      // Governance mode — GET/PUT /workspaces/:id/mode
+      if (parts.length === 3 && parts[2] === 'mode') {
+        if (request.method === 'GET') {
+          const sub = await this.state.storage.get<{ mode?: string }>(`sub:${workspaceId}`);
+          return Response.json({
+            ok: true,
+            workspace_id: workspaceId,
+            mode: (sub?.mode === 'log_only') ? 'log_only' : 'enforce',
+          }, { status: 200 });
+        }
+        if (request.method === 'PUT') {
+          const body = (await request.json().catch(() => null)) as { mode?: string } | null;
+          if (!body?.mode || !['enforce', 'log_only'].includes(body.mode)) {
+            return new Response('invalid_mode', { status: 400 });
+          }
+          const sub = await this.state.storage.get<Record<string, unknown>>(`sub:${workspaceId}`);
+          if (!sub) return new Response('not_found', { status: 404 });
+          sub.mode = body.mode;
+          await this.state.storage.put(`sub:${workspaceId}`, sub);
+          return Response.json({ ok: true, mode: body.mode }, { status: 200 });
+        }
+        return new Response('method_not_allowed', { status: 405 });
+      }
+
+      // Workspace email — GET/PUT /workspaces/:id/email
+      if (parts.length === 3 && parts[2] === 'email') {
+        if (request.method === 'GET') {
+          const sub = await this.state.storage.get<{ email?: string | null }>(`sub:${workspaceId}`);
+          return Response.json({
+            ok: true,
+            workspace_id: workspaceId,
+            email: sub?.email || null,
+          }, { status: 200 });
+        }
+        if (request.method === 'PUT') {
+          const body = (await request.json().catch(() => null)) as { email?: string } | null;
+          if (!body?.email) return new Response('invalid_request', { status: 400 });
+          const sub = await this.state.storage.get<Record<string, unknown>>(`sub:${workspaceId}`);
+          if (!sub) return new Response('not_found', { status: 404 });
+          sub.email = body.email;
+          await this.state.storage.put(`sub:${workspaceId}`, sub);
+          return Response.json({ ok: true }, { status: 200 });
+        }
+        return new Response('method_not_allowed', { status: 405 });
+      }
+
+      // Badge data — GET /workspaces/:id/badge-data (lightweight, for SVG badge)
+      if (request.method === 'GET' && parts.length === 3 && parts[2] === 'badge-data') {
+        const blockedStats = await this.state.storage.get<BlockedStats>(`blocked:${workspaceId}`);
+        const sub = await this.state.storage.get<{ plan?: string }>(`sub:${workspaceId}`);
+        return Response.json({
+          ok: true,
+          cost_saved_usd: blockedStats?.estimatedCostSavedUsd ?? 0,
+          storms_blocked: blockedStats?.blockedRequests ?? 0,
+          active: !!sub,
+        }, { status: 200 });
+      }
+
       // Subscription metadata
       if (request.method === 'GET' && parts.length === 3 && parts[2] === 'subscription') {
         const sub = await this.state.storage.get<{
@@ -962,6 +1263,8 @@ export class BillingStoreDO {
           max_count?: number; // Max allowed in window (default 10)
           cost_usd?: number; // Cost of this request in USD (optional)
           similarity_prefix?: string; // First N chars of hash — groups similar requests
+          action?: string; // Action name for behavioral fingerprinting
+          depth?: number;  // Call depth for behavioral fingerprinting
         } | null;
         
         if (!body?.pattern_hash) {
@@ -1041,13 +1344,45 @@ export class BillingStoreDO {
         // ── Similarity group count ────────────────────────────────────────
         const simCount = await this.trackSimilarityGroup(workspaceId, body.similarity_prefix || body.pattern_hash.slice(0, 8), nowMs, windowMs);
 
-        // ── Determine zone ────────────────────────────────────────────────
-        // Backoff detected → be more lenient (shift zone boundary up)
-        const effectiveMaxCount = backoffDetected ? maxCount + 3 : maxCount;
-        const zone = existing.count <= 5 ? 'safe' : existing.count <= effectiveMaxCount ? 'gray' : 'storm';
+        // ── Adaptive baseline (EWMA + z-score + CUSUM) ────────────────────
+        // Load or create per-pattern baseline state
+        const baselineKey = `baseline:${workspaceId}:${body.pattern_hash}`;
+        const rawBaseline = await this.state.storage.get<string>(baselineKey);
+        const baseline: AgentBaseline = rawBaseline
+          ? deserializeBaseline(rawBaseline)
+          : createBaseline(nowMs);
+
+        // Compute current RPM from observed data
+        const currentRpm = requestsPerSec * 60;
+
+        // Feed observation and get adaptive zone classification
+        const adaptiveZone = updateAndClassify(baseline, { rpm: currentRpm }, nowMs);
+
+        // Persist updated baseline state (fire-and-forget for speed)
+        this.state.storage.put(baselineKey, serializeBaseline(baseline)).catch(() => {});
+
+        // ── Behavioral fingerprint (streaming update) ─────────────────────
+        let fingerprint: BehaviorFingerprint | null = null;
+        if (body.action) {
+          const fpKey = `fp:${workspaceId}`;
+          const rawFp = await this.state.storage.get<string>(fpKey);
+          const fpState = rawFp ? deserializeFingerprintState(rawFp) : createFingerprintState();
+          fingerprint = await updateFingerprint(fpState, {
+            action: body.action,
+            intervalMs: avgIntervalMs,
+            depth: body.depth ?? 0,
+            timestamp: nowMs,
+          });
+          // Persist fingerprint state (fire-and-forget)
+          this.state.storage.put(fpKey, serializeFingerprintState(fpState)).catch(() => {});
+        }
+
+        // Use adaptive zone, but still respect backoff leniency:
+        // If backoff detected AND adaptive says storm, downgrade to gray
+        const zone = (backoffDetected && adaptiveZone === 'storm') ? 'gray' : adaptiveZone;
         
-        // Check if loop detected (hard block above effective maxCount)
-        const loopDetected = existing.count > effectiveMaxCount;
+        // Storm zone = loop detected (hard block)
+        const loopDetected = zone === 'storm';
         
         if (loopDetected) {
           // Track as blocked for cost_saved metric
@@ -1083,6 +1418,17 @@ export class BillingStoreDO {
           cost_window_usd: Math.round(existing.costUsd * 100) / 100,
           backoff_detected: backoffDetected,
           similar_pattern_count: simCount,
+          // ── Behavioral fingerprint ────────────────────────────────────
+          ...(fingerprint ? {
+            fingerprint_hash: fingerprint.fingerprintHash,
+            fingerprint: {
+              burst_index: fingerprint.burstIndex,
+              entropy: fingerprint.entropyProfile,
+              fanout_ratio: fingerprint.fanoutRatio,
+              avg_depth: fingerprint.avgDepth,
+              retry_distribution: fingerprint.retryDistribution,
+            },
+          } : {}),
         }, { status: loopDetected ? 429 : 200 });
       }
 
@@ -1419,6 +1765,68 @@ export class BillingStoreDO {
         await this.state.storage.put(`custpolicies:${workspaceId}`, filtered);
 
         return Response.json({ ok: true }, { status: 200 });
+      }
+
+      return new Response('method_not_allowed', { status: 405 });
+    }
+
+    // ========================================================================
+    // Agent Reputation Scoring
+    // ========================================================================
+    if (parts[0] === 'workspaces' && parts.length === 3 && parts[2] === 'reputation') {
+      const workspaceId = parts[1]!;
+
+      // GET /workspaces/:id/reputation - Get current trust score
+      if (request.method === 'GET') {
+        const { createReputationState, deserializeReputationState, computeScore } = await import('./lib/reputationScoring.js');
+        const raw = await this.state.storage.get<string>(`rep:${workspaceId}`);
+        const state = raw ? deserializeReputationState(raw) : createReputationState();
+        const score = computeScore(state);
+
+        // Piggyback governance mode onto reputation response (avoids extra DO call)
+        const sub = await this.state.storage.get<{ mode?: string }>(`sub:${workspaceId}`);
+        const governanceMode = (sub?.mode === 'log_only') ? 'log_only' : 'enforce';
+
+        return Response.json({ ok: true, reputation: score, governance_mode: governanceMode }, { status: 200 });
+      }
+
+      // POST /workspaces/:id/reputation - Record an outcome event
+      if (request.method === 'POST') {
+        const body = await request.json().catch(() => null) as {
+          blocked?: boolean;
+          reason?: 'storm' | 'gray_blocked' | 'policy' | 'credits';
+          backoff_detected?: boolean;
+          zone?: 'safe' | 'gray' | 'storm';
+          budget_overshoot?: boolean;
+        } | null;
+        if (!body) return new Response('invalid_request', { status: 400 });
+
+        const {
+          createReputationState,
+          deserializeReputationState,
+          serializeReputationState,
+          recordOutcome,
+          recordBudgetEvent,
+          computeScore,
+        } = await import('./lib/reputationScoring.js');
+
+        const raw = await this.state.storage.get<string>(`rep:${workspaceId}`);
+        const state = raw ? deserializeReputationState(raw) : createReputationState();
+
+        recordOutcome(state, {
+          blocked: body.blocked ?? false,
+          reason: body.reason,
+          backoff_detected: body.backoff_detected,
+          zone: body.zone,
+        });
+
+        if (body.budget_overshoot !== undefined) {
+          recordBudgetEvent(state, body.budget_overshoot);
+        }
+
+        await this.state.storage.put(`rep:${workspaceId}`, serializeReputationState(state));
+        const score = computeScore(state);
+        return Response.json({ ok: true, reputation: score }, { status: 200 });
       }
 
       return new Response('method_not_allowed', { status: 405 });
