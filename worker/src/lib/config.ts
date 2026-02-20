@@ -131,8 +131,10 @@ const DEFAULT_ALLOWED_ORIGINS = [
   'https://governor.proceedgate.dev',
   'http://localhost:8787',
   'http://localhost:8788',
+  'http://localhost:8099',
   'http://127.0.0.1:8787',
   'http://127.0.0.1:8788',
+  'http://127.0.0.1:8099',
 ];
 
 export function getAllowedOrigins(env: Env): Set<string> {
