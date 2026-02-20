@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="ProceedGate — Subscribe with USDC" />
-    <meta name="theme-color" content="#0c1220" />
+    <meta name="theme-color" content="#0f172a" />
     <title>ProceedGate — Subscribe</title>
     <link rel="stylesheet" href="./styles.css" />
     <style>
@@ -16,52 +16,52 @@
       /* Steps */
       .pay-steps { display: flex; gap: 8px; margin-bottom: 24px; }
       .pay-step { flex: 1; text-align: center; padding: 12px 8px; border-radius: 10px; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08); opacity: 0.5; transition: all 0.2s; }
-      .pay-step.active { opacity: 1; border-color: var(--accent); background: rgba(45,212,191,.08); }
+      .pay-step.active { opacity: 1; border-color: var(--color-teal); background: rgba(45,212,191,.08); }
       .pay-step.done { opacity: 1; border-color: #22c55e; background: rgba(34,197,94,.1); }
-      .pay-step-num { font-size: 18px; font-weight: 800; color: var(--accent); }
+      .pay-step-num { font-size: 18px; font-weight: 800; color: var(--color-teal); }
       .pay-step.done .pay-step-num { color: #22c55e; }
-      .pay-step-label { font-size: 11px; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+      .pay-step-label { font-size: 11px; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
       
       /* Plan selector */
       .plan-grid { display: grid; gap: 12px; margin-bottom: 20px; }
       .plan-option { display: flex; justify-content: space-between; align-items: center; padding: 16px; border: 2px solid rgba(255,255,255,.1); border-radius: 12px; cursor: pointer; transition: all 0.15s; }
       .plan-option:hover { border-color: rgba(45,212,191,.4); background: rgba(45,212,191,.05); }
-      .plan-option.selected { border-color: var(--accent); background: rgba(45,212,191,.1); }
+      .plan-option.selected { border-color: var(--color-teal); background: rgba(45,212,191,.1); }
       .plan-name { font-weight: 700; font-size: 16px; }
-      .plan-desc { font-size: 13px; color: var(--muted); margin-top: 2px; }
+      .plan-desc { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
       .plan-price { text-align: right; }
-      .plan-price-amount { font-size: 20px; font-weight: 800; color: var(--accent); }
-      .plan-price-period { font-size: 12px; color: var(--muted); }
+      .plan-price-amount { font-size: 20px; font-weight: 800; color: var(--color-teal); }
+      .plan-price-period { font-size: 12px; color: var(--text-muted); }
       
       /* Period selector */
       .period-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 20px; }
       .period-option { padding: 14px 12px; text-align: center; border: 2px solid rgba(255,255,255,.1); border-radius: 10px; cursor: pointer; transition: all 0.15s; }
       .period-option:hover { border-color: rgba(45,212,191,.4); }
-      .period-option.selected { border-color: var(--accent); background: rgba(45,212,191,.1); }
+      .period-option.selected { border-color: var(--color-teal); background: rgba(45,212,191,.1); }
       .period-label { font-weight: 600; font-size: 14px; }
-      .period-price { font-size: 13px; color: var(--muted); margin-top: 4px; }
+      .period-price { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
       .period-save { font-size: 11px; color: #22c55e; font-weight: 600; margin-top: 4px; }
       
       /* Network selector */
       .network-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 20px; }
       .network-option { display: flex; align-items: center; gap: 10px; padding: 14px; border: 2px solid rgba(255,255,255,.1); border-radius: 10px; cursor: pointer; transition: all 0.15s; }
       .network-option:hover { border-color: rgba(45,212,191,.4); }
-      .network-option.selected { border-color: var(--accent); background: rgba(45,212,191,.1); }
+      .network-option.selected { border-color: var(--color-teal); background: rgba(45,212,191,.1); }
       .network-icon { width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,.1); display: flex; align-items: center; justify-content: center; font-size: 16px; }
       .network-name { font-weight: 600; }
-      .network-fee { font-size: 12px; color: var(--muted); }
+      .network-fee { font-size: 12px; color: var(--text-muted); }
       
       /* Invoice display */
       .invoice-box { background: rgba(0,0,0,.3); border: 1px solid rgba(255,255,255,.1); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
       .invoice-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; }
       .invoice-row:not(:last-child) { border-bottom: 1px solid rgba(255,255,255,.06); }
-      .invoice-label { color: var(--muted); font-size: 14px; }
+      .invoice-label { color: var(--text-muted); font-size: 14px; }
       .invoice-value { font-weight: 600; font-size: 14px; }
-      .invoice-total { font-size: 24px; font-weight: 800; color: var(--accent); }
+      .invoice-total { font-size: 24px; font-weight: 800; color: var(--color-teal); }
       
       /* Payment address */
       .address-box { background: rgba(0,0,0,.4); border: 1px dashed rgba(45,212,191,.4); border-radius: 12px; padding: 20px; text-align: center; margin-bottom: 16px; }
-      .address-label { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+      .address-label { font-size: 13px; color: var(--text-muted); margin-bottom: 8px; }
       .address-value { font-family: monospace; font-size: 13px; word-break: break-all; padding: 12px; background: rgba(0,0,0,.3); border-radius: 8px; margin-bottom: 12px; }
       .address-copy { display: inline-flex; align-items: center; gap: 6px; }
       
@@ -69,17 +69,17 @@
       .status-box { background: rgba(0,0,0,.3); border-radius: 12px; padding: 20px; text-align: center; }
       .status-icon { font-size: 48px; margin-bottom: 12px; }
       .status-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
-      .status-desc { color: var(--muted); font-size: 14px; }
-      .status-spinner { display: inline-block; width: 24px; height: 24px; border: 3px solid rgba(45,212,191,.2); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; margin-right: 8px; vertical-align: middle; }
+      .status-desc { color: var(--text-muted); font-size: 14px; }
+      .status-spinner { display: inline-block; width: 24px; height: 24px; border: 3px solid rgba(45,212,191,.2); border-top-color: var(--color-teal); border-radius: 50%; animation: spin 1s linear infinite; margin-right: 8px; vertical-align: middle; }
       @keyframes spin { to { transform: rotate(360deg); } }
       
       /* Progress bar */
       .progress-bar { height: 6px; background: rgba(255,255,255,.1); border-radius: 3px; overflow: hidden; margin: 16px 0; }
-      .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #22c55e); border-radius: 3px; transition: width 0.5s ease; }
+      .progress-fill { height: 100%; background: linear-gradient(90deg, var(--color-teal), #22c55e); border-radius: 3px; transition: width 0.5s ease; }
       
       /* Buttons */
       .pay-btn { width: 100%; padding: 16px; font-size: 16px; font-weight: 700; border-radius: 10px; cursor: pointer; transition: all 0.15s; }
-      .pay-btn.primary { background: var(--accent); color: #0b1020; border: none; }
+      .pay-btn.primary { background: var(--color-teal); color: #0b1020; border: none; }
       .pay-btn.primary:hover { background: #5eead4; transform: translateY(-1px); }
       .pay-btn.secondary { background: transparent; color: white; border: 1px solid rgba(255,255,255,.2); }
       .pay-btn.secondary:hover { border-color: rgba(255,255,255,.4); }
@@ -106,34 +106,31 @@
       .wallet-modal-content { background: #0c1220; border: 1px solid rgba(255,255,255,.1); border-radius: 16px; width: 100%; max-width: 400px; max-height: 80vh; overflow: hidden; }
       .wallet-modal-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,.1); }
       .wallet-modal-header h3 { margin: 0; font-size: 18px; }
-      .wallet-modal-close { background: none; border: none; color: var(--muted); font-size: 24px; cursor: pointer; padding: 4px 8px; }
+      .wallet-modal-close { background: none; border: none; color: var(--text-muted); font-size: 24px; cursor: pointer; padding: 4px 8px; }
       .wallet-modal-close:hover { color: white; }
       .wallet-list { padding: 12px; max-height: 400px; overflow-y: auto; }
       .wallet-item { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border: 1px solid rgba(255,255,255,.08); border-radius: 12px; cursor: pointer; transition: all 0.15s; margin-bottom: 8px; }
-      .wallet-item:hover { border-color: var(--accent); background: rgba(45,212,191,.08); }
+      .wallet-item:hover { border-color: var(--color-teal); background: rgba(45,212,191,.08); }
       .wallet-item img { width: 40px; height: 40px; border-radius: 10px; }
       .wallet-item-icon { width: 40px; height: 40px; border-radius: 10px; background: rgba(255,255,255,.1); display: flex; align-items: center; justify-content: center; font-size: 20px; }
       .wallet-item-info { flex: 1; }
       .wallet-item-name { font-weight: 600; font-size: 15px; }
-      .wallet-item-desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
-      .wallet-item-arrow { color: var(--muted); font-size: 18px; }
-      .wallet-divider { display: flex; align-items: center; gap: 12px; margin: 16px 0; color: var(--muted); font-size: 13px; }
+      .wallet-item-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+      .wallet-item-arrow { color: var(--text-muted); font-size: 18px; }
+      .wallet-divider { display: flex; align-items: center; gap: 12px; margin: 16px 0; color: var(--text-muted); font-size: 13px; }
       .wallet-divider::before, .wallet-divider::after { content: ''; flex: 1; height: 1px; background: rgba(255,255,255,.1); }
-      .wallet-no-wallets { text-align: center; padding: 20px; color: var(--muted); }
+      .wallet-no-wallets { text-align: center; padding: 20px; color: var(--text-muted); }
     </style>
   </head>
   <body>
-    <header class="topbar">
-      <div class="container topbar-inner">
-        <a class="brand" href="./index.html" aria-label="ProceedGate">
-          <span class="brand-mark" aria-hidden="true"></span>
-          <span class="brand-name">ProceedGate</span>
-        </a>
-        <nav class="nav">
+    <nav class="navbar">
+      <div class="container navbar__inner">
+        <a href="./index.html" class="navbar__brand"><span class="navbar__mark" aria-hidden="true"></span>ProceedGate</a>
+        <div class="navbar__links">
           <a href="./index.html">← Back to home</a>
-        </nav>
+        </div>
       </div>
-    </header>
+    </nav>
 
     <main id="main" style="padding: 40px 20px;">
       <div class="pay-container">
@@ -143,7 +140,7 @@
           <div id="renewBanner" style="display: none; background: linear-gradient(135deg, rgba(45,212,191,.15), rgba(34,197,94,.15)); border: 1px solid rgba(45,212,191,.3); border-radius: 12px; padding: 16px; margin-bottom: 20px; text-align: center;">
             <div style="font-size: 20px; margin-bottom: 8px;">🔄</div>
             <div style="font-weight: 600;" id="renewTitle">Renew Subscription</div>
-            <div style="font-size: 13px; color: var(--muted); margin-top: 4px;" id="renewDesc">Extend your current plan</div>
+            <div style="font-size: 13px; color: var(--text-muted); margin-top: 4px;" id="renewDesc">Extend your current plan</div>
           </div>
           
           <!-- Steps indicator -->
@@ -264,12 +261,12 @@
             
             <!-- Email input -->
             <div style="margin-bottom: 20px;">
-              <label style="display: block; font-size: 14px; color: var(--muted); margin-bottom: 8px;">
+              <label style="display: block; font-size: 14px; color: var(--text-muted); margin-bottom: 8px;">
                 📧 Email address <span style="color: #ef4444;">*</span>
               </label>
               <input type="email" id="customerEmail" placeholder="your@email.com" required
                 style="width: 100%; padding: 14px 16px; background: rgba(0,0,0,.3); border: 1px solid rgba(255,255,255,.15); border-radius: 10px; color: white; font-size: 15px;">
-              <div style="font-size: 12px; color: var(--muted); margin-top: 6px;">
+              <div style="font-size: 12px; color: var(--text-muted); margin-top: 6px;">
                 We'll send your API key and invoice to this address
               </div>
             </div>
@@ -298,7 +295,7 @@
               <button class="pay-btn primary" id="btnConnectWallet" style="margin-bottom: 12px;">
                 🔗 Connect Wallet & Pay
               </button>
-              <div style="text-align: center; color: var(--muted); font-size: 13px; margin: 12px 0;">or pay manually</div>
+              <div style="text-align: center; color: var(--text-muted); font-size: 13px; margin: 12px 0;">or pay manually</div>
               <button class="pay-btn secondary" id="btnShowManual">
                 📋 Show Payment Address
               </button>
@@ -356,7 +353,7 @@
               <!-- Email notification -->
               <div style="background: rgba(45,212,191,.1); border: 1px solid rgba(45,212,191,.3); border-radius: 10px; padding: 14px; margin-bottom: 20px; text-align: left;">
                 <div style="font-weight: 600; margin-bottom: 6px;">📧 Check your email!</div>
-                <div style="font-size: 13px; color: var(--muted);">We sent your credentials to your email. <strong>Check your spam folder</strong> if you don't see it in your inbox.</div>
+                <div style="font-size: 13px; color: var(--text-muted);">We sent your credentials to your email. <strong>Check your spam folder</strong> if you don't see it in your inbox.</div>
               </div>
               
               <div class="invoice-box" style="text-align: left;">
@@ -380,7 +377,7 @@
               
               <div style="background: rgba(251,146,60,.1); border: 1px solid rgba(251,146,60,.3); border-radius: 10px; padding: 14px; margin: 20px 0; text-align: left;">
                 <div style="font-weight: 600; margin-bottom: 6px;">⚠️ Save your API key!</div>
-                <div style="font-size: 13px; color: var(--muted);">This is shown only once. Copy it now and store it securely.</div>
+                <div style="font-size: 13px; color: var(--text-muted);">This is shown only once. Copy it now and store it securely.</div>
               </div>
               
               <button class="pay-btn primary" id="btnCopyCredentials" style="margin-bottom: 12px;">
@@ -801,7 +798,7 @@
           noWallets.innerHTML = `
             <div style="font-size: 32px; margin-bottom: 12px;">🔍</div>
             <div style="font-weight: 600; margin-bottom: 8px;">No wallets detected</div>
-            <div style="font-size: 13px;">Install <a href="https://metamask.io" target="_blank" style="color: var(--accent);">MetaMask</a></div>
+            <div style="font-size: 13px;">Install <a href="https://metamask.io" target="_blank" style="color: var(--color-teal);">MetaMask</a></div>
           `;
           list.appendChild(noWallets);
         }
@@ -837,7 +834,7 @@
           noWallets.innerHTML = `
             <div style="font-size: 32px; margin-bottom: 12px;">🔍</div>
             <div style="font-weight: 600; margin-bottom: 8px;">No wallets detected</div>
-            <div style="font-size: 13px;">Install <a href="https://metamask.io" target="_blank" style="color: var(--accent);">MetaMask</a> or <a href="https://www.coinbase.com/wallet" target="_blank" style="color: var(--accent);">Coinbase Wallet</a></div>
+            <div style="font-size: 13px;">Install <a href="https://metamask.io" target="_blank" style="color: var(--color-teal);">MetaMask</a> or <a href="https://www.coinbase.com/wallet" target="_blank" style="color: var(--color-teal);">Coinbase Wallet</a></div>
           `;
           list.insertBefore(noWallets, list.querySelector('.wallet-divider'));
         }
@@ -1092,9 +1089,9 @@
 
     <footer class="footer" style="margin-top: 48px;">
       <div class="container">
-        <div class="footer-bottom" style="border-top: none; padding-top: 0;">
-          <span class="muted">© 2024-2026 ProceedGate. All rights reserved.</span>
-          <div class="footer-badges">
+        <div class="footer__bottom">
+          <span class="text-muted">© 2024-2026 ProceedGate. All rights reserved.</span>
+          <div style="display: flex; gap: 8px;">
             <span class="badge">🔐 USDC only</span>
             <span class="badge">Base + Polygon</span>
           </div>

@@ -1,580 +1,376 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Stop retry storms in scraping agents. Prevent infinite retries from burning your API budget on Apify, SerpAPI, Firecrawl." />
-    <meta name="theme-color" content="#0c1220" />
-    <meta property="og:title" content="Stop Retry Storms in Scraping Agents — ProceedGate" />
-    <meta property="og:description" content="Prevent infinite retries from burning your API budget. Works with Apify, SerpAPI, Firecrawl." />
-    <meta property="og:type" content="website" />
-    <meta name="twitter:card" content="summary" />
-    <meta name="keywords" content="retry storms in scraping, stop scraping retries, scraping budget control, Apify retry loop, SerpAPI bill too high, Firecrawl retries, scraper stuck in loop, scraping runaway costs, LLM agent retry loop, stop infinite retries" />
-    <title>Stop Retry Storms in Scraping Agents — ProceedGate</title>
-    <link rel="stylesheet" href="./styles.css" />
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='%23111827' d='M0 0h64v64H0z'/%3E%3Cpath fill='%23ffffff' d='M14 16h36v6H14zm0 13h36v6H14zm0 13h24v6H14z'/%3E%3C/svg%3E" />
-    <style>
-      .pain-stat {
-        font-size: 3rem;
-        font-weight: 800;
-        color: #ef4444;
-        line-height: 1;
-      }
-      .pain-label {
-        font-size: 0.875rem;
-        color: #9ca3af;
-        margin-top: 4px;
-      }
-      .savings-box {
-        background: linear-gradient(135deg, #065f46 0%, #047857 100%);
-        border-radius: 12px;
-        padding: 32px;
-        text-align: center;
-        margin: 32px 0;
-      }
-      .savings-amount {
-        font-size: 4rem;
-        font-weight: 800;
-        color: #10b981;
-        text-shadow: 0 0 40px rgba(16, 185, 129, 0.5);
-      }
-      .savings-label {
-        font-size: 1.125rem;
-        color: #d1fae5;
-        margin-top: 8px;
-      }
-      .tool-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 16px;
-        margin: 24px 0;
-      }
-      .tool-card {
-        background: #1f2937;
-        border: 1px solid #374151;
-        border-radius: 8px;
-        padding: 20px;
-        text-align: center;
-        transition: border-color 0.2s;
-      }
-      .tool-card:hover {
-        border-color: #6366f1;
-      }
-      .tool-name {
-        font-weight: 600;
-        color: #f9fafb;
-        margin-top: 8px;
-      }
-      .tool-pain {
-        font-size: 0.75rem;
-        color: #ef4444;
-        margin-top: 4px;
-      }
-      .horror-story {
-        background: #1c1917;
-        border-left: 4px solid #ef4444;
-        padding: 24px;
-        margin: 24px 0;
-        border-radius: 0 8px 8px 0;
-      }
-      .horror-quote {
-        font-size: 1.25rem;
-        font-style: italic;
-        color: #fca5a5;
-      }
-      .horror-source {
-        margin-top: 12px;
-        font-size: 0.875rem;
-        color: #78716c;
-      }
-      .blocked-demo {
-        background: #18181b;
-        border: 2px solid #ef4444;
-        border-radius: 12px;
-        padding: 24px;
-        font-family: 'Monaco', 'Menlo', monospace;
-        font-size: 0.875rem;
-      }
-      .blocked-header {
-        color: #ef4444;
-        font-weight: 600;
-        margin-bottom: 12px;
-      }
-      .blocked-saved {
-        color: #10b981;
-        font-weight: 600;
-        font-size: 1.125rem;
-        margin-top: 12px;
-      }
-      .cta-scraping {
-        background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
-        padding: 48px;
-        border-radius: 16px;
-        text-align: center;
-        margin: 48px 0;
-      }
-      .cta-scraping h2 {
-        color: #fff;
-        margin-bottom: 16px;
-      }
-      .cta-scraping p {
-        color: #c7d2fe;
-        margin-bottom: 24px;
-      }
-      .integration-code {
-        background: #0f172a;
-        border-radius: 8px;
-        padding: 20px;
-        overflow-x: auto;
-        margin: 16px 0;
-      }
-      .integration-code pre {
-        margin: 0;
-        color: #e2e8f0;
-        font-size: 0.8125rem;
-        line-height: 1.6;
-      }
-      .comparison-table {
-        width: 100%;
-        border-collapse: collapse;
-        margin: 24px 0;
-      }
-      .comparison-table th,
-      .comparison-table td {
-        padding: 16px;
-        text-align: left;
-        border-bottom: 1px solid #374151;
-      }
-      .comparison-table th {
-        color: #9ca3af;
-        font-weight: 500;
-        font-size: 0.875rem;
-      }
-      .comparison-table td {
-        color: #f9fafb;
-      }
-      .check-yes {
-        color: #10b981;
-      }
-      .check-no {
-        color: #ef4444;
-      }
-    </style>
-  </head>
-  <body>
-    <a class="skip" href="#main">Skip to content</a>
-    <header class="topbar">
-      <div class="container topbar-inner">
-        <a class="brand" href="./index.html" aria-label="ProceedGate">
-          <span class="brand-mark" aria-hidden="true"></span>
-          <span class="brand-name">ProceedGate</span>
-          <span class="pill" style="background: #ef4444;">Scraping</span>
-        </a>
-        <nav class="nav" id="navMenu">
-          <a href="./index.html">Home</a>
-          <a href="./demo.html">🎬 Demo</a>
-          <a href="#how">How it works</a>
-          <a href="#early-access">Early Access</a>
-          <a class="nav-cta" href="#signup" style="background: #ef4444;">Protect my budget →</a>
-        </nav>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stop Retry Storms in Scraping Agents — ProceedGate</title>
+  <meta name="description" content="Stop retry storms in scraping agents. Prevent infinite retries from burning your API budget on Apify, SerpAPI, Firecrawl.">
+  <meta name="theme-color" content="#0f172a">
+  <meta property="og:title" content="Stop Retry Storms in Scraping Agents — ProceedGate">
+  <meta property="og:description" content="Prevent infinite retries from burning your API budget. Works with Apify, SerpAPI, Firecrawl.">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary">
+  <meta name="keywords" content="retry storms in scraping, stop scraping retries, scraping budget control, Apify retry loop, SerpAPI bill too high, Firecrawl retries, scraper stuck in loop, scraping runaway costs, LLM agent retry loop, stop infinite retries">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<!-- ── Navbar ──────────────────────────────────────────── -->
+<nav class="navbar" role="navigation" aria-label="Main navigation">
+  <div class="container navbar__inner">
+    <a href="/" class="navbar__brand">
+      <span class="navbar__mark" aria-hidden="true"></span>
+      ProceedGate
+      <span class="badge" style="background:rgba(239,68,68,0.15);color:#ef4444;border-color:rgba(239,68,68,0.3)">Scraping</span>
+    </a>
+
+    <button class="navbar__toggle" aria-label="Open menu" aria-expanded="false" onclick="this.classList.toggle('open');document.getElementById('navLinks').classList.toggle('open');this.setAttribute('aria-expanded',this.classList.contains('open'))">
+      <span></span><span></span><span></span>
+    </button>
+
+    <div class="navbar__links" id="navLinks">
+      <a href="index.html">Home</a>
+      <a href="#problem">The Problem</a>
+      <a href="#how-it-works">How It Works</a>
+      <a href="#tools">Integrations</a>
+      <a href="use-cases.html">Use Cases</a>
+      <span class="navbar__sep" aria-hidden="true"></span>
+      <a href="pay.html" class="btn btn--primary btn--sm">Protect My Budget</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ── Hero ────────────────────────────────────────────── -->
+<header class="hero" id="main">
+  <div class="badge" style="margin-bottom: var(--space-5); background: rgba(239,68,68,0.12); color: #fca5a5; border-color: rgba(239,68,68,0.2);">
+    Works with Apify · SerpAPI · Firecrawl
+  </div>
+
+  <h1 class="hero__headline">
+    Stop Retry Storms in<br><span class="text-gradient">Scraping Agents</span>
+  </h1>
+
+  <p class="hero__sub">
+    Block retry storms <strong style="color: var(--success);">before they drain your API budget.</strong><br>
+    Loop detection + automatic blocking in 3 lines of code.
+  </p>
+
+  <ul style="list-style:none;padding:0;margin:0 auto var(--space-5);max-width:400px;text-align:left;line-height:2.2;">
+    <li style="color:#fca5a5;">&#x2022; Infinite retries = runaway API cost</li>
+    <li style="color:#fca5a5;">&#x2022; 429/503 errors keep looping</li>
+    <li style="color:#fca5a5;">&#x2022; No kill-switch on production</li>
+  </ul>
+
+  <div class="hero__cta-group">
+    <a href="pay.html" class="btn btn--primary btn--lg" style="background:var(--error);border-color:var(--error);">
+      Protect My Scraping Budget &rarr;
+    </a>
+    <a href="#how-it-works" class="btn btn--secondary btn--lg">
+      See How It Works
+    </a>
+  </div>
+
+  <div class="stats-bar" style="margin-top: var(--space-7);">
+    <div class="stat-item">
+      <div class="stat-item__number" style="color:var(--success)">10/min</div>
+      <div class="stat-item__label">loop detection threshold</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-item__number" style="color:var(--success)">3 lines</div>
+      <div class="stat-item__label">of code to integrate</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-item__number" style="color:var(--success)">&lt;50ms</div>
+      <div class="stat-item__label">check latency (p95)</div>
+    </div>
+  </div>
+</header>
+
+<!-- ── The Problem ─────────────────────────────────────── -->
+<section class="section fade-in" id="problem">
+  <div class="container">
+    <h2 class="section__title">Your Scraper Works. Your Bill Doesn't.</h2>
+
+    <!-- Pain patterns box -->
+    <div style="background:var(--bg-secondary);border:1px solid var(--border-default);border-radius:var(--radius-lg);padding:var(--space-5) var(--space-6);margin-bottom:var(--space-6);">
+      <h4 style="color:var(--text-muted);font-size:0.8125rem;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:var(--space-4);">Scraping pain patterns we detect:</h4>
+      <ul style="list-style:none;padding:0;margin:0;display:grid;gap:var(--space-3);">
+        <li>&#x1F504; <strong>Same request repeated 10x in &lt;1min</strong> — Apify retry loop</li>
+        <li>&#x1F4C8; <strong>Exponential backoff loops</strong> — SerpAPI 429 storms</li>
+        <li>&#x1F501; <strong>Serial retries after transient failures</strong> — Firecrawl timeout loops</li>
+        <li>&#x1F480; <strong>Pagination stuck on same page</strong> — scraping budget control gone</li>
+      </ul>
+    </div>
+
+    <div class="grid-3">
+      <div class="problem-card">
+        <h3>&#x1F504; agent.retry() in infinite loop</h3>
+        <p><code>while True: scrape()</code> — except you didn't write that. The LLM did.</p>
       </div>
-    </header>
+      <div class="problem-card">
+        <h3>&#x1F4B8; SerpAPI: $50/1000 &times; retry_count</h3>
+        <p>429 &rarr; exponential backoff &rarr; backoff too aggressive. <strong>$89 in 20 minutes.</strong></p>
+      </div>
+      <div class="problem-card">
+        <h3>&#x1F631; No kill switch</h3>
+        <p><code>Ctrl+C</code> doesn't work when it's running on a server. You notice at 3am.</p>
+      </div>
+    </div>
 
-    <main id="main">
-      <section class="hero">
-        <div class="container">
-          <p class="eyebrow" style="color: #ef4444;">Works with Apify, SerpAPI, Firecrawl</p>
-          <h1>Stop retry storms in <span class="accent">scraping agents</span></h1>
-          <p class="lead" style="max-width: 700px; margin-bottom: 8px;">
-            Block retry storms <strong style="color: #10b981;">before they drain your API budget</strong><br>
-            Loop detection + automatic blocking in 3 lines of code
-          </p>
-          
-          <!-- Skimmable bullets -->
-          <ul style="list-style: none; padding: 0; margin: 24px auto; max-width: 400px; text-align: left; font-size: 1rem; line-height: 2;">
-            <li style="color: #fca5a5;">• Infinite retries = runaway API cost</li>
-            <li style="color: #fca5a5;">• 429/503 errors keep looping</li>
-            <li style="color: #fca5a5;">• No kill-switch on production</li>
-          </ul>
+    <div class="horror-story" style="margin-top:var(--space-6);">
+      <div class="horror-story__quote">"Every scraping dev has that 3am moment when an agent loops and the bill explodes."</div>
+      <div class="horror-story__source">— The problem ProceedGate solves</div>
+    </div>
+  </div>
+</section>
 
-          <div class="cta-row">
-            <a class="btn primary" href="#signup" style="background: #ef4444;">Protect my scraping budget →</a>
-            <a class="btn" href="#how">See how it works</a>
-          </div>
+<!-- ── How It Works ────────────────────────────────────── -->
+<section class="section fade-in" id="how-it-works" style="background:var(--bg-secondary);">
+  <div class="container">
+    <h2 class="section__title">Block Retries Before <code>scrape()</code> Runs</h2>
 
-          <!-- How it works - quick stats -->
-          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; margin-top: 48px; text-align: center;">
-            <div>
-              <div class="pain-stat" style="color: #10b981;">10/min</div>
-              <div class="pain-label">loop detection threshold</div>
-            </div>
-            <div>
-              <div class="pain-stat" style="color: #10b981;">3 lines</div>
-              <div class="pain-label">of code to integrate</div>
-            </div>
-            <div>
-              <div class="pain-stat" style="color: #10b981;">&lt;50ms</div>
-              <div class="pain-label">check latency (p95)</div>
-            </div>
-          </div>
-          
-          <!-- CTA after proof -->
-          <div style="margin-top: 32px;">
-            <a class="btn primary" href="#signup" style="background: #ef4444;">Block my retry storms →</a>
-          </div>
+    <div class="steps" style="margin: var(--space-7) 0;">
+      <div class="step">
+        <div class="step__number">1</div>
+        <div>
+          <div class="step__title"><code>gate.check()</code> before <code>scrape()</code></div>
+          <p class="step__desc">One check before each API call.</p>
         </div>
-      </section>
-
-      <!-- Problem - dev language -->
-      <section class="section" id="problem">
-        <div class="container">
-          <h2>Your scraper works. Your bill doesn't.</h2>
-          
-          <!-- Skimmable pain patterns - SEO optimized -->
-          <div style="background: #1f2937; border-radius: 12px; padding: 24px 32px; margin: 24px 0;">
-            <h3 style="color: #9ca3af; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 16px;">Scraping pain patterns we detect:</h3>
-            <ul style="list-style: none; padding: 0; margin: 0; display: grid; gap: 12px;">
-              <li style="color: #f9fafb;">🔄 <strong>Same request repeated 10x in &lt;1min</strong> — Apify retry loop</li>
-              <li style="color: #f9fafb;">📈 <strong>Exponential backoff loops</strong> — SerpAPI 429 storms</li>
-              <li style="color: #f9fafb;">🔁 <strong>Serial retries after transient failures</strong> — Firecrawl timeout loops</li>
-              <li style="color: #f9fafb;">💀 <strong>Pagination stuck on same page</strong> — scraping budget control gone</li>
-            </ul>
-          </div>
-          
-          <div class="cards" style="margin-top: 32px;">
-            <div class="card" style="border-left: 4px solid #ef4444;">
-              <h3>🔄 agent.retry() in infinite loop</h3>
-              <p><code>while True: scrape()</code> — except you didn't write that. The LLM did.</p>
-              <p class="muted" style="font-size: 0.875rem; margin-top: 8px;">"My Apify actor got stuck in a pagination loop overnight" — real user</p>
-            </div>
-            <div class="card" style="border-left: 4px solid #ef4444;">
-              <h3>💸 SerpAPI: $50/1000 × retry_count</h3>
-              <p>429 → exponential backoff → but backoff was too aggressive. <strong>$89 in 20 minutes.</strong></p>
-              <p class="muted" style="font-size: 0.875rem; margin-top: 8px;">"SerpAPI bill exploded" — every week on Twitter</p>
-            </div>
-            <div class="card" style="border-left: 4px solid #ef4444;">
-              <h3>😱 No kill switch</h3>
-              <p><code>Ctrl+C</code> doesn't work when it's running on a server. You notice at 3am.</p>
-              <p class="muted" style="font-size: 0.875rem; margin-top: 8px;">No kill switch when running on a server</p>
-            </div>
-          </div>
-
-          <div class="horror-story" style="margin-top: 32px;">
-            <div class="horror-quote">"Every scraping dev has that 3am moment when an agent loops and the bill explodes."</div>
-            <div class="horror-source">— The problem ProceedGate solves</div>
-          </div>
+      </div>
+      <div class="step">
+        <div class="step__number">2</div>
+        <div>
+          <div class="step__title">Detect: same_request &gt; 10x/min</div>
+          <p class="step__desc">Patterns tracked in real-time. No config needed.</p>
         </div>
-      </section>
-
-      <!-- How it works - simple diagram -->
-      <section class="section" id="how" style="background: #111827;">
-        <div class="container">
-          <h2>Block retries before <code style="background: #374151; padding: 4px 8px; border-radius: 4px;">scrape()</code> runs</h2>
-          
-          <div style="display: flex; justify-content: center; align-items: center; gap: 24px; margin: 48px 0; flex-wrap: wrap;">
-            <div style="background: #1f2937; padding: 24px 32px; border-radius: 12px; text-align: center;">
-              <div style="font-size: 2rem;">📤</div>
-              <div style="font-weight: 600; margin-top: 8px;">Check</div>
-              <div style="color: #9ca3af; font-size: 0.875rem;">Before each scrape</div>
-            </div>
-            <div style="font-size: 2rem; color: #6b7280;">→</div>
-            <div style="background: #1f2937; padding: 24px 32px; border-radius: 12px; text-align: center;">
-              <div style="font-size: 2rem;">🧠</div>
-              <div style="font-weight: 600; margin-top: 8px;">Detect</div>
-              <div style="color: #9ca3af; font-size: 0.875rem;">Loop pattern?</div>
-            </div>
-            <div style="font-size: 2rem; color: #6b7280;">→</div>
-            <div style="display: flex; flex-direction: column; gap: 12px;">
-              <div style="background: #065f46; padding: 16px 24px; border-radius: 8px; text-align: center;">
-                <span style="color: #10b981; font-weight: 600;">✅ Allow</span>
-              </div>
-              <div style="background: #7f1d1d; padding: 16px 24px; border-radius: 8px; text-align: center;">
-                <span style="color: #ef4444; font-weight: 600;">🚫 Block</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="blocked-demo">
-            <div class="blocked-header">🚫 BLOCKED — Retry storm detected</div>
-            <pre style="color: #9ca3af; margin: 0;">{
-  "allowed": false,
-  "error": "loop_detected",
-  "pattern_count": 12,
-  "message": "Same request repeated 12x in 47 seconds"
-}</pre>
-            <div class="blocked-saved">💰 You just saved: $8.40</div>
-          </div>
-          
-          <!-- CTA after demo -->
-          <div style="text-align: center; margin-top: 32px;">
-            <a class="btn primary" href="#signup" style="background: #ef4444;">Stop my scraping retries →</a>
-          </div>
+      </div>
+      <div class="step">
+        <div class="step__number">3</div>
+        <div>
+          <div class="step__title">Return 429 &rarr; Agent stops</div>
+          <p class="step__desc">Retry storm blocked. Your wallet survives.</p>
         </div>
-      </section>
+      </div>
+    </div>
 
-      <!-- Integrations - Apify first -->
-      <section class="section">
-        <div class="container">
-          <h2>Works with your scraping stack</h2>
-          <p class="muted">Built for scraping agents. Also works for research & web automation.</p>
-
-          <div class="tool-grid">
-            <div class="tool-card" style="border: 2px solid #6366f1;">
-              <div style="font-size: 2rem;">🐝</div>
-              <div class="tool-name">Apify</div>
-              <div class="tool-pain">Actor retries = $$$</div>
-              <div style="font-size: 0.7rem; color: #6366f1; margin-top: 4px;">MOST POPULAR</div>
-            </div>
-            <div class="tool-card">
-              <div style="font-size: 2rem;">🔍</div>
-              <div class="tool-name">SerpAPI</div>
-              <div class="tool-pain">$50/1000 searches</div>
-            </div>
-            <div class="tool-card">
-              <div style="font-size: 2rem;">🔥</div>
-              <div class="tool-name">Firecrawl</div>
-              <div class="tool-pain">$0.01/page adds up</div>
-            </div>
-            <div class="tool-card">
-              <div style="font-size: 2rem;">🕷️</div>
-              <div class="tool-name">Crawlee</div>
-              <div class="tool-pain">Infinite crawl loops</div>
-            </div>
-            <div class="tool-card">
-              <div style="font-size: 2rem;">🌐</div>
-              <div class="tool-name">Playwright</div>
-              <div class="tool-pain">Browser sessions stack</div>
-            </div>
-            <div class="tool-card">
-              <div style="font-size: 2rem;">💡</div>
-              <div class="tool-name">BrightData</div>
-              <div class="tool-pain">Bandwidth explodes</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- What you get -->
-      <section class="section" id="how">
-        <div class="container">
-          <h2>What happens when ProceedGate blocks a retry storm</h2>
-
-          <div class="blocked-demo">
-            <div class="blocked-header">🚫 BLOCKED — Retry storm detected</div>
-            <pre style="color: #9ca3af; margin: 0;">{
+    <!-- Blocked demo terminal -->
+    <div class="terminal">
+      <div class="terminal__header">&#x1F6AB; BLOCKED — Retry storm detected</div>
+<pre>{
   "allowed": false,
   "error": "loop_detected",
   "pattern_count": 12,
   "reason": "Same scraping request repeated 12x in 47 seconds",
   "action": "firecrawl_scrape"
 }</pre>
-            <div class="blocked-saved">💰 Estimated savings: $8.40</div>
-          </div>
+      <div class="t-success" style="margin-top:var(--space-3);font-size:1rem;">&#x1F4B0; Estimated savings: $8.40</div>
+    </div>
 
-          <div class="savings-box">
-            <div class="savings-amount">10×/min</div>
-            <div class="savings-label">Threshold — anything above this gets blocked instantly</div>
-          </div>
+    <div class="savings-box" style="margin-top:var(--space-6);">
+      <div class="savings-box__amount">10&times;/min</div>
+      <div class="savings-box__label">Threshold — anything above this gets blocked instantly</div>
+    </div>
+  </div>
+</section>
 
-          <h3>3 lines to stop scraping retries</h3>
-          <div class="steps">
-            <div class="step">
-              <div class="step-n">1</div>
-              <div>
-                <h3><code>gate.check()</code> before <code>scrape()</code></h3>
-                <p>One check before each API call.</p>
-              </div>
-            </div>
-            <div class="step">
-              <div class="step-n">2</div>
-              <div>
-                <h3>We detect: <code>same_request &gt; 10x/min</code></h3>
-                <p>Patterns tracked in real-time. No config needed.</p>
-              </div>
-            </div>
-            <div class="step">
-              <div class="step-n">3</div>
-              <div>
-                <h3><code>return 429</code> → agent stops</h3>
-                <p>Retry storm blocked. Your wallet survives.</p>
-              </div>
-            </div>
-          </div>
+<!-- ── Code Integration ───────────────────────────────── -->
+<section class="section fade-in">
+  <div class="container">
+    <h2 class="section__title">Copy-Paste Integration</h2>
+    <p class="section__sub">3 lines of code to protect your scraping budget.</p>
 
-          <!-- Code example -->
-          <h3 style="margin-top: 48px;">Copy-paste integration</h3>
-          <div class="integration-code">
-            <pre><code>import { ProceedGate } from '@proceedgate/sdk';
+    <div class="code-block" style="max-width:700px;margin:0 auto;">
+      <div class="code-block__header">
+        <span class="code-block__tab active">scraper.ts</span>
+      </div>
+      <div class="code-block__body">
+<pre><code><span class="kw">import</span> { <span class="fn">ProceedGate</span> } <span class="kw">from</span> <span class="str">'@proceedgate/sdk'</span>;
 
-const gate = new ProceedGate({ apiKey: 'pg_ws_...' });
+<span class="kw">const</span> gate = <span class="kw">new</span> <span class="fn">ProceedGate</span>({ apiKey: <span class="str">'pg_ws_...'</span> });
 
-// Before your scraping call
-async function scrapeWithProtection(url: string) {
-  const check = await gate.check({
-    user_id: 'agent-1',
-    action: 'firecrawl_scrape',
-    cost: 1,  // 1 credit per scrape
+<span class="cm">// Before your scraping call</span>
+<span class="kw">async function</span> <span class="fn">scrapeWithProtection</span>(url: <span class="fn">string</span>) {
+  <span class="kw">const</span> check = <span class="kw">await</span> gate.<span class="fn">check</span>({
+    user_id: <span class="str">'agent-1'</span>,
+    action: <span class="str">'firecrawl_scrape'</span>,
+    cost: <span class="num">1</span>,  <span class="cm">// 1 credit per scrape</span>
     metadata: { url }
   });
 
-  if (!check.allowed) {
-    console.log(`🚫 Blocked: ${check.error}`);
-    console.log(`💰 Saved: $${check.cost_saved}`);
-    return null;
+  <span class="kw">if</span> (!check.<span class="fn">allowed</span>) {
+    console.<span class="fn">log</span>(<span class="str">`🚫 Blocked: ${check.error}`</span>);
+    console.<span class="fn">log</span>(<span class="str">`💰 Saved: $${check.cost_saved}`</span>);
+    <span class="kw">return</span> <span class="num">null</span>;
   }
 
-  // Safe to proceed
-  return await firecrawl.scrape(url);
+  <span class="cm">// Safe to proceed</span>
+  <span class="kw">return await</span> firecrawl.<span class="fn">scrape</span>(url);
 }</code></pre>
-          </div>
-          
-          <!-- CTA after code -->
-          <div style="text-align: center; margin-top: 32px;">
-            <a class="btn primary" href="#signup" style="background: #ef4444;">Add to my scraper →</a>
-          </div>
-        </div>
-      </section>
-
-      <!-- Comparison -->
-      <section class="section" style="background: #111827;">
-        <div class="container">
-          <h2>Why not just use rate limiting?</h2>
-          
-          <table class="comparison-table">
-            <thead>
-              <tr>
-                <th></th>
-                <th>Generic Rate Limiting</th>
-                <th>ProceedGate</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>Detects retry loops</td>
-                <td class="check-no">❌ No</td>
-                <td class="check-yes">✅ Yes</td>
-              </tr>
-              <tr>
-                <td>Tracks cost saved</td>
-                <td class="check-no">❌ No</td>
-                <td class="check-yes">✅ Yes</td>
-              </tr>
-              <tr>
-                <td>Per-agent budgets</td>
-                <td class="check-no">❌ No</td>
-                <td class="check-yes">✅ Yes</td>
-              </tr>
-              <tr>
-                <td>Webhooks on blocks</td>
-                <td class="check-no">❌ No</td>
-                <td class="check-yes">✅ Yes</td>
-              </tr>
-              <tr>
-                <td>Works across tools</td>
-                <td class="check-no">❌ Tool-specific</td>
-                <td class="check-yes">✅ Universal</td>
-              </tr>
-              <tr>
-                <td>Setup time</td>
-                <td>Hours/days</td>
-                <td><strong>5 minutes</strong></td>
-              </tr>
-            </tbody>
-          </table>
-          
-          <!-- CTA after comparison -->
-          <div style="text-align: center; margin-top: 32px;">
-            <p style="color: #9ca3af; margin-bottom: 16px;">Stop building your own scraping budget control. We did it for you.</p>
-            <a class="btn primary" href="#signup" style="background: #ef4444;">Get scraping budget control →</a>
-          </div>
-        </div>
-      </section>
-
-      <!-- Early Access -->
-      <section class="section" id="early-access">
-        <div class="container">
-          <h2>Early Access</h2>
-          <p class="muted">ProceedGate is <strong style="color: #10b981;">free and open source</strong>. Deploy it yourself or join the waitlist for hosted.</p>
-
-          <div class="cards" style="margin-top: 32px;">
-            <div class="card" style="border: 2px solid #6366f1; text-align: center; padding: 40px;">
-              <h3 style="font-size: 1.5rem;">🛡️ Free &amp; Open Source</h3>
-              <p class="muted" style="margin-top: 12px; font-size: 1.05rem;">Full loop detection, AI decisions, budget enforcement. No payment required.</p>
-              <ul style="text-align: left; margin-top: 20px;">
-                <li><strong>7 behavioral signals</strong> for loop detection</li>
-                <li><strong>AI gray-zone decisions</strong> via LLM</li>
-                <li><strong>Per-agent budgets</strong> with hard enforcement</li>
-                <li><strong>Webhook alerts</strong> on storms &amp; budget exceeded</li>
-                <li><strong>SDK + MCP + CLI Runner</strong></li>
-              </ul>
-              <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 24px;">
-                <a class="btn primary" href="https://github.com/loquit-doru/agent-cost-governor" target="_blank" rel="noreferrer">View on GitHub</a>
-                <a class="btn" href="#signup">Join waitlist</a>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- CTA -->
-      <section class="section" id="signup">
-        <div class="container">
-          <div class="cta-scraping">
-            <h2>Stop retry storms. Save money. Start today.</h2>
-            <p>Open source. Free to deploy. Setup in 5 minutes.</p>
-            <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
-              <a class="btn primary" href="https://github.com/loquit-doru/agent-cost-governor" target="_blank" rel="noreferrer" style="font-size: 1.125rem; padding: 16px 32px;">
-                View on GitHub →
-              </a>
-              <a class="btn" href="#early-access" style="font-size: 1.125rem; padding: 16px 32px;">
-                Join waitlist
-              </a>
-            </div>
-            <p style="margin-top: 16px; font-size: 0.875rem; color: #a5b4fc;">
-              Or email us at <a href="mailto:support@proceedgate.dev" style="color: #fff;">support@proceedgate.dev</a>
-            </p>
-          </div>
-        </div>
-      </section>
-    </main>
-
-    <footer class="footer">
-      <div class="container">
-        <div class="footer-grid">
-          <div class="footer-brand">
-            <div class="brand">
-              <span class="brand-mark" aria-hidden="true"></span>
-              <span class="brand-name">ProceedGate</span>
-            </div>
-            <p class="muted" style="margin-top: 8px; font-size: 14px;">
-              Stop burning money on scraping retries.<br>
-              The panic when the bill arrives? We fix that.
-            </p>
-          </div>
-          <div class="footer-links">
-            <div class="footer-col">
-              <div class="footer-title">Product</div>
-              <a href="./index.html">Home</a>
-              <a href="./demo.html">Demo</a>
-              <a href="./index.html#early-access">Early Access</a>
-            </div>
-            <div class="footer-col">
-              <div class="footer-title">Use Cases</div>
-              <a href="./scraping.html" style="color: #6366f1;">Scraping Agents</a>
-              <a href="./index.html">Research Agents</a>
-              <a href="./index.html">AI Automation</a>
-            </div>
-            <div class="footer-col">
-              <div class="footer-title">Legal</div>
-              <a href="./terms.html">Terms</a>
-              <a href="./privacy.html">Privacy</a>
-            </div>
-          </div>
-        </div>
-        <div class="footer-bottom">
-          <span class="muted">© 2024-2026 ProceedGate. Stop the bleeding.</span>
-        </div>
       </div>
-    </footer>
-  </body>
+    </div>
+
+    <div style="text-align:center;margin-top:var(--space-6);">
+      <a href="pay.html" class="btn btn--primary btn--lg" style="background:var(--error);border-color:var(--error);">
+        Add to My Scraper &rarr;
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ── Integrations ───────────────────────────────────── -->
+<section class="section fade-in" id="tools">
+  <div class="container">
+    <h2 class="section__title">Works With Your Scraping Stack</h2>
+    <p class="section__sub">Built for scraping agents. Also works for research &amp; web automation.</p>
+
+    <div class="tool-grid">
+      <div class="tool-card" style="border-color:var(--color-teal);">
+        <div class="tool-card__icon">&#x1F41D;</div>
+        <div class="tool-card__name">Apify</div>
+        <div class="tool-card__pain">Actor retries = $$$</div>
+        <div style="font-size:0.7rem;color:var(--color-teal);margin-top:4px;font-weight:700;">MOST POPULAR</div>
+      </div>
+      <div class="tool-card">
+        <div class="tool-card__icon">&#x1F50D;</div>
+        <div class="tool-card__name">SerpAPI</div>
+        <div class="tool-card__pain">$50/1000 searches</div>
+      </div>
+      <div class="tool-card">
+        <div class="tool-card__icon">&#x1F525;</div>
+        <div class="tool-card__name">Firecrawl</div>
+        <div class="tool-card__pain">$0.01/page adds up</div>
+      </div>
+      <div class="tool-card">
+        <div class="tool-card__icon">&#x1F577;&#xFE0F;</div>
+        <div class="tool-card__name">Crawlee</div>
+        <div class="tool-card__pain">Infinite crawl loops</div>
+      </div>
+      <div class="tool-card">
+        <div class="tool-card__icon">&#x1F310;</div>
+        <div class="tool-card__name">Playwright</div>
+        <div class="tool-card__pain">Browser sessions stack</div>
+      </div>
+      <div class="tool-card">
+        <div class="tool-card__icon">&#x1F4A1;</div>
+        <div class="tool-card__name">BrightData</div>
+        <div class="tool-card__pain">Bandwidth explodes</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Comparison Table ────────────────────────────────── -->
+<section class="section fade-in" style="background:var(--bg-secondary);">
+  <div class="container">
+    <h2 class="section__title">Why Not Just Use Rate Limiting?</h2>
+
+    <table class="comparison-table">
+      <thead>
+        <tr>
+          <th></th>
+          <th>Generic Rate Limiting</th>
+          <th>ProceedGate</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Detects retry loops</td><td class="check-no">&#x274C; No</td><td class="check-yes">&#x2705; Yes</td></tr>
+        <tr><td>Tracks cost saved</td><td class="check-no">&#x274C; No</td><td class="check-yes">&#x2705; Yes</td></tr>
+        <tr><td>Per-agent budgets</td><td class="check-no">&#x274C; No</td><td class="check-yes">&#x2705; Yes</td></tr>
+        <tr><td>Webhooks on blocks</td><td class="check-no">&#x274C; No</td><td class="check-yes">&#x2705; Yes</td></tr>
+        <tr><td>Works across tools</td><td class="check-no">&#x274C; Tool-specific</td><td class="check-yes">&#x2705; Universal</td></tr>
+        <tr><td>Setup time</td><td>Hours/days</td><td><strong>5 minutes</strong></td></tr>
+      </tbody>
+    </table>
+
+    <p style="text-align:center;margin-top:var(--space-5);color:var(--text-muted);">
+      Stop building your own scraping budget control. We did it for you.
+    </p>
+  </div>
+</section>
+
+<!-- ── CTA Banner ──────────────────────────────────────── -->
+<section class="section fade-in">
+  <div class="container">
+    <div class="cta-banner">
+      <div class="cta-banner__title">Stop Retry Storms. Save Money. Start Today.</div>
+      <p class="cta-banner__sub">14-day free trial. Setup in 5 minutes. Cancel anytime.</p>
+      <div style="display:flex;gap:var(--space-4);justify-content:center;flex-wrap:wrap;">
+        <a href="pay.html" class="btn btn--lg">Start Free Trial</a>
+        <a href="https://github.com/loquit-doru/agent-cost-governor" target="_blank" rel="noopener" class="btn btn--lg" style="background:transparent;border-color:rgba(15,23,42,0.4);color:var(--bg-primary);">View on GitHub</a>
+      </div>
+      <p class="cta-banner__note">
+        Or email us at <a href="mailto:support@proceedgate.dev" style="color:var(--bg-primary);font-weight:600;">support@proceedgate.dev</a>
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ── Footer ──────────────────────────────────────────── -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer__grid">
+      <div class="footer__brand-col">
+        <div class="navbar__brand">
+          <span class="navbar__mark" aria-hidden="true"></span>
+          ProceedGate
+        </div>
+        <p class="footer__brand-text">
+          Stop burning money on scraping retries.<br>
+          The panic when the bill arrives? We fix that.
+        </p>
+      </div>
+      <div class="footer__col">
+        <h4>Product</h4>
+        <a href="index.html">Home</a>
+        <a href="index.html#pricing">Pricing</a>
+        <a href="index.html#features">Features</a>
+      </div>
+      <div class="footer__col">
+        <h4>Use Cases</h4>
+        <a href="scraping.html" style="color:var(--color-teal);">Scraping Agents</a>
+        <a href="use-cases.html">All Use Cases</a>
+      </div>
+      <div class="footer__col">
+        <h4>Developers</h4>
+        <a href="https://governor.proceedgate.dev/docs" target="_blank" rel="noopener">API Docs</a>
+        <a href="https://github.com/loquit-doru/agent-cost-governor" target="_blank" rel="noopener">GitHub</a>
+      </div>
+      <div class="footer__col">
+        <h4>Legal</h4>
+        <a href="#">Privacy Policy</a>
+        <a href="#">Terms of Service</a>
+      </div>
+    </div>
+    <div class="footer__bottom">
+      <span>&copy; 2025 ProceedGate. All rights reserved.</span>
+      <div class="footer__social">
+        <a href="https://github.com/loquit-doru/agent-cost-governor" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://x.com/proceedgate" target="_blank" rel="noopener">X</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function() {
+  const fadeEls = document.querySelectorAll('.fade-in');
+  if (!fadeEls.length) return;
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); obs.unobserve(e.target); } });
+  }, { threshold: 0.12 });
+  fadeEls.forEach(el => obs.observe(el));
+
+  document.querySelectorAll('.navbar__links a').forEach(link => {
+    link.addEventListener('click', () => {
+      document.getElementById('navLinks').classList.remove('open');
+      document.querySelector('.navbar__toggle')?.classList.remove('open');
+    });
+  });
+})();
+</script>
+
+</body>
 </html>

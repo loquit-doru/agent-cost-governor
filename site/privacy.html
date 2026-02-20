@@ -18,17 +18,17 @@
         margin-bottom: 0.5rem;
       }
       .legal-content .updated {
-        color: var(--muted);
+        color: var(--text-muted);
         margin-bottom: 3rem;
       }
       .legal-content h2 {
         font-size: 1.4rem;
         margin-top: 2.5rem;
         margin-bottom: 1rem;
-        color: var(--accent);
+        color: var(--color-teal);
       }
       .legal-content p, .legal-content li {
-        color: var(--muted);
+        color: var(--text-secondary);
         line-height: 1.8;
         margin-bottom: 1rem;
       }
@@ -36,32 +36,29 @@
         padding-left: 1.5rem;
       }
       .legal-content strong {
-        color: var(--text);
+        color: var(--text-primary);
       }
       .legal-content a {
-        color: var(--accent);
+        color: var(--color-teal);
         text-decoration: underline;
       }
       .back-link {
         display: inline-block;
         margin-bottom: 2rem;
-        color: var(--muted);
+        color: var(--text-muted);
         font-size: 0.9rem;
       }
       .back-link:hover {
-        color: var(--accent);
+        color: var(--color-teal);
       }
     </style>
   </head>
   <body>
-    <header class="topbar">
-      <div class="container topbar-inner">
-        <a class="brand" href="/" aria-label="ProceedGate">
-          <span class="brand-mark" aria-hidden="true"></span>
-          <span class="brand-name">ProceedGate</span>
-        </a>
+    <nav class="navbar">
+      <div class="container navbar__inner">
+        <a href="/" class="navbar__brand"><span class="navbar__mark" aria-hidden="true"></span>ProceedGate</a>
       </div>
-    </header>
+    </nav>
 
     <main class="legal-content">
       <a href="/" class="back-link">← Back to Home</a>
@@ -187,8 +184,10 @@
       </ul>
     </main>
 
-    <footer style="text-align: center; padding: 2rem; color: var(--muted); font-size: 0.875rem;">
-      <p>© 2026 ProceedGate · <a href="/terms.html">Terms</a> · <a href="/privacy.html">Privacy</a></p>
+    <footer class="footer" style="padding: 2rem 0;">
+      <div class="container" style="text-align: center;">
+        <p class="text-muted" style="font-size: 0.875rem;">© 2026 ProceedGate · <a href="/terms.html">Terms</a> · <a href="/privacy.html">Privacy</a></p>
+      </div>
     </footer>
   </body>
 </html>

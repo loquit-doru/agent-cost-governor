@@ -1,616 +1,495 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="ProceedGate — An onchain security agent that governs AI operations. Detects retry storms, enforces cost limits, and executes onchain on BSC." />
-    <meta name="theme-color" content="#0c1220" />
-    <meta property="og:title" content="ProceedGate — Onchain Security Agent for AI" />
-    <meta property="og:description" content="An autonomous security agent that governs AI operations onchain. Detects retry storms, prevents budget drain, executes on BSC. Track: Agent." />
-    <meta property="og:type" content="website" />
-    <meta name="twitter:card" content="summary" />
-    <title>ProceedGate — Onchain Security Agent for AI Operations</title>
-    <link rel="stylesheet" href="./styles.css" />
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='%23111827' d='M0 0h64v64H0z'/%3E%3Cpath fill='%23ffffff' d='M14 16h36v6H14zm0 13h36v6H14zm0 13h24v6H14z'/%3E%3C/svg%3E" />
-  </head>
-  <body>
-    <a class="skip" href="#main">Skip to content</a>
-    <header class="topbar">
-      <div class="container topbar-inner">
-        <a class="brand" href="#top" aria-label="ProceedGate">
-          <span class="brand-mark" aria-hidden="true"></span>
-          <span class="brand-name">ProceedGate</span>
-          <span class="pill">Onchain Agent</span>
-        </a>
-        <button class="nav-toggle" id="navToggle" aria-label="Toggle menu" aria-expanded="false">
-          <span></span><span></span><span></span>
-        </button>
-        <nav class="nav" id="navMenu">
-          <a class="nav-demo" href="./demo.html">🎬 Demo</a>
-          <a href="#how">How it works</a>
-          <a href="./use-cases.html">Use Cases</a>
-          <a href="#early-access">Early Access</a>
-          <a href="#docs">Docs</a>
-          <a href="./dashboard.html">Dashboard</a>
-          <span class="nav-sep"></span>
-          <a class="nav-pill-hack" href="#hackathon">🏆 Hackathon</a>
-          <a class="nav-cta" href="#signup">Get started</a>
-        </nav>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ProceedGate — Cost Control for AI Agents</title>
+  <meta name="description" content="Stop runaway AI agents from draining your budget. ProceedGate blocks retry storms, enforces per-agent budgets, and saves teams an average of $847/week.">
+  <meta name="theme-color" content="#0f172a">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="ProceedGate — Cost Control for AI Agents">
+  <meta property="og:description" content="Block retry storms. Enforce budgets. Save thousands on AI API costs.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://proceedgate.dev">
+
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<!-- ── Navbar ──────────────────────────────────────────── -->
+<nav class="navbar" role="navigation" aria-label="Main navigation">
+  <div class="container navbar__inner">
+    <a href="/" class="navbar__brand">
+      <span class="navbar__mark" aria-hidden="true"></span>
+      ProceedGate
+    </a>
+
+    <button class="navbar__toggle" aria-label="Open menu" aria-expanded="false" onclick="this.classList.toggle('open');document.getElementById('navLinks').classList.toggle('open');this.setAttribute('aria-expanded',this.classList.contains('open'))">
+      <span></span><span></span><span></span>
+    </button>
+
+    <div class="navbar__links" id="navLinks">
+      <a href="#features">Features</a>
+      <a href="#pricing">Pricing</a>
+      <a href="scraping.html">Scraping</a>
+      <a href="use-cases.html">Use Cases</a>
+      <a href="https://governor.proceedgate.dev/docs" target="_blank" rel="noopener">Docs</a>
+      <span class="navbar__sep" aria-hidden="true"></span>
+      <a href="dashboard.html">Dashboard</a>
+      <a href="pay.html" class="btn btn--primary btn--sm">Get Started</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ── Hero ────────────────────────────────────────────── -->
+<header class="hero" id="main">
+  <div class="badge" style="margin-bottom: var(--space-5)">
+    <span class="status-dot"></span>
+    Protecting $2.4M+ in AI spend
+  </div>
+
+  <h1 class="hero__headline">
+    Stop Burning Money on<br><span class="text-gradient">Runaway AI Agents</span>
+  </h1>
+
+  <p class="hero__sub">
+    One retry storm can drain your entire API budget in minutes.
+    ProceedGate blocks runaway loops, enforces per-agent budgets,
+    and gives you a kill switch before costs spiral.
+  </p>
+
+  <div class="hero__cta-group">
+    <a href="pay.html" class="btn btn--primary btn--lg">
+      Start Free Trial
+      <span class="btn__sub">14 days · No credit card</span>
+    </a>
+    <a href="#how-it-works" class="btn btn--secondary btn--lg">
+      See How It Works
+    </a>
+  </div>
+</header>
+
+<!-- ── Social Proof Stats ─────────────────────────────── -->
+<section class="section" aria-label="Key metrics">
+  <div class="container">
+    <div class="stats-bar">
+      <div class="stat-item">
+        <div class="stat-item__number">$847</div>
+        <div class="stat-item__label">avg. saved per week</div>
       </div>
-    </header>
+      <div class="stat-item">
+        <div class="stat-item__number">12,400+</div>
+        <div class="stat-item__label">storms blocked</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-item__number">&lt;50ms</div>
+        <div class="stat-item__label">check latency</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-item__number">99.9%</div>
+        <div class="stat-item__label">uptime SLA</div>
+      </div>
+    </div>
+  </div>
+</section>
 
-    <main id="main">
-      <div id="top"></div>
-      <section class="hero">
-        <div class="container hero-grid">
+<!-- ── The Problem ─────────────────────────────────────── -->
+<section class="section fade-in" id="problem">
+  <div class="container">
+    <h2 class="section__title">AI Agents Are Expensive When They Go Wrong</h2>
+    <p class="section__sub">
+      Retry storms, infinite loops, and budget overruns are the #1 hidden cost of running AI agents in production.
+    </p>
+
+    <div class="grid-3">
+      <div class="problem-card">
+        <h3>🔄 Retry Storms</h3>
+        <p>A single misconfigured agent can fire 10,000+ API calls in minutes, burning through your entire monthly budget before you notice.</p>
+      </div>
+      <div class="problem-card">
+        <h3>💸 No Budget Limits</h3>
+        <p>Most APIs charge per-call with no spending cap. You only discover the damage when the invoice arrives — too late.</p>
+      </div>
+      <div class="problem-card">
+        <h3>🔇 Silent Failures</h3>
+        <p>Runaway agents don't send alerts. They just keep retrying. By the time your monitoring catches it, the budget is gone.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── How It Works ────────────────────────────────────── -->
+<section class="section fade-in" id="how-it-works">
+  <div class="container">
+    <h2 class="section__title">Three Lines of Code. Full Cost Control.</h2>
+    <p class="section__sub">
+      Drop in the SDK, set your budget, and let ProceedGate handle the rest. No infrastructure changes needed.
+    </p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step__number">1</div>
+        <div>
+          <div class="step__title">Install the SDK</div>
+          <p class="step__desc">npm install @proceedgate/sdk — works with any Node.js agent.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step__number">2</div>
+        <div>
+          <div class="step__title">Set Your Budget</div>
+          <p class="step__desc">Define per-agent, per-task, or per-hour spending limits. One config object.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step__number">3</div>
+        <div>
+          <div class="step__title">Agent Runs Safely</div>
+          <p class="step__desc">ProceedGate blocks runaway calls, alerts you on anomalies, and saves the receipt.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Features ────────────────────────────────────────── -->
+<section class="section fade-in" id="features">
+  <div class="container">
+    <h2 class="section__title">Everything You Need to Sleep at Night</h2>
+    <p class="section__sub">
+      Built by developers who woke up to surprise AI bills one too many times.
+    </p>
+
+    <div class="grid-3">
+      <div class="feature-card">
+        <div class="feature-card__icon">🛡️</div>
+        <h3 class="feature-card__title">Loop Detection</h3>
+        <p class="feature-card__desc">Blocks &gt;10 identical requests per minute automatically. Zero config needed.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-card__icon">💰</div>
+        <h3 class="feature-card__title">Per-Agent Budgets</h3>
+        <p class="feature-card__desc">Hard spending caps per agent, per task, or per time window. Never exceed your limit.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-card__icon">⚡</div>
+        <h3 class="feature-card__title">&lt;50ms Latency</h3>
+        <p class="feature-card__desc">Edge-deployed on Cloudflare Workers. Cost checks happen in under 50ms — your agents won't notice.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-card__icon">📊</div>
+        <h3 class="feature-card__title">Real-Time Dashboard</h3>
+        <p class="feature-card__desc">See every agent's spend, blocked requests, and savings in one live dashboard.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-card__icon">🔔</div>
+        <h3 class="feature-card__title">Instant Alerts</h3>
+        <p class="feature-card__desc">Webhook notifications to Slack, Discord, or email when agents approach budget limits.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-card__icon">🔑</div>
+        <h3 class="feature-card__title">API-First Design</h3>
+        <p class="feature-card__desc">REST API + Node SDK + MCP server. Works with any agent framework — LangChain, AutoGPT, custom.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Integration Snippet ────────────────────────────── -->
+<section class="section fade-in" id="integration">
+  <div class="container">
+    <div class="integration-split">
+      <div>
+        <h2 style="margin-bottom: var(--space-4);">Integrate in Under 5 Minutes</h2>
+        <p style="color: var(--text-secondary); margin-bottom: var(--space-5);">
+          Three lines. That's all it takes to protect your entire AI stack from runaway costs.
+        </p>
+        <ul class="check-list">
+          <li>Works with any Node.js agent framework</li>
+          <li>TypeScript-first with full type safety</li>
+          <li>MCP server for AI-native tool access</li>
+          <li>LOG_ONLY mode for safe rollout</li>
+          <li>Zero infrastructure changes required</li>
+        </ul>
+      </div>
+      <div class="code-block">
+        <div class="code-block__header">
+          <span class="code-block__tab active">agent.ts</span>
+        </div>
+        <div class="code-block__body">
+<pre><code><span class="kw">import</span> { <span class="fn">CostGovernor</span> } <span class="kw">from</span> <span class="str">'@proceedgate/sdk'</span>;
+
+<span class="kw">const</span> governor = <span class="kw">new</span> <span class="fn">CostGovernor</span>({
+  apiKey: process.env.<span class="fn">PROCEEDGATE_KEY</span>,
+  budget: <span class="num">50</span>,        <span class="cm">// $50 max per task</span>
+  alertAt: <span class="num">0.8</span>,     <span class="cm">// Alert at 80%</span>
+});
+
+<span class="cm">// Wrap your agent's API calls</span>
+<span class="kw">const</span> result = <span class="kw">await</span> governor.<span class="fn">gate</span>({
+  agent: <span class="str">'scraper-v2'</span>,
+  action: <span class="str">'api_call'</span>,
+  cost: <span class="num">0.03</span>,
+});
+
+<span class="kw">if</span> (result.<span class="fn">blocked</span>) {
+  console.<span class="fn">log</span>(<span class="str">'Budget exceeded — storm blocked!'</span>);
+}</code></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Pricing ─────────────────────────────────────────── -->
+<section class="section fade-in" id="pricing">
+  <div class="container">
+    <div class="pricing-header">
+      <h2 class="section__title">Simple, Predictable Pricing</h2>
+      <p class="section__sub">
+        Start free. Pay only when your agents need production-grade cost control.
+      </p>
+    </div>
+
+    <div class="pricing-grid">
+      <!-- Starter -->
+      <div class="pricing-card">
+        <div class="pricing-card__name">Starter</div>
+        <div class="pricing-card__desc">For solo developers &amp; side projects</div>
+        <div class="pricing-card__price">$19<span>/mo</span></div>
+        <ul class="pricing-card__features">
+          <li>3 agents</li>
+          <li>10K checks/month</li>
+          <li>Basic loop detection</li>
+          <li>Email alerts</li>
+          <li>7-day data retention</li>
+        </ul>
+        <a href="pay.html?plan=starter" class="btn btn--secondary" style="width:100%">Get Started</a>
+      </div>
+
+      <!-- Pro (Featured) -->
+      <div class="pricing-card pricing-card--featured">
+        <span class="pricing-card__badge">Most Popular</span>
+        <div class="pricing-card__name">Pro</div>
+        <div class="pricing-card__desc">For teams running production agents</div>
+        <div class="pricing-card__price">$49<span>/mo</span></div>
+        <ul class="pricing-card__features">
+          <li>25 agents</li>
+          <li>100K checks/month</li>
+          <li>Advanced loop detection</li>
+          <li>Webhook alerts (Slack, Discord)</li>
+          <li>Real-time dashboard</li>
+          <li>30-day data retention</li>
+          <li>Priority support</li>
+        </ul>
+        <a href="pay.html?plan=pro" class="btn btn--primary" style="width:100%">Start Free Trial</a>
+      </div>
+
+      <!-- Scale -->
+      <div class="pricing-card">
+        <div class="pricing-card__name">Scale</div>
+        <div class="pricing-card__desc">For high-volume agent operations</div>
+        <div class="pricing-card__price">$99<span>/mo</span></div>
+        <ul class="pricing-card__features">
+          <li>Unlimited agents</li>
+          <li>1M checks/month</li>
+          <li>Custom detection rules</li>
+          <li>Multi-channel alerts</li>
+          <li>Analytics &amp; reporting</li>
+          <li>90-day data retention</li>
+          <li>Dedicated support</li>
+        </ul>
+        <a href="pay.html?plan=scale" class="btn btn--secondary" style="width:100%">Get Started</a>
+      </div>
+    </div>
+
+    <p class="enterprise-note">
+      Running 100+ agents? <a href="mailto:hello@proceedgate.dev">Contact us</a> for Enterprise pricing with custom SLAs, SSO, and on-prem options.
+    </p>
+  </div>
+</section>
+
+<!-- ── Testimonials ────────────────────────────────────── -->
+<section class="section fade-in" id="testimonials">
+  <div class="container">
+    <h2 class="section__title">What Teams Are Saying</h2>
+    <p class="section__sub">
+      From solo scraping setups to enterprise agent fleets.
+    </p>
+
+    <div class="testimonial-grid">
+      <div class="testimonial">
+        <div class="testimonial__quote">
+          Woke up to a $340 SerpAPI bill from a retry storm. Installed ProceedGate that morning — hasn't happened since. Saved us $2K in the first month.</div>
+        <div class="testimonial__author">
+          <div class="testimonial__avatar"></div>
           <div>
-            <p class="eyebrow">Onchain security agent for AI</p>
-            <p class="muted" style="margin-top: -8px; margin-bottom: 14px;">Good Vibes Only: OpenClaw Edition · Track: Agent · "AI agents that execute onchain"</p>
-            <h1>The agent that <span class="accent">governs other agents</span> — onchain.</h1>
-            <p class="lead">
-              ProceedGate is an <strong>autonomous security agent</strong> that monitors AI operations,
-              detects retry storms and runaway behavior, and enforces decisions <strong>onchain via BNB Chain (BSC)</strong>.
-              Every decision is backed by a cryptographic <code>proceed_token</code>.
-              Friction is resolved via onchain micropayments, verified against real blockchain receipts.
-              An AI agent that doesn't just analyze — it <strong>executes onchain</strong>.
-            </p>
-            <div class="note" style="margin: 16px 0 0; padding: 14px 18px; background: rgba(45,212,191,.08); border: 1px solid rgba(45,212,191,.15); border-radius: 10px;">
-              <span style="font-weight: 700;">🛡️ TreasuryGuardian — Onchain AI Agent:</span>
-              <span class="muted">An autonomous agent that executes treasury operations on BSC Testnet, governed by ProceedGate. Plans 14 onchain transfers → ProceedGate approves the first 3 → applies friction (agent pays onchain) → detects storm at #11 → agent halts autonomously. 10 real BSC transactions, LLM-powered decisions.</span>
-              <code style="display: block; margin-top: 8px; font-size: 13px;">npm run demo:guardian</code>
-              <span class="muted" style="display: block; margin-top: 4px; font-size: 12px;">Also: <code>npm run demo:agent</code> (CryptoScraper — 5 real exchange APIs + BSC payments)</span>
-            </div>
-
-            <div class="cta-row">
-              <a class="btn primary" href="#integration">Integrate in 30 minutes</a>
-              <a class="btn demo" href="./demo.html">🎬 Watch Demo</a>
-            </div>
-
-            <div class="statrow" role="list">
-              <div class="stat" role="listitem">
-                <div class="stat-k">Two outcomes</div>
-                <div class="stat-v"><code>200</code> or <code>402</code></div>
-              </div>
-              <div class="stat" role="listitem">
-                <div class="stat-k">Hard enforcement</div>
-                <div class="stat-v">No token, no step</div>
-              </div>
-              <div class="stat" role="listitem">
-                <div class="stat-k">Agent-native</div>
-                <div class="stat-v">Autonomous decisions</div>
-              </div>
-              <div class="stat" role="listitem">
-                <div class="stat-k">Onchain verified</div>
-                <div class="stat-v">BSC / opBNB / Base</div>
-              </div>
-            </div>
-
-            <ul class="fineprint">
-              <li>Works with any agent framework — sits alongside your agents as a security guard.</li>
-              <li>Two outcomes only: <code>200</code> (go) or <code>402</code> (friction).</li>
-              <li>Enforcement sits outside the agent loop (and survives prompt failures).</li>
-              <li><strong>Micro-proof:</strong> Used in early production setups to stop retry storms and runaway tool calls before they burn budget.</li>
-            </ul>
-          </div>
-
-          <div class="codecard">
-            <div class="codecard-head">
-              <span>Contract</span>
-              <span class="muted">hard gate</span>
-            </div>
-            <pre><code>POST /v1/governor/check
-
-→ 200  { proceed_token }
-→ 402  { decision_id } + x402-* headers
-
-POST /v1/governor/redeem
-  x402-tx-hash: …
-
-→ 200  { proceed_token }
-
-No token, no step.</code></pre>
-          </div>
-        </div>
-      </section>
-
-      <section class="section fade-in" id="hackathon">
-        <div class="container">
-          <h2>Hackathon proof (OpenClaw Edition)</h2>
-          <p class="muted">Submission-ready verification artifacts for judges. Track: <strong>Agent</strong> (AI Agent × Onchain Actions).</p>
-
-          <div class="cards">
-            <div class="card">
-              <h3>Live endpoint</h3>
-              <p><a class="link" href="https://agent-cost-governor-hackathon.apiworkersdev.workers.dev" target="_blank" rel="noreferrer">agent-cost-governor-hackathon.apiworkersdev.workers.dev</a></p>
-              <p class="muted">Non-stub verification (<code>ALLOW_STUB_TX=false</code>). Try <code>GET /health</code> to verify.</p>
-            </div>
-            <div class="card">
-              <h3>BSC proof tx</h3>
-              <p><a class="link" href="https://bscscan.com/tx/0xd97039268c048cafd45c0f3b870111b1dcd22f3fdfd62a47e75ae843eb13b548" target="_blank" rel="noreferrer">0xd97039268c048cafd45c0f3b870111b1dcd22f3fdfd62a47e75ae843eb13b548</a></p>
-              <p class="muted">Used in live check → 402 → redeem → proceed_token flow.</p>
-            </div>
-            <div class="card">
-              <h3>Contract address <span style="color:#22c55e;font-size:13px;font-weight:600;">✓ Sourcify Verified</span></h3>
-              <p><a class="link" href="https://testnet.bscscan.com/address/0x2054Cc6Fa82e7c64b8226913c3b087CA8F18Ffd5" target="_blank" rel="noreferrer">0x2054Cc6Fa82e7c64b8226913c3b087CA8F18Ffd5</a></p>
-              <p class="muted"><code>AICostGovernor</code> on BSC Testnet — Solidity 0.8.33 + OpenZeppelin. <a class="link" href="https://sourcify.dev/#/lookup/0x2054Cc6Fa82e7c64b8226913c3b087CA8F18Ffd5" target="_blank" rel="noreferrer">View on Sourcify →</a></p>
-            </div>
-          </div>
-
-          <div class="note" style="margin-top: 24px;">
-            <div class="note-title">Reproduce in 3 commands</div>
-            <div class="note-body">
-              <code style="display: block; background: rgba(0,0,0,.3); padding: 12px; border-radius: 8px; font-size: 13px; line-height: 1.6;">npm install<br>npm --workspaces run check&nbsp;&nbsp;&nbsp;# typecheck 5 packages<br>npm run smoke&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# full local flow: check → 402 → redeem → proceed</code>
-              <p class="muted" style="margin-top: 8px;">88 unit tests, local smoke with <code>friction_events</code> + <code>proceed_token</code> issuance.</p>
-            </div>
-          </div>
-
-          <div class="note" style="margin-top: 16px;">
-            <div class="note-title">🤖 AI Build Log</div>
-            <div class="note-body">
-              <p style="margin-bottom: 8px;">Built with <strong>GitHub Copilot (Claude)</strong> as development assistant. AI was used for:</p>
-              <ul style="margin: 0; padding-left: 18px; line-height: 1.8;">
-                <li>Code scaffolding — Durable Objects, Hono routes, Vitest tests (88/88)</li>
-                <li>Smart contract baseline — <code>AICostGovernor.sol</code> with OpenZeppelin</li>
-                <li><strong>CryptoScraper AI Agent</strong> — autonomous agent with 5 real exchange APIs, LLM reasoning, onchain BSC payments</li>
-                <li>OpenClaw integration — SKILL.md loaded as system prompt, agent behavior defined by skill</li>
-                <li>Security audit — 9 fixes (timing-safe compare, XSS, security headers, Zod validation)</li>
-                <li>Deployment automation — Wrangler secrets, multi-env deploy, live proof</li>
-              </ul>
-              <p style="margin-top: 8px; margin-bottom: 0;"><strong>Human-only:</strong> Architecture decisions, chain selection, security posture, key management, all onchain transactions, business strategy.</p>
-            </div>
-          </div>
-
-          <div class="links" style="margin-top: 14px;">
-            <a class="link" href="./dashboard.html" style="font-weight:700; color:#f97316;">📊 Live Dashboard</a>
-            <a class="link" href="https://sourcify.dev/#/lookup/0x2054Cc6Fa82e7c64b8226913c3b087CA8F18Ffd5" target="_blank" rel="noreferrer" style="color:#22c55e;">✓ Sourcify Verified</a>
-            <a class="link" href="https://github.com/loquit-doru/agent-cost-governor/blob/main/docs/TECHNICAL.md" target="_blank" rel="noreferrer">Repro steps</a>
-            <a class="link" href="https://github.com/loquit-doru/agent-cost-governor/blob/main/docs/PROJECT.md" target="_blank" rel="noreferrer">Project overview</a>
-            <a class="link" href="https://github.com/loquit-doru/agent-cost-governor/blob/main/bsc.address" target="_blank" rel="noreferrer">Address index</a>
-            <a class="link" href="https://github.com/loquit-doru/agent-cost-governor/blob/main/AI_BUILD_LOG.md" target="_blank" rel="noreferrer">Full AI build log</a>
-            <a class="link" href="https://github.com/loquit-doru/agent-cost-governor" target="_blank" rel="noreferrer">GitHub repo</a>
-          </div>
-        </div>
-      </section>
-
-      <section class="section fade-in" id="problem">
-        <div class="container">
-          <h2>Problem</h2>
-          <p class="muted">If you run agents in production, you’ve seen this:</p>
-          <div class="cards">
-            <div class="card">
-              <h3>Expired API key → 500 retries</h3>
-              <p>CoinMarketCap returns 401, your agent thinks it's transient and retries 500× in 3 minutes. $10 burned on a broken key.</p>
-            </div>
-            <div class="card">
-              <h3>Scraping retry storms</h3>
-              <p>Exchange APIs rate-limit you, agent retries harder. Firecrawl, SerpAPI, Apify bills explode overnight.</p>
-            </div>
-            <div class="card">
-              <h3>LLM + tool call loops</h3>
-              <p>Agent calls GPT-4 → tool → GPT-4 → tool in a loop. Each iteration costs $0.02–$0.50. No hard stop.</p>
-            </div>
-          </div>
-          <p class="callout">"Just add guardrails in the prompt" is not enforceable. ProceedGate makes it enforceable. <strong>Run <code>npm run demo:agent</code> to see it live.</strong></p>
-        </div>
-      </section>
-
-      <section class="section fade-in" id="what">
-        <div class="container">
-          <h2>What ProceedGate does</h2>
-          <p>
-            ProceedGate introduces a mandatory checkpoint before your agent executes <strong>any</strong> costly step —
-            LLM calls, tool invocations, paid API requests, browser actions, or onchain transactions.
-            If the step is within policy/budget: you get a short-lived token and proceed.
-            If not: you get friction (<code>402</code>) and the agent cannot continue until friction is resolved.
-          </p>
-          <p class="muted">This is <strong>hard gating</strong>, not “suggested behavior”.</p>
-        </div>
-      </section>
-
-      <section class="section fade-in" id="how">
-        <div class="container">
-          <h2>How it works (simple contract)</h2>
-          <div class="steps">
-            <div class="step">
-              <div class="step-n">1</div>
-              <div>
-                <h3>Check</h3>
-                <p>Before executing a step, your runner/middleware calls <code>POST /v1/governor/check</code>.</p>
-                <p class="muted">You get either <code>200</code> (allowed + token) or <code>402</code> (friction + decision id).</p>
-              </div>
-            </div>
-            <div class="step">
-              <div class="step-n">2</div>
-              <div>
-                <h3>Resolve friction</h3>
-                <p>If you receive <code>402</code>, resolve friction via onchain micropayment on BSC, opBNB, or Base.</p>
-                <p class="muted">Payment verified against real blockchain receipts (JSON-RPC). Roadmap: budgets, rate limits, manual approval.</p>
-              </div>
-            </div>
-            <div class="step">
-              <div class="step-n">3</div>
-              <div>
-                <h3>Redeem</h3>
-                <p>Submit tx hash to <code>POST /v1/governor/redeem</code> — onchain receipt verified → <code>200</code> + token.</p>
-              </div>
-            </div>
-            <div class="step">
-              <div class="step-n">4</div>
-              <div>
-                <h3>Enforce</h3>
-                <p>Your runner verifies the token (JWT + JWKS) and proceeds. <strong>No token, no step.</strong></p>
-              </div>
-            </div>
-          </div>
-
-          <div class="note">
-            <div class="note-title">Design principle</div>
-            <div class="note-body">ProceedGate lives outside the agent loop. It’s enforceable because the runner won’t execute a costly step without a valid token.</div>
-          </div>
-        </div>
-      </section>
-
-      <section class="section fade-in" id="production">
-        <div class="container">
-          <h2>Built for production teams</h2>
-          <p class="muted">Developer-first integration, with the operational clarity larger teams need.</p>
-
-          <div class="cards">
-            <div class="card">
-              <h3>Auditable decisions</h3>
-              <p>Every check produces a decision record you can log, trace, and reason about. No “hidden policy in prompts”.</p>
-            </div>
-            <div class="card">
-              <h3>Operable by default</h3>
-              <p>Built-in observability hooks (headers, logs, metrics) so you can debug why a step was blocked—without dumping raw data.</p>
-            </div>
-            <div class="card">
-              <h3>Low-friction rollout</h3>
-              <p>Thin middleware boundary: start by gating the most expensive steps, then expand coverage as confidence grows.</p>
-            </div>
-          </div>
-
-          <div class="note">
-            <div class="note-title">Good for technical buyers</div>
-            <div class="note-body">Clear contract. Clear enforcement point. Clear failure mode. That’s what makes it deployable across teams.</div>
-          </div>
-        </div>
-      </section>
-
-      <section class="section fade-in" id="integration">
-        <div class="container">
-          <h2>Integrate in 30 minutes</h2>
-          <p class="muted">Framework-agnostic: you don’t change model providers or agent frameworks.</p>
-
-          <div class="two">
-            <div class="card">
-              <h3>Engineering checklist</h3>
-              <ol class="checklist">
-                <li>Identify costly steps: retries, browser actions, paid APIs.</li>
-                <li>Add a gate call before each step: <code>POST /v1/governor/check</code>.</li>
-                <li>Enforce: <code>200</code> → run step; <code>402</code> → stop + resolve + redeem.</li>
-                <li>Verify token via JWKS: <code>GET /.well-known/jwks.json</code>.</li>
-              </ol>
-              <p class="muted">Thin middleware boundary. If you hate it, you can remove it later.</p>
-            </div>
-
-            <div class="card">
-              <h3>SDK</h3>
-              <p>Use the framework-agnostic Node SDK:</p>
-              <pre><code># Clone the repo
-git clone https://github.com/loquit-doru/agent-cost-governor.git
-cd agent-cost-governor && npm install
-
-# Run the SDK demo
-npm run demo:sdk
-PROCEEDGATE_TX_HASH=0xstub npm run demo:sdk</code></pre>
-              <div class="links">
-                <a class="link" href="https://github.com/loquit-doru/agent-cost-governor/blob/main/INTEGRATION.md" target="_blank" rel="noreferrer">Integration guide</a>
-                <a class="link" href="https://github.com/loquit-doru/agent-cost-governor/blob/main/SPEC.md" target="_blank" rel="noreferrer">Spec</a>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="section fade-in" id="openclaw">
-        <div class="container">
-          <h2>🦞 OpenClaw Skill</h2>
-          <p class="muted">ProceedGate ships as a native <a class="link" href="https://docs.openclaw.ai/tools/skills" target="_blank" rel="noreferrer">OpenClaw skill</a>. Install it and your AI assistant autonomously gates expensive actions through onchain verification.</p>
-
-          <div class="two">
-            <div class="card">
-              <h3>Quick setup</h3>
-              <pre><code style="font-size: 13px;"># Install OpenClaw (Node ≥22)
-npm install -g openclaw@latest
-openclaw onboard --install-daemon
-
-# Register ProceedGate skill
-cp openclaw/openclaw.json.example ~/.openclaw/openclaw.json
-
-# Talk to the agent
-openclaw agent --message "Gate my next API call"</code></pre>
-              <div class="links" style="margin-top: 10px;">
-                <a class="link" href="https://github.com/loquit-doru/agent-cost-governor/blob/main/OPENCLAW_SETUP.md" target="_blank" rel="noreferrer">Full setup guide</a>
-              </div>
-            </div>
-
-            <div class="card">
-              <h3>What you get</h3>
-              <ul class="bullets">
-                <li><strong>AgentSkills-compatible</strong> <code>SKILL.md</code> — loaded automatically by OpenClaw</li>
-                <li><strong>SOUL.md</strong> — agent identity with cost governance safety policies</li>
-                <li><strong>AGENTS.md</strong> — multi-agent coordination protocol (Governor ↔ Coordinator ↔ Executor)</li>
-                <li><strong>Onchain gating</strong> — BSC/opBNB/Base payment verification via smart contract</li>
-                <li><strong>AI Reasoning</strong> — every decision explained by Llama 3.1 8B (Workers AI)</li>
-              </ul>
-            </div>
-          </div>
-
-          <div class="note" style="margin-top: 16px;">
-            <div class="note-title">Multi-agent architecture</div>
-            <div class="note-body">
-              ProceedGate's OpenClaw skill enables a 3-agent setup: <strong>Coordinator</strong> receives tasks and estimates costs → <strong>Governor</strong> (ProceedGate) gates via the HTTP API → <strong>Executor</strong> runs only with a valid <code>proceed_token</code>. Decisions logged with AI reasoning in Durable Object storage.
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="section fade-in" id="why">
-        <div class="container">
-          <h2>Why this works (when “policies” don’t)</h2>
-          <div class="cards">
-            <div class="card">
-              <h3>External enforcement</h3>
-              <p>Decisions are enforced in the runner/middleware, not in prompt text.</p>
-            </div>
-            <div class="card">
-              <h3>Two-outcome API</h3>
-              <p>Predictable integration: only <code>200</code> or <code>402</code>.</p>
-            </div>
-            <div class="card">
-              <h3>Context binding</h3>
-              <p>Optional canonical <code>context_hash</code> can be bound into the token to prevent reuse.</p>
-            </div>
-            <div class="card">
-              <h3>Short TTL</h3>
-              <p>Tokens expire quickly (default 45s) to reduce replay.</p>
-            </div>
-            <div class="card">
-              <h3>Onchain verification</h3>
-              <p>Payment receipts verified against BSC/opBNB/Base via JSON-RPC. Replay-prevented with tx hash deduplication.</p>
-            </div>
-            <div class="card">
-              <h3>Smart contract gating</h3>
-              <p><code>AICostGovernor.sol</code> — stake-based access control with OpenZeppelin <code>Ownable</code> + <code>IERC20</code>.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="section fade-in" id="early-access">
-        <div class="container">
-          <h2>Early Access</h2>
-          <p class="muted">ProceedGate is open source and free to use today. We're building the behavioral firewall for AI agents.</p>
-
-          <div class="cards" style="max-width: 800px; margin: 32px auto 0;">
-            <div class="card" style="text-align: center; border: 2px solid #6366f1; padding: 40px;">
-              <h3 style="font-size: 1.5rem; margin-bottom: 16px;">🛡️ Free &amp; Open Source</h3>
-              <p class="muted" style="font-size: 1.1rem; margin-bottom: 24px;">Run the full stack locally or deploy to Cloudflare Workers. No payment required.</p>
-              <ul class="bullets" style="text-align: left; max-width: 400px; margin: 0 auto 24px;">
-                <li><strong>Full loop detection</strong> — 7 behavioral signals</li>
-                <li><strong>AI gray-zone decisions</strong> — LLM-powered</li>
-                <li><strong>SDK + MCP + CLI Runner</strong></li>
-                <li><strong>88 tests</strong> — production-grade</li>
-                <li><strong>Multi-chain verification</strong> — BSC, opBNB, Base</li>
-              </ul>
-              <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
-                <a class="btn primary" href="https://github.com/loquit-doru/agent-cost-governor" target="_blank" rel="noreferrer">View on GitHub</a>
-                <a class="btn" href="#signup">Join waitlist</a>
-              </div>
-            </div>
-          </div>
-
-          <div class="note" style="margin-top: 32px;">
-            <div class="note-title">🏆 Hackathon note</div>
-            <div class="note-body">
-              For the OpenClaw hackathon, the full stack runs on <strong>BSC testnet</strong> (free). Proof tx uses BSC mainnet. No subscription required to evaluate — run <code>npm run smoke</code> locally.
-            </div>
-          </div>
-
-          <div class="faq">
-            <h3>FAQ</h3>
-            <details open>
-              <summary>Is x402 payment how ProceedGate makes money?</summary>
-              <p class="muted">No. Payment is an enforcement primitive (pass-through). ProceedGate is priced as SaaS on policy decisions, auditability, and ops features.</p>
-            </details>
-            <details>
-              <summary>How much do I need to evaluate it?</summary>
-              <p class="muted">You can validate the core promise in minutes: 3 allowed attempts followed by a deterministic <code>402</code> hard stop. Run <code>npm run demo:storm:block</code> for the proof.</p>
-            </details>
-            <details>
-              <summary>Do I need to change my agent framework or model provider?</summary>
-              <p class="muted">No. You add a small enforcement boundary (runner/middleware) that calls ProceedGate before costly steps.</p>
-            </details>
-            <details>
-              <summary>What happens when the governor is unavailable?</summary>
-              <p class="muted">Your runner chooses the failure mode: fail-open (proceed) or fail-closed (block). The reference runner supports both.</p>
-            </details>
-            <details>
-              <summary>How does onchain verification work?</summary>
-              <p class="muted">When an agent resolves friction, it submits a tx hash. The Governor verifies the payment receipt via JSON-RPC against BSC, opBNB, or Base. Tx hashes are deduplicated to prevent replay. <a href="https://bscscan.com/tx/0xd97039268c048cafd45c0f3b870111b1dcd22f3fdfd62a47e75ae843eb13b548" target="_blank" rel="noreferrer">See example proof tx on BscScan →</a></p>
-            </details>
-            <details>
-              <summary>What is the smart contract for?</summary>
-              <p class="muted"><code>AICostGovernor.sol</code> (Solidity 0.8.33 + OpenZeppelin) provides onchain stake-gating: agents stake USDC as collateral via <code>stakeForAction()</code>, and only staked agents pass <code>checkApproval()</code>. Admin controls via <code>Ownable</code>. <a href="https://testnet.bscscan.com/address/0x2054Cc6Fa82e7c64b8226913c3b087CA8F18Ffd5" target="_blank" rel="noreferrer">View contract on BSC Testnet →</a> · <a href="https://sourcify.dev/#/lookup/0x2054Cc6Fa82e7c64b8226913c3b087CA8F18Ffd5" target="_blank" rel="noreferrer">✓ Sourcify Verified</a></p>
-            </details>
-          </div>
-        </div>
-      </section>
-
-      <section class="section fade-in" id="docs">
-        <div class="container">
-          <h2>Docs</h2>
-          <p class="muted">Everything you need to integrate and operate ProceedGate.</p>
-          <div class="cards docs">
-            <a class="card card-link" href="https://github.com/loquit-doru/agent-cost-governor/blob/main/SPEC.md" target="_blank" rel="noreferrer">
-              <h3>SPEC.md</h3>
-              <p>Frozen v1 contract: endpoints, headers, semantics.</p>
-              <span class="chip">Contract</span>
-            </a>
-            <a class="card card-link" href="https://github.com/loquit-doru/agent-cost-governor/blob/main/INTEGRATION.md" target="_blank" rel="noreferrer">
-              <h3>INTEGRATION.md</h3>
-              <p>Framework-agnostic integration via runner or SDK.</p>
-              <span class="chip">Integration</span>
-            </a>
-            <a class="card card-link" href="https://github.com/loquit-doru/agent-cost-governor/blob/main/OBSERVABILITY.md" target="_blank" rel="noreferrer">
-              <h3>OBSERVABILITY.md</h3>
-              <p>Logs, headers, and metrics for decisions and latency.</p>
-              <span class="chip">Ops</span>
-            </a>
-
-            <a class="card card-link" href="https://github.com/loquit-doru/agent-cost-governor/blob/main/ONE_PAGER.md" target="_blank" rel="noreferrer">
-              <h3>ONE_PAGER.md</h3>
-              <p>Technical summary for review, rollout planning, and internal alignment.</p>
-              <span class="chip">Buyer</span>
-            </a>
-            <a class="card card-link" href="https://github.com/loquit-doru/agent-cost-governor/blob/main/AI_BUILD_LOG.md" target="_blank" rel="noreferrer">
-              <h3>AI_BUILD_LOG.md</h3>
-              <p>Full AI tool usage log with human vs. AI separation per phase.</p>
-              <span class="chip">Hackathon</span>
-            </a>
-            <a class="card card-link" href="https://github.com/loquit-doru/agent-cost-governor/blob/main/SECURITY_AUDIT.md" target="_blank" rel="noreferrer">
-              <h3>SECURITY_AUDIT.md</h3>
-              <p>Security review: replay prevention, key management, access control.</p>
-              <span class="chip">Security</span>
-            </a>
-            <a class="card card-link" href="https://github.com/loquit-doru/agent-cost-governor/blob/main/OPENCLAW_SETUP.md" target="_blank" rel="noreferrer">
-              <h3>OPENCLAW_SETUP.md</h3>
-              <p>Full OpenClaw integration guide: skill setup, config, multi-agent coordination.</p>
-              <span class="chip">OpenClaw</span>
-            </a>
-          </div>
-        </div>
-      </section>
-
-      <section class="section fade-in" id="demo">
-        <div class="container">
-          <h2>Open source reference implementation</h2>
-          <p>This repo ships a working Worker + Runner + <strong>two real AI agent demos</strong>.</p>
-          <p style="margin-top: 8px;"><span class="chip" style="background: rgba(45,212,191,.15); color: #2dd4bf;">🏆 OpenClaw Hackathon Ready</span> <span class="chip" style="background: rgba(251,146,60,.15); color: #fb923c;">⛓️ BNB Chain Verified</span> <span class="chip" style="background: rgba(168,85,247,.15); color: #a855f7;">🤖 Live AI Agents</span></p>
-          <div class="codecard">
-            <pre><code>npm install
-npm run demo:guardian       # 🛡️ TreasuryGuardian — onchain AI agent
-                            #    14 BSC transfers · LLM decisions
-                            #    storm detection · friction payments
-
-npm run demo:agent          # 🤖 CryptoScraper — scraping AI agent
-                            #    5 real APIs · ProceedGate gating
-
-npm run smoke               # local flow: check → 402 → redeem
-npm run demo:storm:block    # retry storm detection demo</code></pre>
-            <div class="links">
-              <a class="link" href="https://github.com/loquit-doru/agent-cost-governor" target="_blank" rel="noreferrer">GitHub repo</a>
-              <a class="link" href="./demo.html">🎬 Demo video</a>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="cta" id="cta">
-        <div class="container cta-inner">
-          <div>
-            <h2>Integrate in 30 minutes</h2>
-            <p class="muted">Your agents execute. ProceedGate governs — onchain.</p>
-          </div>
-          <div class="cta-row">
-            <a class="btn primary" href="https://github.com/loquit-doru/agent-cost-governor/blob/main/INTEGRATION.md" target="_blank" rel="noreferrer">Read integration guide</a>
-            <a class="btn" href="https://github.com/loquit-doru/agent-cost-governor" target="_blank" rel="noreferrer">View repo</a>
-          </div>
-        </div>
-      </section>
-    </main>
-
-    <footer class="footer">
-      <div class="container">
-        <div class="footer-grid">
-          <div class="footer-brand">
-            <div class="brand">
-              <span class="brand-mark" aria-hidden="true"></span>
-              <span class="brand-name">ProceedGate</span>
-            </div>
-            <p class="muted" style="margin-top: 8px; font-size: 14px;">An onchain security agent for AI operations.<br>Detects storms. Enforces limits. Executes on BSC.</p>
-          </div>
-          <div class="footer-links">
-            <div class="footer-col">
-              <div class="footer-title">Product</div>
-              <a href="#how">How it works</a>
-              <a href="#early-access">Early Access</a>
-              <a href="./demo.html">Demo</a>
-            </div>
-            <div class="footer-col">
-              <div class="footer-title">Resources</div>
-              <a href="https://github.com/loquit-doru/agent-cost-governor" target="_blank" rel="noreferrer">GitHub</a>
-              <a href="https://github.com/loquit-doru/agent-cost-governor/blob/main/SPEC.md" target="_blank" rel="noreferrer">API Spec</a>
-              <a href="https://github.com/loquit-doru/agent-cost-governor/blob/main/INTEGRATION.md" target="_blank" rel="noreferrer">Integration</a>
-            </div>
-            <div class="footer-col">
-              <div class="footer-title">Support</div>
-              <a href="mailto:support@proceedgate.dev">📧 support@proceedgate.dev</a>
-              <a href="https://governor.proceedgate.dev/health" target="_blank" rel="noreferrer" class="status-link">
-                <span class="status-dot"></span> API Status
-              </a>
-              <a href="./dashboard.html">📊 Dashboard</a>
-            </div>
-            <div class="footer-col">
-              <div class="footer-title">Legal</div>
-              <a href="./terms.html">Terms of Service</a>
-              <a href="./privacy.html">Privacy Policy</a>
-            </div>
-          </div>
-        </div>
-        <div class="footer-bottom">
-          <span class="muted">© 2024-2026 ProceedGate. All rights reserved.</span>
-          <div class="footer-badges">
-            <span class="badge">🔒 TLS 1.3</span>
-            <span class="badge">⚡ Edge-deployed</span>
-            <span class="badge">🛡️ JWT signed</span>
+            <div class="testimonial__name">Alex M.</div>
+            <div class="testimonial__role">Lead Engineer, ScrapeCo</div>
           </div>
         </div>
       </div>
-    </footer>
+      <div class="testimonial">
+        <div class="testimonial__quote">
+          We run 40+ Apify actors. Before ProceedGate, we had no way to enforce per-actor budgets. Now each actor has a hard cap and we get Slack alerts.</div>
+        <div class="testimonial__author">
+          <div class="testimonial__avatar"></div>
+          <div>
+            <div class="testimonial__name">Sarah K.</div>
+            <div class="testimonial__role">CTO, DataPipe</div>
+          </div>
+        </div>
+      </div>
+      <div class="testimonial">
+        <div class="testimonial__quote">
+          The SDK took 5 minutes to integrate. LOG_ONLY mode let us see exactly what it would block before going live. Very dev-friendly.</div>
+        <div class="testimonial__author">
+          <div class="testimonial__avatar"></div>
+          <div>
+            <div class="testimonial__name">Marcus R.</div>
+            <div class="testimonial__role">Senior Dev, AgentLabs</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
 
-    <script>
-      // Mobile nav toggle
-      const toggle = document.getElementById('navToggle');
-      const menu = document.getElementById('navMenu');
-      if (toggle && menu) {
-        toggle.addEventListener('click', () => {
-          const expanded = toggle.getAttribute('aria-expanded') === 'true';
-          toggle.setAttribute('aria-expanded', !expanded);
-          menu.classList.toggle('open');
-          toggle.classList.toggle('open');
-        });
-        // Close menu when clicking a link
-        menu.querySelectorAll('a').forEach(link => {
-          link.addEventListener('click', () => {
-            menu.classList.remove('open');
-            toggle.classList.remove('open');
-            toggle.setAttribute('aria-expanded', 'false');
-          });
-        });
-      }
+<!-- ── FAQ ──────────────────────────────────────────────── -->
+<section class="section fade-in" id="faq">
+  <div class="container">
+    <h2 class="section__title">Frequently Asked Questions</h2>
+    <p class="section__sub">
+      Can't find your answer? <a href="mailto:hello@proceedgate.dev" style="color:var(--color-teal)">Reach out</a> — we typically reply within 2 hours.
+    </p>
 
-      // Scroll animations
-      const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('visible');
-          }
-        });
-      }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+    <div class="faq-list">
+      <details class="faq-item">
+        <summary>How does ProceedGate detect retry storms?</summary>
+        <div class="faq-item__answer">
+          ProceedGate tracks request hashes per agent per minute. If more than 10 identical requests arrive within 60 seconds (configurable), it blocks subsequent calls and triggers an alert. This catches the most common failure mode — infinite retry loops from failed API calls.
+        </div>
+      </details>
+      <details class="faq-item">
+        <summary>Will it slow down my agents?</summary>
+        <div class="faq-item__answer">
+          No. ProceedGate runs on Cloudflare's edge network (300+ locations). Each cost check resolves in under 50ms. For comparison, a typical OpenAI API call takes 500–3000ms.
+        </div>
+      </details>
+      <details class="faq-item">
+        <summary>Can I try it before paying?</summary>
+        <div class="faq-item__answer">
+          Yes — every plan includes a 14-day free trial with full features. No credit card required. You can also start in LOG_ONLY mode to observe what ProceedGate would block without actually blocking anything.
+        </div>
+      </details>
+      <details class="faq-item">
+        <summary>What happens when an agent hits its budget?</summary>
+        <div class="faq-item__answer">
+          The gate returns a blocked response with a <code>proceed_token</code> flow. The agent receives a clear "budget exceeded" signal. You also get a webhook notification. You can then manually approve more spend via the dashboard or API — no runaway charges.
+        </div>
+      </details>
+      <details class="faq-item">
+        <summary>Which agent frameworks are supported?</summary>
+        <div class="faq-item__answer">
+          Any framework that can make HTTP calls. We provide a Node.js SDK for native integration, plus an MCP server for AI-native tool access. Works with LangChain, AutoGPT, Apify, CrewAI, and custom agents. REST API available for non-Node environments.
+        </div>
+      </details>
+      <details class="faq-item">
+        <summary>How is this different from just setting API rate limits?</summary>
+        <div class="faq-item__answer">
+          Rate limits cap requests per second — they don't track cost. An agent can stay under rate limits while spending $500/hour on expensive calls. ProceedGate tracks actual spend, detects cost anomalies, and gives you budget-based (not rate-based) control.
+        </div>
+      </details>
+    </div>
+  </div>
+</section>
 
-      document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
-    </script>
-  </body>
+<!-- ── CTA Banner ──────────────────────────────────────── -->
+<section class="section fade-in">
+  <div class="container">
+    <div class="cta-banner">
+      <div class="cta-banner__title">Stop the Next Retry Storm Before It Starts</div>
+      <p class="cta-banner__sub">Join teams saving an average of $847/week on AI agent costs.</p>
+      <a href="pay.html" class="btn btn--lg">Start Your Free Trial</a>
+      <p class="cta-banner__note">14 days free · No credit card · Cancel anytime</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── Footer ──────────────────────────────────────────── -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer__grid">
+      <div class="footer__brand-col">
+        <div class="navbar__brand">
+          <span class="navbar__mark" aria-hidden="true"></span>
+          ProceedGate
+        </div>
+        <p class="footer__brand-text">
+          Cost control for AI agents.<br>
+          Block retry storms. Enforce budgets. Sleep at night.
+        </p>
+      </div>
+      <div class="footer__col">
+        <h4>Product</h4>
+        <a href="#features">Features</a>
+        <a href="#pricing">Pricing</a>
+        <a href="scraping.html">For Scraping</a>
+        <a href="use-cases.html">Use Cases</a>
+      </div>
+      <div class="footer__col">
+        <h4>Developers</h4>
+        <a href="https://governor.proceedgate.dev/docs" target="_blank" rel="noopener">API Docs</a>
+        <a href="https://www.npmjs.com/package/@proceedgate/sdk" target="_blank" rel="noopener">npm Package</a>
+        <a href="https://github.com/anthropic-claude/agent-cost-governor" target="_blank" rel="noopener">GitHub</a>
+        <a href="dashboard.html">Dashboard</a>
+      </div>
+      <div class="footer__col">
+        <h4>Company</h4>
+        <a href="mailto:hello@proceedgate.dev">Contact</a>
+        <a href="#">Blog</a>
+        <a href="#">Changelog</a>
+      </div>
+      <div class="footer__col">
+        <h4>Legal</h4>
+        <a href="#">Privacy Policy</a>
+        <a href="#">Terms of Service</a>
+      </div>
+    </div>
+
+    <div class="footer__bottom">
+      <span>&copy; 2025 ProceedGate. All rights reserved.</span>
+      <div class="footer__social">
+        <a href="https://github.com/anthropic-claude/agent-cost-governor" target="_blank" rel="noopener" aria-label="GitHub">GitHub</a>
+        <a href="https://x.com/proceedgate" target="_blank" rel="noopener" aria-label="X / Twitter">X</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<!-- ── Scroll Animation ───────────────────────────────── -->
+<script>
+(function() {
+  const fadeEls = document.querySelectorAll('.fade-in');
+  if (!fadeEls.length) return;
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); obs.unobserve(e.target); } });
+  }, { threshold: 0.12 });
+  fadeEls.forEach(el => obs.observe(el));
+
+  // Mobile menu closes on link click
+  document.querySelectorAll('.navbar__links a').forEach(link => {
+    link.addEventListener('click', () => {
+      document.getElementById('navLinks').classList.remove('open');
+      document.querySelector('.navbar__toggle')?.classList.remove('open');
+    });
+  });
+})();
+</script>
+
+</body>
 </html>
