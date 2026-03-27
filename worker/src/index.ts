@@ -25,10 +25,12 @@ import { jwksRoutes } from './routes/jwks.js';
 import { mcpRoutes } from './routes/mcp.js';
 import { proxyRoutes } from './routes/proxy.js';
 import { badgeRoutes } from './routes/badge.js';
+import { costsRoutes } from './routes/costs.js';
 
 // Durable Objects (re-export)
 export { DecisionStoreDO } from './decisionStoreDO.js';
 export { BillingStoreDO } from './billingStoreDO.js';
+export { CostLedger } from './durable-objects/CostLedger.js';
 
 // Create main app
 const app = new Hono<{ Bindings: Env; Variables: Vars }>();
@@ -70,6 +72,7 @@ app.route('/', adminRoutes);
 app.route('/', facilitatorRoutes);
 app.route('/', proxyRoutes);
 app.route('/', badgeRoutes);
+app.route('/', costsRoutes);
 
 // 404 fallback
 app.notFound((c) => {

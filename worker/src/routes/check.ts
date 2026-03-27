@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
-import type { Env, Vars, GovernanceMode } from '../types.js';
+import type { Env, Vars, GovernanceMode, CostEntry } from '../types.js';
 import { checkSchema } from '../lib/schemas.js';
+import { createMppxServer, computeCost, OPERATION_PRICING } from '../mpp.js';
 import { computeRetryFrictionPrice, computeLowConfidencePrice, computeLLMCostPrice } from '../lib/pricing.js';
 import { getBillingMode, getX402Price, getX402Chain, getX402Recipient } from '../lib/config.js';
 import { makeDecisionId, setProceedgateHeaders } from '../lib/utils.js';
@@ -31,6 +32,40 @@ checkRoutes.post('/v1/governor/check', async (c) => {
     });
     return c.json({ error: 'invalid_request', issues: parsed.error.issues }, 400);
   }
+
+  // ── MPP Gate: micro-payment per governance check ──────────────────────────
+  // Only active when TEMPO_CURRENCY_ADDRESS + TREASURY_WALLET_ADDRESS are set.
+  const mppEnabled = !!(c.env.TEMPO_CURRENCY_ADDRESS && c.env.TREASURY_WALLET_ADDRESS);
+  const agentId = parsed.data.actor.id;
+  const iterationCount = parsed.data.context.attempt_in_window;
+
+  // Map action → operationType for pricing
+  const actionToOpType: Record<string, string> = {
+    model_call:    'llm_inference',
+    tool_call:     'external_api',
+    retry:         'external_api',
+    override:      'external_api',
+    plan_execute:  'llm_inference',
+  };
+  const operationType = actionToOpType[parsed.data.action] ?? 'external_api';
+  const mppCost = computeCost(operationType, iterationCount);
+
+  let mppPaymentResult: Awaited<ReturnType<ReturnType<ReturnType<typeof createMppxServer>['charge']>>> | null = null;
+
+  if (mppEnabled) {
+    try {
+      const mppx = createMppxServer(c.env);
+      mppPaymentResult = await mppx.charge({ amount: mppCost })(c.req.raw);
+      if (mppPaymentResult.status === 402) {
+        return mppPaymentResult.challenge as Response;
+      }
+    } catch (err) {
+      // MPP errors are non-fatal: log and continue (graceful degradation)
+      console.error('[MPP] charge error, continuing without payment gate:', err);
+      mppPaymentResult = null;
+    }
+  }
+  // ── End MPP Gate ──────────────────────────────────────────────────────────
 
   const billingMode = getBillingMode(c.env);
   if (billingMode === 'credits') {
@@ -653,7 +688,31 @@ checkRoutes.post('/v1/governor/check', async (c) => {
       actor_id: parsed.data.actor.id,
     });
 
-    return c.json(
+    // Record MPP cost entry (fire-and-forget)
+    if (mppEnabled) {
+      const costEntry: CostEntry = {
+        agentId,
+        amount: mppCost,
+        operationType,
+        iterationCount,
+        timestamp: Date.now(),
+        receiptHash: undefined,
+      };
+      c.executionCtx.waitUntil(
+        (async () => {
+          try {
+            const stub = c.env.COST_LEDGER.get(c.env.COST_LEDGER.idFromName(agentId));
+            await stub.fetch(new Request('http://do/record', {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify(costEntry),
+            }));
+          } catch { /* non-fatal */ }
+        })(),
+      );
+    }
+
+    const successResponse = c.json(
       {
         allowed: true,
         decision_id: decisionId,
@@ -669,6 +728,12 @@ checkRoutes.post('/v1/governor/check', async (c) => {
       },
       200,
     );
+
+    // Attach MPP Payment-Receipt header to the success response
+    if (mppPaymentResult) {
+      return mppPaymentResult.withReceipt(successResponse) as typeof successResponse;
+    }
+    return successResponse;
   }
 
   // Friction required - return 402

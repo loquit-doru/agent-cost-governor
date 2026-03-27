@@ -13,6 +13,10 @@ class_name = "DecisionStoreDO"
 name = "BILLING"
 class_name = "BillingStoreDO"
 
+[[durable_objects.bindings]]
+name = "COST_LEDGER"
+class_name = "CostLedger"
+
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["DecisionStoreDO"]
@@ -20,6 +24,10 @@ new_sqlite_classes = ["DecisionStoreDO"]
 [[migrations]]
 tag = "v2"
 new_sqlite_classes = ["BillingStoreDO"]
+
+[[migrations]]
+tag = "v-mpp"
+new_sqlite_classes = ["CostLedger"]
 
 [[analytics_engine_datasets]]
 binding = "METRICS"
@@ -43,6 +51,8 @@ routes = [
 
 [env.prod.vars]
 # Keep prod behavior consistent with dev defaults (override in dashboard if needed)
+TEMPO_TESTNET = "false"
+TEMPO_CURRENCY_ADDRESS = "0x20c0000000000000000000000000000000000000"
 X402_PRICE_DEFAULT = "0.004 USDC"
 X402_CHAIN = "Base"
 X402_RECIPIENT = "0x607Fc9D41858Aa23065275043698a9262F8f9bf9"
@@ -76,7 +86,15 @@ class_name = "DecisionStoreDO"
 name = "BILLING"
 class_name = "BillingStoreDO"
 
+[[env.prod.durable_objects.bindings]]
+name = "COST_LEDGER"
+class_name = "CostLedger"
+
 [vars]
+# MPP (Machine Payments Protocol) — Tempo method
+TEMPO_TESTNET = "true"
+TEMPO_CURRENCY_ADDRESS = "0x20c0000000000000000000000000000000000000"
+
 # Pricing / payment headers (x402-style)
 X402_PRICE_DEFAULT = "0.004 USDC"
 X402_CHAIN = "Base"
@@ -106,6 +124,8 @@ API_AUTH_MODE = "off"
 
 [env.billing.vars]
 # Inherit core vars (wrangler envs do NOT inherit top-level [vars])
+TEMPO_TESTNET = "true"
+TEMPO_CURRENCY_ADDRESS = "0x20c0000000000000000000000000000000000000"
 X402_PRICE_DEFAULT = "0.004 USDC"
 X402_CHAIN = "Base"
 X402_RECIPIENT = "0x607Fc9D41858Aa23065275043698a9262F8f9bf9"
@@ -134,11 +154,17 @@ class_name = "DecisionStoreDO"
 name = "BILLING"
 class_name = "BillingStoreDO"
 
+[[env.billing.durable_objects.bindings]]
+name = "COST_LEDGER"
+class_name = "CostLedger"
+
 [env.hackathon]
 # Hackathon-focused environment (OpenClaw-style): chain defaults on opBNB.
 # Run locally with: wrangler dev --env hackathon
 
 [env.hackathon.vars]
+TEMPO_TESTNET = "true"
+TEMPO_CURRENCY_ADDRESS = "0x20c0000000000000000000000000000000000000"
 X402_PRICE_DEFAULT = "0.004 USDC"
 X402_CHAIN = "BSC"
 X402_RECIPIENT = "0xc30ac7ab7fbb2f0cb82c6d49b65df362b5ac1769"
@@ -169,6 +195,10 @@ class_name = "DecisionStoreDO"
 [[env.hackathon.durable_objects.bindings]]
 name = "BILLING"
 class_name = "BillingStoreDO"
+
+[[env.hackathon.durable_objects.bindings]]
+name = "COST_LEDGER"
+class_name = "CostLedger"
 
 [env.hackathon.ai]
 binding = "AI"
