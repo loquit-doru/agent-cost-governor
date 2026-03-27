@@ -1157,21 +1157,41 @@
               <div class="status-title">You're in!</div>
               <div class="status-desc" style="margin-bottom:24px;">Free account created. 2,000 checks included.</div>
 
-              <div style="background:rgba(0,0,0,.4); border:1px solid rgba(45,212,191,.3); border-radius:12px; padding:20px; text-align:left; margin-bottom:20px;">
-                <div style="font-size:12px; color:var(--text-muted); margin-bottom:8px;">Your API key</div>
-                <div id="freeApiKey" style="font-family:monospace; font-size:13px; word-break:break-all; background:rgba(0,0,0,.3); padding:12px; border-radius:8px; color:#2dd4bf; margin-bottom:12px;">${data.api_key}</div>
+              <div style="background:rgba(0,0,0,.4); border:1px solid rgba(45,212,191,.3); border-radius:12px; padding:20px; text-align:left; margin-bottom:12px;">
+                <div style="font-size:12px; color:var(--text-muted); margin-bottom:6px;">API key <span style="color:#ef4444;">— keep this secret</span></div>
+                <div style="font-family:monospace; font-size:13px; word-break:break-all; background:rgba(0,0,0,.3); padding:10px; border-radius:8px; color:#2dd4bf; margin-bottom:10px;">${data.api_key}</div>
                 <button onclick="navigator.clipboard.writeText('${data.api_key}').then(()=>this.textContent='Copied!')"
-                  style="background:rgba(45,212,191,.15); border:1px solid rgba(45,212,191,.3); color:#2dd4bf; padding:8px 16px; border-radius:6px; cursor:pointer; font-size:13px;">
+                  style="background:rgba(45,212,191,.15); border:1px solid rgba(45,212,191,.3); color:#2dd4bf; padding:7px 14px; border-radius:6px; cursor:pointer; font-size:12px;">
                   Copy API key
                 </button>
               </div>
 
-              <div style="background:rgba(45,212,191,.06); border:1px solid rgba(45,212,191,.2); border-radius:10px; padding:16px; text-align:left; margin-bottom:20px; font-size:13px; color:var(--text-muted);">
-                <div style="font-weight:600; color:white; margin-bottom:8px;">Quick start</div>
-                <pre style="font-family:monospace; font-size:12px; overflow-x:auto; line-height:1.6;">curl -X POST https://governor.proceedgate.dev/v1/governor/check \\
+              <div style="background:rgba(0,0,0,.3); border:1px solid rgba(255,255,255,.1); border-radius:12px; padding:20px; text-align:left; margin-bottom:20px;">
+                <div style="font-size:12px; color:var(--text-muted); margin-bottom:6px;">Workspace ID <span style="color:var(--text-muted);">— needed for governor/check</span></div>
+                <div style="font-family:monospace; font-size:13px; word-break:break-all; background:rgba(0,0,0,.3); padding:10px; border-radius:8px; color:#a78bfa; margin-bottom:10px;">${data.workspace_id}</div>
+                <button onclick="navigator.clipboard.writeText('${data.workspace_id}').then(()=>this.textContent='Copied!')"
+                  style="background:rgba(167,139,250,.1); border:1px solid rgba(167,139,250,.25); color:#a78bfa; padding:7px 14px; border-radius:6px; cursor:pointer; font-size:12px;">
+                  Copy workspace ID
+                </button>
+              </div>
+
+              <div style="background:rgba(45,212,191,.05); border:1px solid rgba(45,212,191,.2); border-radius:10px; padding:16px; text-align:left; margin-bottom:20px; font-size:13px; color:var(--text-muted);">
+                <div style="font-weight:600; color:white; margin-bottom:10px;">Quick start</div>
+                <div style="margin-bottom:6px; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted);">1. Simple check (credits)</div>
+                <pre style="font-family:monospace; font-size:11.5px; overflow-x:auto; line-height:1.65; margin-bottom:14px; white-space:pre-wrap;">curl -X POST https://governor.proceedgate.dev/v1/check/simple \\
   -H "Authorization: Bearer ${data.api_key}" \\
   -H "Content-Type: application/json" \\
-  -d '{"agent_id":"my-agent","action":"http_request","task_hash":"abc123"}'</pre>
+  -d '{"user_id": "my-agent"}'</pre>
+                <div style="margin-bottom:6px; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted);">2. Full governance check (loop detection + proceed_token)</div>
+                <pre style="font-family:monospace; font-size:11.5px; overflow-x:auto; line-height:1.65; white-space:pre-wrap;">curl -X POST https://governor.proceedgate.dev/v1/governor/check \\
+  -H "Authorization: Bearer ${data.api_key}" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "policy_id": "retry_friction_v1",
+    "action":    "model_call",
+    "actor":     {"id": "my-agent", "project": "${data.workspace_id}"},
+    "context":   {"attempt_in_window": 1, "task_hash": "sha256-of-input"}
+  }'</pre>
               </div>
 
               <a href="./dashboard.html?workspace=${data.workspace_id}" class="pay-btn primary" style="display:block; text-align:center; text-decoration:none;">
