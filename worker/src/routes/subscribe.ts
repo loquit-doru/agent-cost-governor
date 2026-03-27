@@ -14,7 +14,7 @@ import { z } from 'zod';
 import { getBillingRecipient, getBillingChain } from '../lib/config.js';
 import { logEvent } from '../observability.js';
 import { writeMetric } from '../metrics.js';
-import { sendSubscriptionConfirmation } from '../services/email.js';
+import { sendSubscriptionConfirmation, sendFreeWelcomeEmail, isEmailConfigured } from '../services/email.js';
 import { webhookSubscriptionCreated, webhookSubscriptionRenewed, sendWebhook } from '../services/webhook.js';
 import { getBillingStub, doUrl } from '../lib/do.js';
 import { hashApiKey } from '../lib/crypto.js';
@@ -1841,18 +1841,16 @@ subscribeRoutes.post('/v1/billing/free', async (c) => {
     doubles: [1, Date.now() - startMs],
   });
 
-  // Send welcome email
+  // Send dedicated free-tier welcome email
+  let emailSent = false;
   if (email) {
-    await sendSubscriptionConfirmation(c.env, {
-      to: email,
-      workspaceId,
-      apiKey,
-      plan: 'Free',
-      months: 1,
-      expiresAt: 'Monthly renewal',
-      totalPaid: 0,
-      txHash: '',
-    }).catch(err => console.error('Email send failed:', err));
+    const emailResult = await sendFreeWelcomeEmail(c.env, { to: email, workspaceId, apiKey })
+      .catch(err => { console.error('Email send failed:', err); return { ok: false }; });
+    emailSent = emailResult.ok;
+    if (!emailSent) {
+      console.warn('[free-signup] Email not sent for workspace:', workspaceId,
+        '— set RESEND_API_KEY via: wrangler secret put RESEND_API_KEY');
+    }
   }
 
   return c.json({
@@ -1861,6 +1859,7 @@ subscribeRoutes.post('/v1/billing/free', async (c) => {
     api_key: apiKey,
     plan: 'Free',
     credits: PLANS[plan].checks,
+    email_sent: emailSent,
     features: {
       checks_per_month: PLANS[plan].checks,
       projects: PLANS[plan].projects,

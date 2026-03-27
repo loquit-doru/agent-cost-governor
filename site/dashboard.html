@@ -228,6 +228,31 @@
       font-family: var(--mono); font-size: 11.5px; color: var(--tx-2);
       overflow-x: auto; white-space: pre;
     }
+
+    /* ── API key gate ────────────────────────────────────── */
+    .key-gate {
+      max-width: 480px; margin: 80px auto; text-align: center; padding: 0 24px;
+    }
+    .key-gate h2 { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+    .key-gate p  { font-size: 13px; color: var(--tx-2); margin-bottom: 24px; }
+    .key-input-row { display: flex; gap: 8px; }
+    .key-input {
+      flex: 1; padding: 10px 14px; border-radius: 7px; font-size: 13px;
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--tx); font-family: var(--mono); outline: none;
+      transition: border-color .15s;
+    }
+    .key-input:focus { border-color: var(--teal); }
+    .key-submit {
+      padding: 10px 18px; border-radius: 7px; font-size: 13px; font-weight: 600;
+      background: var(--teal); border: none; color: #09090b; cursor: pointer;
+      transition: opacity .15s; white-space: nowrap;
+    }
+    .key-submit:hover { opacity: .85; }
+    .key-err { color: var(--red); font-size: 12px; margin-top: 8px; min-height: 16px; }
+    .key-or { color: var(--tx-3); font-size: 12px; margin: 16px 0; }
+    .key-demo-link { color: var(--teal); font-size: 13px; cursor: pointer; }
+    .key-demo-link:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
@@ -254,8 +279,24 @@
   </div>
 </nav>
 
+<!-- API Key Gate (shown when no key in storage) -->
+<div id="keyGate" class="key-gate" style="display:none">
+  <div style="width:48px;height:48px;background:var(--teal-dim);border:1px solid rgba(45,212,191,.3);border-radius:12px;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;">
+    <svg width="22" height="22" viewBox="0 0 20 20" fill="none"><rect width="20" height="20" rx="5" fill="#2dd4bf"/><path d="M6 10l3 3 5-6" stroke="#09090b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </div>
+  <h2>Your Dashboard</h2>
+  <p>Enter your API key to see your workspace data.<br>Don't have one? <a href="pay.html" style="color:var(--teal)">Get a free API key →</a></p>
+  <div class="key-input-row">
+    <input class="key-input" id="keyInput" type="password" placeholder="pg_ws_..." autocomplete="off" />
+    <button class="key-submit" onclick="submitApiKey()">Open →</button>
+  </div>
+  <div class="key-err" id="keyErr"></div>
+  <div class="key-or">— or —</div>
+  <span class="key-demo-link" onclick="openDemo()">View live demo data (no login)</span>
+</div>
+
 <!-- Page -->
-<div class="page">
+<div class="page" id="mainPage" style="display:none">
 
   <!-- Header -->
   <div class="page-header">
@@ -264,9 +305,12 @@
         Dashboard
         <span class="ws-badge" id="wsBadge" style="display:none"></span>
       </div>
-      <div class="page-sub" id="pageSubtitle">Showing live demo data — <a href="pay.html" style="color:var(--teal)">get your API key</a> to see your workspace</div>
+      <div class="page-sub" id="pageSubtitle">Loading…</div>
     </div>
-    <button class="refresh-btn" onclick="fetchDashboardData()">↻ Refresh</button>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button class="refresh-btn" onclick="fetchDashboardData()">↻ Refresh</button>
+      <button class="refresh-btn" id="logoutBtn" style="display:none" onclick="logout()">Sign out</button>
+    </div>
   </div>
 
   <!-- Quickstart (shown only to real workspace users with 0 decisions) -->
@@ -394,16 +438,121 @@
 <script>
   const API_BASE = 'https://governor.proceedgate.dev';
 
-  // ─── Workspace detection ──────────────────────────────────────────────────
-  const _params = new URLSearchParams(location.search);
-  const _wsParam = _params.get('workspace');
-  const _apiKey  = localStorage.getItem('pg_api_key');
-  const _isReal  = !!(_wsParam && _apiKey);
+  // ─── Auth state ───────────────────────────────────────────────────────────
+  // Priority: 1) localStorage key  2) ?key= URL param (one-time)  3) demo mode
+  let _apiKey  = localStorage.getItem('pg_api_key') || new URLSearchParams(location.search).get('key') || null;
+  let _wsId    = null; // resolved from /v1/me
+  let _isReal  = false;
+  let _isDemo  = false;
 
-  if (_isReal) {
-    document.getElementById('wsBadge').textContent = _wsParam;
-    document.getElementById('wsBadge').style.display = '';
-    document.getElementById('pageSubtitle').textContent = 'Your real workspace — live data from Cloudflare Durable Objects';
+  // ─── Boot: decide which view to show ─────────────────────────────────────
+  document.addEventListener('DOMContentLoaded', async function() {
+    checkApiStatus();
+    setInterval(checkApiStatus, 30000);
+
+    if (_apiKey) {
+      // Validate key, resolve workspace
+      const ok = await resolveWorkspace(_apiKey);
+      if (ok) {
+        showDashboard(true);
+      } else {
+        _apiKey = null;
+        localStorage.removeItem('pg_api_key');
+        showKeyGate();
+      }
+    } else if (new URLSearchParams(location.search).get('demo') === '1') {
+      showDashboard(false);
+    } else {
+      showKeyGate();
+    }
+  });
+
+  function showKeyGate() {
+    document.getElementById('keyGate').style.display = '';
+    document.getElementById('mainPage').style.display = 'none';
+  }
+
+  function showDashboard(real) {
+    _isReal = real;
+    _isDemo = !real;
+    document.getElementById('keyGate').style.display = 'none';
+    document.getElementById('mainPage').style.display = '';
+
+    if (_isReal && _wsId) {
+      document.getElementById('wsBadge').textContent = _wsId;
+      document.getElementById('wsBadge').style.display = '';
+      document.getElementById('pageSubtitle').textContent = 'Your workspace — live data';
+      document.getElementById('logoutBtn').style.display = '';
+    } else {
+      document.getElementById('pageSubtitle').innerHTML =
+        'Live demo data — <a href="pay.html" style="color:var(--teal)">get your API key</a> to see your workspace';
+    }
+
+    fetchDashboardData();
+    setInterval(fetchDashboardData, 10000);
+  }
+
+  async function resolveWorkspace(key) {
+    try {
+      const res = await fetch(API_BASE + '/v1/me', {
+        headers: { 'Authorization': 'Bearer ' + key },
+        signal: AbortSignal.timeout(6000),
+      });
+      if (!res.ok) return false;
+      const me = await res.json();
+      _wsId = me.workspace_id;
+      localStorage.setItem('pg_api_key', key);
+      // Update credits card
+      document.getElementById('stat4Label').textContent = 'Credits Remaining';
+      document.getElementById('stat4Value').textContent = (me.credits?.remaining ?? '—').toLocaleString();
+      document.getElementById('stat4Sub').textContent = 'plan: ' + (me.plan?.id || 'free');
+      return true;
+    } catch { return false; }
+  }
+
+  // ─── Key gate actions ─────────────────────────────────────────────────────
+  async function submitApiKey() {
+    const input = document.getElementById('keyInput');
+    const errEl = document.getElementById('keyErr');
+    const btn   = document.querySelector('.key-submit');
+    const key   = input.value.trim();
+    errEl.textContent = '';
+
+    if (!key.startsWith('pg_ws_')) {
+      errEl.textContent = 'API key must start with pg_ws_';
+      return;
+    }
+
+    btn.textContent = 'Verifying…';
+    btn.disabled = true;
+    _apiKey = key;
+    const ok = await resolveWorkspace(key);
+    btn.textContent = 'Open →';
+    btn.disabled = false;
+
+    if (ok) {
+      showDashboard(true);
+    } else {
+      _apiKey = null;
+      errEl.textContent = 'Invalid API key — check and try again.';
+    }
+  }
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && document.getElementById('keyGate').style.display !== 'none') {
+      submitApiKey();
+    }
+  });
+
+  function openDemo() {
+    showDashboard(false);
+  }
+
+  function logout() {
+    localStorage.removeItem('pg_api_key');
+    localStorage.removeItem('pg_workspace_id');
+    _apiKey = null; _wsId = null; _isReal = false;
+    location.href = 'dashboard.html';
   }
 
   // ─── API Status ───────────────────────────────────────────────────────────
@@ -423,49 +572,26 @@
   }
 
   // ─── Dashboard data ───────────────────────────────────────────────────────
-  let _dashData = null;
-
   async function fetchDashboardData() {
     try {
       const url     = _isReal ? API_BASE + '/v1/me/stats' : API_BASE + '/v1/demo/stats';
       const headers = _isReal ? { 'Authorization': 'Bearer ' + _apiKey } : {};
       const res = await fetch(url, { headers, signal: AbortSignal.timeout(8000) });
-      if (res.ok) {
-        _dashData = await res.json();
-        renderDashboard(_dashData);
-      }
+      if (res.ok) renderDashboard(await res.json());
     } catch (e) { console.warn('Dashboard fetch failed:', e.message); }
-
-    // Credits (only for real workspace)
-    if (_isReal) {
-      try {
-        const res = await fetch(API_BASE + '/v1/me', {
-          headers: { 'Authorization': 'Bearer ' + _apiKey },
-          signal: AbortSignal.timeout(5000),
-        });
-        if (res.ok) {
-          const me = await res.json();
-          document.getElementById('stat4Label').textContent = 'Credits Remaining';
-          document.getElementById('stat4Value').textContent = (me.credits?.remaining ?? '—').toLocaleString();
-          document.getElementById('stat4Sub').textContent = 'plan: ' + (me.plan?.id || 'free');
-        }
-      } catch { /* ignore */ }
-    }
   }
 
   function renderDashboard(data) {
     const decisions = data.total_decisions || 0;
-    const blocked   = data.storms_blocked || 0;
-    const saved     = data.cost_saved_usd || 0;
-
     document.getElementById('statDecisions').textContent = decisions.toLocaleString();
-    document.getElementById('statBlocked').textContent   = blocked.toLocaleString();
-    document.getElementById('statSaved').textContent     = '$' + saved.toFixed(2);
+    document.getElementById('statBlocked').textContent   = (data.storms_blocked || 0).toLocaleString();
+    document.getElementById('statSaved').textContent     = '$' + (data.cost_saved_usd || 0).toFixed(2);
+    document.getElementById('statDecisionsSub').textContent = _isReal ? 'in your workspace' : 'in demo workspace';
 
-    if (!_isReal) {
-      document.getElementById('stat4Label').textContent = 'Avg Latency';
-      document.getElementById('stat4Value').textContent = '—';
-      document.getElementById('stat4Sub').textContent   = 'demo workspace';
+    if (_isDemo) {
+      document.getElementById('stat4Label').textContent = 'Data Source';
+      document.getElementById('stat4Value').textContent = 'Demo';
+      document.getElementById('stat4Sub').textContent   = 'shared demo workspace';
     }
 
     const isNew = _isReal && decisions === 0;
@@ -478,14 +604,9 @@
         '  -d \'{"agent_id": "my-agent", "task_hash": "sha256-of-task", "action": "tool_call"}\'';
     }
 
-    document.getElementById('statDecisionsSub').textContent = _isReal
-      ? 'in your workspace'
-      : 'in demo workspace';
-
     renderFeed(data.decisions || []);
     renderChart(data.storm_chart || []);
     renderActivity(data.decisions || []);
-
     document.getElementById('feedCount').textContent =
       decisions > 0 ? decisions.toLocaleString() + ' total' : 'none yet';
   }
@@ -634,13 +755,7 @@
     document.getElementById('liveAvgMs').textContent = '—';
   }
 
-  // ─── Boot ─────────────────────────────────────────────────────────────────
-  document.addEventListener('DOMContentLoaded', function() {
-    checkApiStatus();
-    setInterval(checkApiStatus, 30000);
-    fetchDashboardData();
-    setInterval(fetchDashboardData, 10000);
-  });
+
 </script>
 </body>
 </html>

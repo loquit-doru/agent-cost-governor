@@ -40,18 +40,21 @@ interface ExpiryWarningParams {
 
 // Get Resend API key from env
 function getResendKey(env: Env): string | null {
-  // Use type assertion to access optional env vars
   const envWithResend = env as Env & { RESEND_API_KEY?: string };
   return envWithResend.RESEND_API_KEY || null;
+}
+
+export function isEmailConfigured(env: Env): boolean {
+  return !!getResendKey(env);
 }
 
 // Send email via Resend
 async function sendEmail(env: Env, params: SendEmailParams): Promise<{ ok: boolean; error?: string }> {
   const apiKey = getResendKey(env);
-  
+
   if (!apiKey) {
-    console.log('Email not sent - RESEND_API_KEY not configured');
-    return { ok: true }; // Don't fail if email not configured
+    console.warn('[email] RESEND_API_KEY not set — email skipped. Set via: wrangler secret put RESEND_API_KEY');
+    return { ok: false, error: 'email_not_configured' };
   }
 
   try {
@@ -307,6 +310,64 @@ interface WeeklySavingsParams {
   topActions: Array<{ action: string; count: number }>;
   weekStart: string;
   weekEnd: string;
+}
+
+// Send free tier welcome email (dedicated template, no payment details)
+export async function sendFreeWelcomeEmail(
+  env: Env,
+  params: { to: string; workspaceId: string; apiKey: string }
+): Promise<{ ok: boolean; error?: string }> {
+  const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#09090b;">
+<div style="max-width:560px;margin:0 auto;padding:40px 20px;">
+  <div style="text-align:center;margin-bottom:32px;">
+    <div style="display:inline-flex;align-items:center;justify-content:center;width:48px;height:48px;background:#2dd4bf;border-radius:10px;font-size:22px;margin-bottom:16px;">✓</div>
+    <h1 style="color:#fafafa;margin:0 0 8px;font-size:24px;letter-spacing:-.02em;">You're in — ProceedGate Free</h1>
+    <p style="color:#a1a1aa;margin:0;font-size:14px;">2,000 free checks/month. No credit card.</p>
+  </div>
+
+  <div style="background:rgba(45,212,191,.07);border:1px solid rgba(45,212,191,.25);border-radius:12px;padding:24px;margin-bottom:24px;">
+    <p style="color:#a1a1aa;font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin:0 0 16px;">Your credentials</p>
+    <div style="margin-bottom:12px;">
+      <div style="color:#71717a;font-size:11px;margin-bottom:4px;">Workspace ID</div>
+      <div style="color:#fafafa;font-family:monospace;font-size:13px;background:rgba(0,0,0,.4);padding:10px 12px;border-radius:6px;word-break:break-all;">${params.workspaceId}</div>
+    </div>
+    <div style="margin-bottom:16px;">
+      <div style="color:#71717a;font-size:11px;margin-bottom:4px;">API Key</div>
+      <div style="color:#fafafa;font-family:monospace;font-size:13px;background:rgba(0,0,0,.4);padding:10px 12px;border-radius:6px;word-break:break-all;">${params.apiKey}</div>
+    </div>
+    <div style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.25);border-radius:6px;padding:10px 12px;font-size:12px;color:#fbbf24;">
+      Save your API key — it won't be shown again.
+    </div>
+  </div>
+
+  <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:20px;margin-bottom:24px;">
+    <p style="color:#a1a1aa;font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin:0 0 12px;">First check call</p>
+    <pre style="margin:0;font-family:monospace;font-size:12px;color:#4ade80;white-space:pre-wrap;overflow-x:auto;">curl -X POST https://governor.proceedgate.dev/v1/check \\
+  -H "Authorization: Bearer ${params.apiKey}" \\
+  -H "Content-Type: application/json" \\
+  -d '{"agent_id":"my-agent","task_hash":"sha256-of-task","action":"tool_call"}'</pre>
+  </div>
+
+  <div style="text-align:center;padding:8px 0 32px;">
+    <a href="https://proceedgate.dev/dashboard.html" style="display:inline-block;background:#2dd4bf;color:#09090b;font-weight:600;font-size:14px;padding:12px 28px;border-radius:8px;text-decoration:none;">Open Dashboard →</a>
+  </div>
+
+  <p style="color:#52525b;font-size:12px;text-align:center;margin:0;">
+    Questions? Reply to this email or check <a href="https://proceedgate.dev/docs.html" style="color:#2dd4bf;">docs.proceedgate.dev</a>
+  </p>
+</div>
+</body>
+</html>`;
+
+  return sendEmail(env, {
+    to: params.to,
+    subject: 'Your ProceedGate API key',
+    html,
+    text: `Welcome to ProceedGate Free!\n\nWorkspace ID: ${params.workspaceId}\nAPI Key: ${params.apiKey}\n\nFirst check:\ncurl -X POST https://governor.proceedgate.dev/v1/check -H "Authorization: Bearer ${params.apiKey}" -H "Content-Type: application/json" -d '{"agent_id":"my-agent","task_hash":"sha256-of-task","action":"tool_call"}'\n\nDashboard: https://proceedgate.dev/dashboard.html\n`,
+  });
 }
 
 export async function sendWeeklySavingsReport(

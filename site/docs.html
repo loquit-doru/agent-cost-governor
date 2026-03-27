@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Docs — ProceedGate</title>
+  <meta name="description" content="ProceedGate API documentation. Quickstart, endpoints, error codes, and integration examples." />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:      #09090b;
+      --surface: #111113;
+      --border:  #1f1f23;
+      --tx:      #fafafa;
+      --tx-2:    #a1a1aa;
+      --tx-3:    #52525b;
+      --teal:    #2dd4bf;
+      --teal-dim:rgba(45,212,191,.10);
+      --green:   #4ade80;
+      --red:     #f87171;
+      --yellow:  #fbbf24;
+      --mono:    'SF Mono','Fira Code',Consolas,monospace;
+    }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--tx); font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif; font-size: 15px; line-height: 1.7; -webkit-font-smoothing: antialiased; }
+    a { color: var(--teal); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* Nav */
+    nav { position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; height: 56px; background: rgba(9,9,11,.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+    .nav-logo { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 15px; color: var(--tx); text-decoration: none; }
+    .nav-links { display: flex; gap: 4px; }
+    .nav-links a { padding: 6px 12px; border-radius: 6px; font-size: 13px; color: var(--tx-2); }
+    .nav-links a:hover { color: var(--tx); background: rgba(255,255,255,.05); text-decoration: none; }
+    .nav-links a.active { color: var(--tx); }
+
+    /* Layout */
+    .layout { display: grid; grid-template-columns: 220px 1fr; min-height: calc(100vh - 56px); max-width: 1100px; margin: 0 auto; }
+    @media (max-width: 700px) { .layout { grid-template-columns: 1fr; } .sidebar { display: none; } }
+
+    /* Sidebar */
+    .sidebar { padding: 32px 0; position: sticky; top: 56px; height: calc(100vh - 56px); overflow-y: auto; border-right: 1px solid var(--border); }
+    .sidebar-section { margin-bottom: 24px; }
+    .sidebar-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--tx-3); padding: 0 20px 8px; }
+    .sidebar-link { display: block; padding: 5px 20px; font-size: 13px; color: var(--tx-2); border-left: 2px solid transparent; transition: all .15s; }
+    .sidebar-link:hover { color: var(--tx); text-decoration: none; }
+    .sidebar-link.active { color: var(--teal); border-left-color: var(--teal); background: var(--teal-dim); }
+
+    /* Content */
+    .content { padding: 48px 48px 80px; max-width: 800px; }
+    @media (max-width: 900px) { .content { padding: 32px 24px 60px; } }
+
+    h1 { font-size: 28px; font-weight: 700; letter-spacing: -.02em; margin-bottom: 10px; }
+    h2 { font-size: 20px; font-weight: 700; letter-spacing: -.01em; margin: 48px 0 14px; padding-top: 48px; border-top: 1px solid var(--border); }
+    h2:first-of-type { border-top: none; padding-top: 0; margin-top: 24px; }
+    h3 { font-size: 15px; font-weight: 600; margin: 24px 0 8px; color: var(--tx); }
+    p  { color: var(--tx-2); margin-bottom: 14px; }
+    ul, ol { color: var(--tx-2); padding-left: 20px; margin-bottom: 14px; }
+    li { margin-bottom: 4px; }
+    code { font-family: var(--mono); font-size: 12.5px; background: rgba(255,255,255,.07); padding: 2px 5px; border-radius: 4px; color: var(--tx); }
+    pre { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin: 12px 0 20px; overflow-x: auto; font-family: var(--mono); font-size: 12.5px; line-height: 1.65; color: var(--tx-2); }
+    pre .g { color: var(--green); }
+    pre .t { color: var(--teal); }
+    pre .y { color: var(--yellow); }
+    pre .r { color: var(--red); }
+    pre .d { color: var(--tx-3); }
+
+    /* Method badge */
+    .method { display: inline-block; font-size: 11px; font-weight: 700; font-family: var(--mono); padding: 2px 7px; border-radius: 4px; margin-right: 8px; vertical-align: middle; }
+    .method.post { background: rgba(45,212,191,.15); color: var(--teal); }
+    .method.get  { background: rgba(74,222,128,.15); color: var(--green); }
+
+    /* Endpoint block */
+    .endpoint { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 18px; margin: 16px 0; font-family: var(--mono); font-size: 13px; }
+
+    /* Response table */
+    table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0 20px; }
+    th { text-align: left; padding: 8px 12px; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--tx-3); border-bottom: 1px solid var(--border); font-weight: 500; }
+    td { padding: 8px 12px; border-bottom: 1px solid var(--border); color: var(--tx-2); vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    td code { font-size: 11.5px; }
+
+    /* Status badge */
+    .status { display: inline-block; font-size: 11px; font-weight: 700; font-family: var(--mono); padding: 2px 6px; border-radius: 4px; }
+    .status.ok   { background: rgba(74,222,128,.15); color: var(--green); }
+    .status.err  { background: rgba(248,113,113,.15); color: var(--red); }
+    .status.warn { background: rgba(251,191,36,.15);  color: var(--yellow); }
+
+    /* Alert box */
+    .alert { border-radius: 8px; padding: 12px 16px; margin: 16px 0; font-size: 13px; }
+    .alert.info { background: var(--teal-dim); border: 1px solid rgba(45,212,191,.2); color: var(--tx-2); }
+    .alert.warn { background: rgba(251,191,36,.08); border: 1px solid rgba(251,191,36,.2); color: var(--tx-2); }
+
+    /* Page intro */
+    .intro { color: var(--tx-2); font-size: 16px; margin-bottom: 0; border-bottom: 1px solid var(--border); padding-bottom: 32px; margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-logo">
+    <svg width="22" height="22" viewBox="0 0 20 20" fill="none"><rect width="20" height="20" rx="5" fill="#2dd4bf"/><path d="M6 10l3 3 5-6" stroke="#09090b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    ProceedGate
+  </a>
+  <div class="nav-links">
+    <a href="scraping.html">Scraping</a>
+    <a href="use-cases.html">Use Cases</a>
+    <a href="docs.html" class="active">Docs</a>
+    <a href="pay.html" style="background:var(--teal-dim);color:var(--teal);padding:6px 12px;border-radius:6px;border:1px solid rgba(45,212,191,.25);">Get API Key</a>
+  </div>
+</nav>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Getting Started</div>
+      <a class="sidebar-link active" href="#quickstart">Quickstart</a>
+      <a class="sidebar-link" href="#authentication">Authentication</a>
+      <a class="sidebar-link" href="#base-url">Base URL</a>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">API Reference</div>
+      <a class="sidebar-link" href="#check">POST /v1/check</a>
+      <a class="sidebar-link" href="#check-batch">POST /v1/check/batch</a>
+      <a class="sidebar-link" href="#me">GET /v1/me</a>
+      <a class="sidebar-link" href="#me-stats">GET /v1/me/stats</a>
+      <a class="sidebar-link" href="#balance">GET /v1/billing/balance</a>
+      <a class="sidebar-link" href="#budget">PUT /v1/billing/budget</a>
+      <a class="sidebar-link" href="#health">GET /health</a>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Integration</div>
+      <a class="sidebar-link" href="#nodejs">Node.js</a>
+      <a class="sidebar-link" href="#python">Python</a>
+      <a class="sidebar-link" href="#errors">Error Codes</a>
+    </div>
+  </aside>
+
+  <main class="content">
+    <h1>Documentation</h1>
+    <p class="intro">ProceedGate is a circuit breaker for AI agents. One HTTP call before each action detects retry storms, enforces budgets, and returns a signed token as proof of governance.</p>
+
+    <!-- Quickstart -->
+    <h2 id="quickstart">Quickstart</h2>
+    <p>Get a free API key at <a href="pay.html">proceedgate.dev/pay.html</a> — 2,000 checks/month, no credit card.</p>
+
+    <h3>1. Make your first check</h3>
+<pre>curl -X POST https://governor.proceedgate.dev/v1/check \
+  -H <span class="y">"Authorization: Bearer $PG_KEY"</span> \
+  -H <span class="y">"Content-Type: application/json"</span> \
+  -d <span class="g">'{
+    "agent_id":  "my-agent",
+    "task_hash": "sha256-of-current-task",
+    "action":    "tool_call"
+  }'</span></pre>
+
+    <h3>2. Handle the response</h3>
+<pre><span class="d">// ✅ Allowed (HTTP 200)</span>
+{
+  <span class="t">"allowed"</span>: true,
+  <span class="t">"zone"</span>: <span class="g">"safe"</span>,
+  <span class="t">"iteration_count"</span>: 3,
+  <span class="t">"proceed_token"</span>: <span class="g">"eyJ..."</span>,
+  <span class="t">"credits_remaining"</span>: 1997
+}
+
+<span class="d">// 🚫 Loop detected (HTTP 429)</span>
+{
+  <span class="t">"allowed"</span>: false,
+  <span class="t">"zone"</span>: <span class="g">"storm"</span>,
+  <span class="t">"iteration_count"</span>: 11,
+  <span class="t">"error"</span>: <span class="r">"loop_detected"</span>,
+  <span class="t">"reason"</span>: <span class="r">"11 identical requests in 60s"</span>
+}</pre>
+
+    <h3>3. Drop it into your agent loop</h3>
+<pre><span class="d">// Node.js</span>
+<span class="t">async function</span> <span class="g">pgCheck</span>(agentId, taskHash) {
+  const res = await fetch(<span class="y">'https://governor.proceedgate.dev/v1/check'</span>, {
+    method: <span class="y">'POST'</span>,
+    headers: { <span class="y">'Authorization'</span>: `Bearer ${process.env.PG_KEY}`, <span class="y">'Content-Type'</span>: <span class="y">'application/json'</span> },
+    body: JSON.stringify({ agent_id: agentId, task_hash: taskHash, action: <span class="y">'tool_call'</span> }),
+  });
+  if (res.status === 429) throw new Error(<span class="r">'loop_detected'</span>);
+  if (!res.ok) throw new Error(<span class="r">'check_failed'</span>);
+  return res.json();
+}
+
+<span class="d">// In your agent loop:</span>
+for (const url of urls) {
+  await pgCheck(<span class="y">'scraper'</span>, sha256(url));  <span class="d">// throws on block</span>
+  const data = await fetch(url);
+}</pre>
+
+    <!-- Authentication -->
+    <h2 id="authentication">Authentication</h2>
+    <p>All requests require a Bearer token in the <code>Authorization</code> header:</p>
+<pre>Authorization: Bearer pg_ws_&lt;your-key&gt;</pre>
+    <div class="alert info">API keys start with <code>pg_ws_</code>. Get yours at <a href="pay.html">proceedgate.dev/pay.html</a> — free, no card needed.</div>
+
+    <!-- Base URL -->
+    <h2 id="base-url">Base URL</h2>
+    <div class="endpoint">https://governor.proceedgate.dev</div>
+    <p>All endpoints are served over HTTPS. The API is hosted on Cloudflare Workers (global edge, &lt;50ms p99).</p>
+
+    <!-- POST /v1/check -->
+    <h2 id="check"><span class="method post">POST</span>/v1/check</h2>
+    <p>The primary endpoint. Runs loop detection + credit check and returns a signed <code>proceed_token</code>. Auto-derives your workspace from the API key — no extra config needed.</p>
+
+    <h3>Request body</h3>
+    <table>
+      <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
+      <tr><td><code>agent_id</code></td><td>string</td><td>✓</td><td>Identifier for the agent making the call (e.g. <code>"scraper-prod-1"</code>)</td></tr>
+      <tr><td><code>task_hash</code></td><td>string</td><td>✓</td><td>SHA-256 (or any hash) of the current task/input. Identical hashes trigger loop detection.</td></tr>
+      <tr><td><code>action</code></td><td>enum</td><td></td><td><code>tool_call</code> · <code>model_call</code> · <code>retry</code> · <code>override</code> · <code>plan_execute</code>. Default: <code>tool_call</code></td></tr>
+      <tr><td><code>step_hash</code></td><td>string</td><td></td><td>Optional sub-step hash for finer loop granularity.</td></tr>
+    </table>
+
+    <h3>Response (200 — allowed)</h3>
+    <table>
+      <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+      <tr><td><code>allowed</code></td><td>boolean</td><td>Always <code>true</code> on 200</td></tr>
+      <tr><td><code>zone</code></td><td><code>"safe"</code> | <code>"gray"</code></td><td>Loop detection zone. <code>gray</code> means AI reviewed and approved.</td></tr>
+      <tr><td><code>iteration_count</code></td><td>number</td><td>Times this exact pattern was seen in the last 60 seconds.</td></tr>
+      <tr><td><code>proceed_token</code></td><td>string</td><td>Signed ES256 JWT — proof this check passed. Expires in 45s.</td></tr>
+      <tr><td><code>credits_remaining</code></td><td>number</td><td>Credits left in your workspace after this call.</td></tr>
+    </table>
+
+    <h3>Response (429 — blocked)</h3>
+    <table>
+      <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+      <tr><td><code>allowed</code></td><td>boolean</td><td>Always <code>false</code></td></tr>
+      <tr><td><code>zone</code></td><td><code>"storm"</code> | <code>"gray"</code></td><td>Why it was blocked</td></tr>
+      <tr><td><code>iteration_count</code></td><td>number</td><td>How many identical requests triggered the block</td></tr>
+      <tr><td><code>error</code></td><td>string</td><td><code>loop_detected</code></td></tr>
+      <tr><td><code>reason</code></td><td>string</td><td>Human-readable explanation</td></tr>
+      <tr><td><code>hint</code></td><td>string</td><td>How to fix (vary task_hash, wait 60s)</td></tr>
+    </table>
+
+    <!-- POST /v1/check/batch -->
+    <h2 id="check-batch"><span class="method post">POST</span>/v1/check/batch</h2>
+    <p>Check multiple agent tasks in a single HTTP call. Useful when orchestrating many parallel agents. Returns an array of results in the same order as the input.</p>
+
+    <h3>Request body</h3>
+<pre>{
+  <span class="t">"checks"</span>: [
+    { <span class="t">"agent_id"</span>: <span class="y">"researcher"</span>, <span class="t">"task_hash"</span>: <span class="y">"abc123"</span>, <span class="t">"action"</span>: <span class="y">"model_call"</span> },
+    { <span class="t">"agent_id"</span>: <span class="y">"scraper"</span>,    <span class="t">"task_hash"</span>: <span class="y">"def456"</span>, <span class="t">"action"</span>: <span class="y">"tool_call"</span> }
+  ]
+}</pre>
+    <p>Maximum 50 checks per batch. Each check follows the same schema as <a href="#check">/v1/check</a>.</p>
+
+    <h3>Response (200)</h3>
+<pre>{
+  <span class="t">"ok"</span>: true,
+  <span class="t">"results"</span>: [
+    { <span class="t">"allowed"</span>: true,  <span class="t">"zone"</span>: <span class="y">"safe"</span>,  <span class="t">"iteration_count"</span>: 1, <span class="t">"proceed_token"</span>: <span class="y">"eyJ..."</span> },
+    { <span class="t">"allowed"</span>: false, <span class="t">"zone"</span>: <span class="y">"storm"</span>, <span class="t">"iteration_count"</span>: 12, <span class="t">"error"</span>: <span class="r">"loop_detected"</span> }
+  ],
+  <span class="t">"credits_remaining"</span>: 1990
+}</pre>
+
+    <!-- GET /v1/me -->
+    <h2 id="me"><span class="method get">GET</span>/v1/me</h2>
+    <p>Returns workspace info for the authenticated API key — plan, credits, features.</p>
+<pre>curl https://governor.proceedgate.dev/v1/me \
+  -H <span class="y">"Authorization: Bearer $PG_KEY"</span></pre>
+<pre>{
+  <span class="t">"ok"</span>: true,
+  <span class="t">"workspace_id"</span>: <span class="y">"free-abc123"</span>,
+  <span class="t">"plan"</span>: { <span class="t">"id"</span>: <span class="y">"free"</span>, <span class="t">"name"</span>: <span class="y">"Free"</span> },
+  <span class="t">"credits"</span>: { <span class="t">"remaining"</span>: 1997, <span class="t">"included"</span>: 2000 }
+}</pre>
+
+    <!-- GET /v1/me/stats -->
+    <h2 id="me-stats"><span class="method get">GET</span>/v1/me/stats</h2>
+    <p>Returns real-time governance stats for your workspace: decisions, storms blocked, cost saved, and a 60-minute storm chart.</p>
+<pre>{
+  <span class="t">"ok"</span>: true,
+  <span class="t">"workspace_id"</span>: <span class="y">"free-abc123"</span>,
+  <span class="t">"total_decisions"</span>: 42,
+  <span class="t">"storms_blocked"</span>: 3,
+  <span class="t">"cost_saved_usd"</span>: 0.15,
+  <span class="t">"decisions"</span>: [ <span class="d">/* last 50 */</span> ],
+  <span class="t">"storm_chart"</span>: [ <span class="d">/* 60 per-minute buckets */</span> ]
+}</pre>
+
+    <!-- GET /v1/billing/balance -->
+    <h2 id="balance"><span class="method get">GET</span>/v1/billing/balance</h2>
+    <p>Returns current credit balance and usage.</p>
+<pre>curl "https://governor.proceedgate.dev/v1/billing/balance?workspace_id=free-abc123" \
+  -H <span class="y">"Authorization: Bearer $PG_KEY"</span></pre>
+
+    <!-- PUT /v1/billing/budget -->
+    <h2 id="budget"><span class="method post">PUT</span>/v1/billing/budget</h2>
+    <p>Set daily, weekly, or monthly spend caps. When the cap is hit, <code>/v1/check</code> returns 402 and optionally fires a webhook.</p>
+<pre>curl -X PUT https://governor.proceedgate.dev/v1/billing/budget \
+  -H <span class="y">"Authorization: Bearer $PG_KEY"</span> \
+  -H <span class="y">"Content-Type: application/json"</span> \
+  -d <span class="g">'{ "workspace_id": "free-abc123", "daily": 100, "weekly": 500 }'</span></pre>
+
+    <!-- GET /health -->
+    <h2 id="health"><span class="method get">GET</span>/health</h2>
+    <p>Returns <code>200 OK</code> with API status and latency. Use for uptime monitoring.</p>
+<pre>curl https://governor.proceedgate.dev/health</pre>
+
+    <!-- Node.js integration -->
+    <h2 id="nodejs">Node.js Integration</h2>
+    <p>Set <code>PG_KEY</code> in your environment, then call <code>pgCheck()</code> before each agent action.</p>
+<pre><span class="d">// pgCheck.js</span>
+const PG_KEY = process.env.PG_KEY;
+const PG_URL = <span class="y">'https://governor.proceedgate.dev/v1/check'</span>;
+
+<span class="t">export async function</span> <span class="g">pgCheck</span>(agentId, taskHash, action = <span class="y">'tool_call'</span>) {
+  const res = await fetch(PG_URL, {
+    method: <span class="y">'POST'</span>,
+    headers: { <span class="y">'Authorization'</span>: `Bearer ${PG_KEY}`, <span class="y">'Content-Type'</span>: <span class="y">'application/json'</span> },
+    body: JSON.stringify({ agent_id: agentId, task_hash: taskHash, action }),
+  });
+  const data = await res.json();
+  if (res.status === 429) throw new Error(`loop_detected: ${data.reason}`);
+  if (res.status === 402) throw new Error(<span class="y">'insufficient_credits'</span>);
+  if (!res.ok)            throw new Error(`pg_error: ${data.error}`);
+  return data; <span class="d">// { allowed, zone, proceed_token, credits_remaining }</span>
+}
+
+<span class="d">// Usage in Apify actor:</span>
+import { createHash } from <span class="y">'crypto'</span>;
+const sha256 = s => createHash(<span class="y">'sha256'</span>).update(s).digest(<span class="y">'hex'</span>);
+
+for (const url of urlQueue) {
+  await pgCheck(<span class="y">'apify-actor'</span>, sha256(url));
+  const html = await fetch(url).then(r => r.text());
+  await processPage(html);
+}</pre>
+
+    <!-- Python integration -->
+    <h2 id="python">Python Integration</h2>
+<pre><span class="d"># pg_check.py</span>
+import os, hashlib, httpx
+
+PG_KEY = os.environ[<span class="y">"PG_KEY"</span>]
+PG_URL = <span class="y">"https://governor.proceedgate.dev/v1/check"</span>
+
+<span class="t">def</span> <span class="g">pg_check</span>(agent_id: str, task_hash: str, action: str = <span class="y">"tool_call"</span>):
+    res = httpx.post(
+        PG_URL,
+        headers={<span class="y">"Authorization"</span>: f<span class="y">"Bearer {PG_KEY}"</span>, <span class="y">"Content-Type"</span>: <span class="y">"application/json"</span>},
+        json={<span class="y">"agent_id"</span>: agent_id, <span class="y">"task_hash"</span>: task_hash, <span class="y">"action"</span>: action},
+        timeout=10,
+    )
+    data = res.json()
+    if res.status_code == 429:
+        raise RuntimeError(f<span class="y">"loop_detected: {data.get('reason')}"</span>)
+    if res.status_code == 402:
+        raise RuntimeError(<span class="y">"insufficient_credits"</span>)
+    res.raise_for_status()
+    return data
+
+<span class="d"># Usage:</span>
+<span class="t">def</span> <span class="g">sha256</span>(s): return hashlib.sha256(s.encode()).hexdigest()
+
+for url in urls:
+    pg_check(<span class="y">"scraper"</span>, sha256(url))
+    html = httpx.get(url).text</pre>
+
+    <!-- Error codes -->
+    <h2 id="errors">Error Codes</h2>
+    <table>
+      <tr><th>HTTP</th><th>error</th><th>Meaning</th><th>Fix</th></tr>
+      <tr><td><span class="status err">400</span></td><td><code>invalid_request</code></td><td>Missing or invalid body field</td><td>Check <code>agent_id</code> and <code>task_hash</code> are present</td></tr>
+      <tr><td><span class="status err">401</span></td><td><code>missing_authorization</code></td><td>No Bearer token in header</td><td>Add <code>Authorization: Bearer pg_ws_...</code></td></tr>
+      <tr><td><span class="status err">401</span></td><td><code>invalid_api_key_format</code></td><td>Key doesn't start with <code>pg_ws_</code></td><td>Use the key from your dashboard</td></tr>
+      <tr><td><span class="status err">402</span></td><td><code>insufficient_credits</code></td><td>Workspace out of credits</td><td>Top up at <a href="pay.html">proceedgate.dev/pay.html</a></td></tr>
+      <tr><td><span class="status err">404</span></td><td><code>workspace_not_found</code></td><td>API key not linked to a workspace</td><td>Re-generate your key from the dashboard</td></tr>
+      <tr><td><span class="status warn">429</span></td><td><code>loop_detected</code></td><td>Retry storm detected</td><td>Vary <code>task_hash</code> between tasks; wait 60s to reset</td></tr>
+      <tr><td><span class="status err">500</span></td><td><code>internal_error</code></td><td>Server error</td><td>Retry with exponential backoff; check <a href="status.html">status page</a></td></tr>
+    </table>
+
+    <div class="alert warn">
+      On <strong>429</strong>, do <em>not</em> retry immediately — that will just extend the block. Use a different <code>task_hash</code> for genuinely new work, or wait 60 seconds for the window to reset.
+    </div>
+
+  </main>
+</div>
+
+</body>
+</html>
