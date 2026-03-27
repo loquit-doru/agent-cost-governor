@@ -80,6 +80,15 @@ export type Env = {
   // Dev-only escape hatch
   ALLOW_STUB_TX?: string;
 
+  // MPP (Machine Payments Protocol) — Tempo method
+  MPP_SECRET_KEY?: string;
+  TREASURY_WALLET_ADDRESS?: string;
+  TEMPO_CURRENCY_ADDRESS?: string;
+  TEMPO_TESTNET?: string; // "true" | "false"
+
+  // MPP cost ledger
+  COST_LEDGER: DurableObjectNamespace;
+
   // Cross-workspace intelligence (D1 analytics)
   ANALYTICS_D1?: {
     prepare(query: string): { bind(...values: unknown[]): { first<T = unknown>(colName?: string): Promise<T | null>; run(): Promise<unknown>; all<T = unknown>(): Promise<{ results: T[]; success: boolean }>; }; };
@@ -118,3 +127,24 @@ export type BillingMode = 'off' | 'credits';
 
 /** Governance enforcement mode per workspace */
 export type GovernanceMode = 'enforce' | 'log_only';
+
+// ---------------------------------------------------------------------------
+// MPP types
+// ---------------------------------------------------------------------------
+
+export interface CostEntry {
+  agentId: string;
+  amount: string;           // USD string, e.g. "0.005"
+  operationType: string;
+  iterationCount: number;
+  timestamp: number;        // Unix ms
+  receiptHash?: string;
+}
+
+export interface CostSummary {
+  agentId: string;
+  totalUsd: number;
+  requestCount: number;
+  lastActivity: number;     // Unix ms of most recent entry
+  breakdown: Record<string, number>; // operationType → cumulative USD
+}

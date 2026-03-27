@@ -15,6 +15,7 @@
   "dependencies": {
     "hono": "^4.6.12",
     "jose": "^5.10.0",
+    "mppx": "^0.4.10",
     "zod": "^3.24.1"
   },
   "devDependencies": {

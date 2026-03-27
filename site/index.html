@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ProceedGate — Cost Control for AI Agents</title>
-  <meta name="description" content="Stop runaway AI agents from draining your budget. ProceedGate blocks retry storms, enforces per-agent budgets, and saves teams an average of $847/week.">
+  <meta name="description" content="Stop runaway AI agents from draining your budget. ProceedGate blocks retry storms, enforces per-agent budgets, and tracks every payment with a verifiable audit trail. Now with MPP native payments.">
   <meta name="theme-color" content="#0f172a">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
 
@@ -49,7 +49,7 @@
 <header class="hero" id="main">
   <div class="badge" style="margin-bottom: var(--space-5)">
     <span class="status-dot"></span>
-    Protecting $2.4M+ in AI spend
+    Early Access · API Live · MPP payments enabled
   </div>
 
   <h1 class="hero__headline">
@@ -78,20 +78,20 @@
   <div class="container">
     <div class="stats-bar">
       <div class="stat-item">
-        <div class="stat-item__number">$847</div>
-        <div class="stat-item__label">avg. saved per week</div>
-      </div>
-      <div class="stat-item">
-        <div class="stat-item__number">12,400+</div>
-        <div class="stat-item__label">storms blocked</div>
+        <div class="stat-item__number">10/min</div>
+        <div class="stat-item__label">loop detection threshold</div>
       </div>
       <div class="stat-item">
         <div class="stat-item__number">&lt;50ms</div>
-        <div class="stat-item__label">check latency</div>
+        <div class="stat-item__label">check latency (p95)</div>
       </div>
       <div class="stat-item">
-        <div class="stat-item__number">99.9%</div>
-        <div class="stat-item__label">uptime SLA</div>
+        <div class="stat-item__number">3 lines</div>
+        <div class="stat-item__label">to integrate</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-item__number">Free</div>
+        <div class="stat-item__label">2,000 checks to start</div>
       </div>
     </div>
   </div>
@@ -168,12 +168,12 @@
       <div class="feature-card">
         <div class="feature-card__icon">🛡️</div>
         <h3 class="feature-card__title">Loop Detection</h3>
-        <p class="feature-card__desc">Blocks &gt;10 identical requests per minute automatically. Zero config needed.</p>
+        <p class="feature-card__desc">Blocks &gt;10 identical requests per minute automatically. Gray zone decisions via AI. Zero config needed.</p>
       </div>
       <div class="feature-card">
         <div class="feature-card__icon">💰</div>
         <h3 class="feature-card__title">Per-Agent Budgets</h3>
-        <p class="feature-card__desc">Hard spending caps per agent, per task, or per time window. Never exceed your limit.</p>
+        <p class="feature-card__desc">Hard spending caps per agent, per task, or per time window. Credits-based billing with onchain top-up.</p>
       </div>
       <div class="feature-card">
         <div class="feature-card__icon">⚡</div>
@@ -181,19 +181,34 @@
         <p class="feature-card__desc">Edge-deployed on Cloudflare Workers. Cost checks happen in under 50ms — your agents won't notice.</p>
       </div>
       <div class="feature-card">
-        <div class="feature-card__icon">📊</div>
-        <h3 class="feature-card__title">Real-Time Dashboard</h3>
-        <p class="feature-card__desc">See every agent's spend, blocked requests, and savings in one live dashboard.</p>
+        <div class="feature-card__icon">🔐</div>
+        <h3 class="feature-card__title">Proceed Tokens</h3>
+        <p class="feature-card__desc">Every approved action gets a signed ES256 token (TTL 45s) — cryptographic proof your agent was governed.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-card__icon">⛓️</div>
+        <h3 class="feature-card__title">MPP Payments</h3>
+        <p class="feature-card__desc">Native support for Machine Payments Protocol (Stripe + Tempo). Agents pay per-check via HTTP 402 — no wallet setup needed.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-card__icon">📒</div>
+        <h3 class="feature-card__title">CostLedger Audit Trail</h3>
+        <p class="feature-card__desc">Every payment recorded in a Durable Object ledger. Query spend history, totals, and breakdowns via <code>GET /costs/:agentId</code>.</p>
       </div>
       <div class="feature-card">
         <div class="feature-card__icon">🔔</div>
-        <h3 class="feature-card__title">Instant Alerts</h3>
-        <p class="feature-card__desc">Webhook notifications to Slack, Discord, or email when agents approach budget limits.</p>
+        <h3 class="feature-card__title">Webhook Alerts</h3>
+        <p class="feature-card__desc">Slack or Discord notifications the moment a loop is blocked or budget is hit. No more 3am surprises.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-card__icon">🧠</div>
+        <h3 class="feature-card__title">Agent Reputation</h3>
+        <p class="feature-card__desc">Agents accumulate a trust score (0–100). High-reputation agents get looser thresholds. Bad actors get tighter controls.</p>
       </div>
       <div class="feature-card">
         <div class="feature-card__icon">🔑</div>
         <h3 class="feature-card__title">API-First Design</h3>
-        <p class="feature-card__desc">REST API + Node SDK + MCP server. Works with any agent framework — LangChain, AutoGPT, custom.</p>
+        <p class="feature-card__desc">REST API + Node SDK + MCP server. Works with any agent framework — LangChain, AutoGPT, Apify, custom.</p>
       </div>
     </div>
   </div>
@@ -221,24 +236,22 @@
           <span class="code-block__tab active">agent.ts</span>
         </div>
         <div class="code-block__body">
-<pre><code><span class="kw">import</span> { <span class="fn">CostGovernor</span> } <span class="kw">from</span> <span class="str">'@proceedgate/sdk'</span>;
+<pre><code><span class="kw">import</span> { <span class="fn">ProceedGate</span> } <span class="kw">from</span> <span class="str">'@proceedgate/sdk'</span>;
 
-<span class="kw">const</span> governor = <span class="kw">new</span> <span class="fn">CostGovernor</span>({
-  apiKey: process.env.<span class="fn">PROCEEDGATE_KEY</span>,
-  budget: <span class="num">50</span>,        <span class="cm">// $50 max per task</span>
-  alertAt: <span class="num">0.8</span>,     <span class="cm">// Alert at 80%</span>
+<span class="kw">const</span> gate = <span class="kw">new</span> <span class="fn">ProceedGate</span>({ apiKey: process.env.<span class="fn">PROCEEDGATE_KEY</span> });
+
+<span class="cm">// Before each agent action</span>
+<span class="kw">const</span> check = <span class="kw">await</span> gate.<span class="fn">check</span>({
+  user_id: <span class="str">'agent-1'</span>,
+  action: <span class="str">'web_search'</span>,
+  cost: <span class="num">1</span>,  <span class="cm">// 1 credit per call</span>
 });
 
-<span class="cm">// Wrap your agent's API calls</span>
-<span class="kw">const</span> result = <span class="kw">await</span> governor.<span class="fn">gate</span>({
-  agent: <span class="str">'scraper-v2'</span>,
-  action: <span class="str">'api_call'</span>,
-  cost: <span class="num">0.03</span>,
-});
-
-<span class="kw">if</span> (result.<span class="fn">blocked</span>) {
-  console.<span class="fn">log</span>(<span class="str">'Budget exceeded — storm blocked!'</span>);
-}</code></pre>
+<span class="kw">if</span> (!check.<span class="fn">allowed</span>) {
+  console.<span class="fn">log</span>(<span class="str">`🚫 Blocked: ${check.error}`</span>);
+  <span class="kw">return</span>;
+}
+<span class="cm">// Safe to proceed</span></code></pre>
         </div>
       </div>
     </div>
@@ -262,11 +275,11 @@
         <div class="pricing-card__desc">For solo developers &amp; side projects</div>
         <div class="pricing-card__price">$19<span>/mo</span></div>
         <ul class="pricing-card__features">
-          <li>3 agents</li>
-          <li>10K checks/month</li>
-          <li>Basic loop detection</li>
-          <li>Email alerts</li>
-          <li>7-day data retention</li>
+          <li>3 projects</li>
+          <li>25K checks/month</li>
+          <li>Loop detection</li>
+          <li>Proceed tokens</li>
+          <li>REST API + Node SDK</li>
         </ul>
         <a href="pay.html?plan=starter" class="btn btn--secondary" style="width:100%">Get Started</a>
       </div>
@@ -278,13 +291,13 @@
         <div class="pricing-card__desc">For teams running production agents</div>
         <div class="pricing-card__price">$49<span>/mo</span></div>
         <ul class="pricing-card__features">
-          <li>25 agents</li>
-          <li>100K checks/month</li>
-          <li>Advanced loop detection</li>
+          <li>5 projects</li>
+          <li>1M checks/month</li>
+          <li>Loop detection + AI gray zone</li>
           <li>Webhook alerts (Slack, Discord)</li>
-          <li>Real-time dashboard</li>
-          <li>30-day data retention</li>
-          <li>Priority support</li>
+          <li>Agent reputation scoring</li>
+          <li>MCP server access</li>
+          <li>Cost analytics</li>
         </ul>
         <a href="pay.html?plan=pro" class="btn btn--primary" style="width:100%">Start Free Trial</a>
       </div>
@@ -295,66 +308,35 @@
         <div class="pricing-card__desc">For high-volume agent operations</div>
         <div class="pricing-card__price">$99<span>/mo</span></div>
         <ul class="pricing-card__features">
-          <li>Unlimited agents</li>
-          <li>1M checks/month</li>
+          <li>25 projects</li>
+          <li>5M checks/month</li>
           <li>Custom detection rules</li>
           <li>Multi-channel alerts</li>
-          <li>Analytics &amp; reporting</li>
-          <li>90-day data retention</li>
-          <li>Dedicated support</li>
+          <li>Full analytics &amp; reporting</li>
+          <li>MPP onchain payments</li>
+          <li>CostLedger audit trail</li>
         </ul>
         <a href="pay.html?plan=scale" class="btn btn--secondary" style="width:100%">Get Started</a>
       </div>
     </div>
 
     <p class="enterprise-note">
-      Running 100+ agents? <a href="mailto:hello@proceedgate.dev">Contact us</a> for Enterprise pricing with custom SLAs, SSO, and on-prem options.
+      Running high-volume agents? <a href="mailto:hello@proceedgate.dev">Contact us</a> for custom limits and early access to new features.
     </p>
   </div>
 </section>
 
-<!-- ── Testimonials ────────────────────────────────────── -->
+<!-- ── Early Access Banner ──────────────────────────────── -->
 <section class="section fade-in" id="testimonials">
   <div class="container">
-    <h2 class="section__title">What Teams Are Saying</h2>
-    <p class="section__sub">
-      From solo scraping setups to enterprise agent fleets.
-    </p>
-
-    <div class="testimonial-grid">
-      <div class="testimonial">
-        <div class="testimonial__quote">
-          Woke up to a $340 SerpAPI bill from a retry storm. Installed ProceedGate that morning — hasn't happened since. Saved us $2K in the first month.</div>
-        <div class="testimonial__author">
-          <div class="testimonial__avatar"></div>
-          <div>
-            <div class="testimonial__name">Alex M.</div>
-            <div class="testimonial__role">Lead Engineer, ScrapeCo</div>
-          </div>
-        </div>
-      </div>
-      <div class="testimonial">
-        <div class="testimonial__quote">
-          We run 40+ Apify actors. Before ProceedGate, we had no way to enforce per-actor budgets. Now each actor has a hard cap and we get Slack alerts.</div>
-        <div class="testimonial__author">
-          <div class="testimonial__avatar"></div>
-          <div>
-            <div class="testimonial__name">Sarah K.</div>
-            <div class="testimonial__role">CTO, DataPipe</div>
-          </div>
-        </div>
-      </div>
-      <div class="testimonial">
-        <div class="testimonial__quote">
-          The SDK took 5 minutes to integrate. LOG_ONLY mode let us see exactly what it would block before going live. Very dev-friendly.</div>
-        <div class="testimonial__author">
-          <div class="testimonial__avatar"></div>
-          <div>
-            <div class="testimonial__name">Marcus R.</div>
-            <div class="testimonial__role">Senior Dev, AgentLabs</div>
-          </div>
-        </div>
-      </div>
+    <div style="background:var(--bg-secondary);border:1px solid var(--border-default);border-radius:var(--radius-lg);padding:var(--space-6) var(--space-7);text-align:center;max-width:640px;margin:0 auto;">
+      <div style="font-size:2rem;margin-bottom:var(--space-4);">🚀</div>
+      <h3 style="margin-bottom:var(--space-3);">Early Access — Be Among the First</h3>
+      <p style="color:var(--text-secondary);margin-bottom:var(--space-5);">
+        ProceedGate is live and open. Try it free — no credit card, no gatekeeping.
+        If you run AI agents and care about costs, this was built for you.
+      </p>
+      <a href="pay.html" class="btn btn--primary">Start Free Trial — 2,000 checks included</a>
     </div>
   </div>
 </section>
@@ -413,7 +395,7 @@
   <div class="container">
     <div class="cta-banner">
       <div class="cta-banner__title">Stop the Next Retry Storm Before It Starts</div>
-      <p class="cta-banner__sub">Join teams saving an average of $847/week on AI agent costs.</p>
+      <p class="cta-banner__sub">Free trial · No credit card · 2,000 checks included.</p>
       <a href="pay.html" class="btn btn--lg">Start Your Free Trial</a>
       <p class="cta-banner__note">14 days free · No credit card · Cancel anytime</p>
     </div>
@@ -445,7 +427,7 @@
         <h4>Developers</h4>
         <a href="https://governor.proceedgate.dev/docs" target="_blank" rel="noopener">API Docs</a>
         <a href="https://www.npmjs.com/package/@proceedgate/sdk" target="_blank" rel="noopener">npm Package</a>
-        <a href="https://github.com/anthropic-claude/agent-cost-governor" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://github.com/loquit-doru/agent-cost-governor" target="_blank" rel="noopener">GitHub</a>
         <a href="dashboard.html">Dashboard</a>
       </div>
       <div class="footer__col">
@@ -462,7 +444,7 @@
     </div>
 
     <div class="footer__bottom">
-      <span>&copy; 2025 ProceedGate. All rights reserved.</span>
+      <span>&copy; 2026 ProceedGate. All rights reserved.</span>
       <div class="footer__social">
         <a href="https://github.com/anthropic-claude/agent-cost-governor" target="_blank" rel="noopener" aria-label="GitHub">GitHub</a>
         <a href="https://x.com/proceedgate" target="_blank" rel="noopener" aria-label="X / Twitter">X</a>
