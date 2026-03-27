@@ -2069,4 +2069,54 @@ subscribeRoutes.get('/v1/me', async (c) => {
   }, 200);
 });
 
+// ============================================================================
+// /v1/me/stats - Real workspace stats (authenticated)
+// ============================================================================
+subscribeRoutes.get('/v1/me/stats', async (c) => {
+  const authHeader = c.req.header('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return c.json({ ok: false, error: 'missing_authorization' }, 401);
+  }
+  const apiKey = authHeader.slice(7).trim();
+  if (!apiKey.startsWith('pg_ws_')) {
+    return c.json({ ok: false, error: 'invalid_api_key_format' }, 401);
+  }
+
+  const apiKeyHash = await hashApiKey(apiKey);
+  const stub = getBillingStub(c.env);
+
+  const lookupRes = await stub.fetch(doUrl('/keys/lookup'), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ api_key_hash: apiKeyHash }),
+  });
+  if (!lookupRes.ok) {
+    return c.json({ ok: false, error: 'workspace_not_found' }, 404);
+  }
+  const { workspace_id: workspaceId } = await lookupRes.json() as { workspace_id: string };
+
+  const [statsRes, logRes, stormRes] = await Promise.all([
+    stub.fetch(doUrl(`/workspaces/${workspaceId}/stats`)),
+    stub.fetch(doUrl(`/workspaces/${workspaceId}/decision-log?limit=50`)),
+    stub.fetch(doUrl(`/workspaces/${workspaceId}/storm-chart`)),
+  ]);
+
+  const stats = await statsRes.json() as Record<string, unknown>;
+  const log = logRes.ok ? await logRes.json() as { decisions: unknown[]; total_count: number } : { decisions: [], total_count: 0 };
+  const storm = stormRes.ok ? await stormRes.json() as { buckets: unknown[] } : { buckets: [] };
+
+  return c.json({
+    ok: true,
+    workspace_id: workspaceId,
+    total_decisions: log.total_count,
+    storms_blocked: (stats as { blocked_requests?: number }).blocked_requests ?? 0,
+    cost_saved_usd: (stats as { cost_saved_usd?: number }).cost_saved_usd ?? 0,
+    blocked_by_reason: (stats as { blocked_by_reason?: Record<string, number> }).blocked_by_reason ?? {},
+    last_blocked_at: (stats as { last_blocked_at?: string }).last_blocked_at ?? null,
+    decisions: log.decisions,
+    storm_chart: storm.buckets,
+    data_source: 'real-time workspace data',
+  });
+});
+
 export { subscribeRoutes };

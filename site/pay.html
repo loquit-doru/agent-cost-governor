@@ -1144,6 +1144,10 @@
             throw new Error(data.error || data.message || 'Something went wrong');
           }
 
+          // Save API key for dashboard
+          if (data.api_key) localStorage.setItem('pg_api_key', data.api_key);
+          if (data.workspace_id) localStorage.setItem('pg_workspace_id', data.workspace_id);
+
           // Jump straight to Done step, show API key
           document.querySelectorAll('.pay-section').forEach(s => s.classList.remove('active'));
           document.querySelectorAll('.pay-step').forEach(s => { s.classList.remove('active'); s.classList.add('done'); });

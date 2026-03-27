@@ -599,9 +599,32 @@
     // ─── Real Dashboard Data ──────────────────────────────────────────────────
     let dashboardData = null;
 
+    // Check if viewing a real workspace (sent from pay.html after signup)
+    const _urlParams = new URLSearchParams(location.search);
+    const _workspaceParam = _urlParams.get('workspace');
+    const _storedKey = localStorage.getItem('pg_api_key');
+    const _isRealWorkspace = !!(_workspaceParam && _storedKey);
+
+    if (_isRealWorkspace) {
+      // Show workspace badge in header
+      const badge = document.createElement('span');
+      badge.style.cssText = 'background:rgba(45,212,191,.12); color:#2dd4bf; font-size:12px; font-family:monospace; padding:3px 8px; border-radius:4px; margin-left:12px;';
+      badge.textContent = _workspaceParam;
+      const titleEl = document.querySelector('h1, .page-title, nav .logo') || document.querySelector('header');
+      if (titleEl) titleEl.appendChild(badge);
+    }
+
     async function fetchDashboardData() {
       try {
-        const res = await fetch(API_BASE + '/v1/demo/stats', { signal: AbortSignal.timeout(8000) });
+        let url = API_BASE + '/v1/demo/stats';
+        const fetchOpts = { signal: AbortSignal.timeout(8000), headers: {} as Record<string, string> };
+
+        if (_isRealWorkspace) {
+          url = API_BASE + '/v1/me/stats';
+          fetchOpts.headers['Authorization'] = `Bearer ${_storedKey}`;
+        }
+
+        const res = await fetch(url, fetchOpts);
         if (res.ok) {
           dashboardData = await res.json();
           renderDashboard(dashboardData);
@@ -619,9 +642,10 @@
       document.getElementById('onchainProofs').textContent = String(TX_DATA.length);
 
       // Update change labels with real context
+      const dataSourceLabel = _isRealWorkspace ? 'your workspace' : 'demo workspace';
       document.getElementById('decisionsChange').textContent = data.total_decisions > 0
-        ? '↑ Real decisions from DO storage'
-        : '— No decisions yet. Try the Live Test!';
+        ? `↑ Real decisions from ${dataSourceLabel}`
+        : '— No decisions yet. Make your first /v1/check call!';
       document.getElementById('savingsChange').textContent = data.cost_saved_usd > 0
         ? '↑ $' + data.cost_saved_usd.toFixed(2) + ' blocked from storms'
         : '— Trigger a storm to see savings';
