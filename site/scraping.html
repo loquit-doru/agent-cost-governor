@@ -279,28 +279,32 @@
     <div class="code-wrap">
       <div class="code-head">
         <span>apify-actor.ts</span>
-        <span>npm install proceed-gate</span>
+        <span>curl / fetch / any HTTP client</span>
       </div>
-      <pre><span class="ck">import</span> { createGovernor } <span class="ck">from</span> <span class="cs">'proceed-gate'</span>;
-<span class="ck">import</span> { Actor } <span class="ck">from</span> <span class="cs">'apify'</span>;
+      <pre><span class="cc">// Get your workspace_id from /v1/me after free signup</span>
+<span class="ck">const</span> PG_KEY = process.env.PG_KEY;
+<span class="ck">const</span> WORKSPACE = process.env.PG_WORKSPACE; <span class="cc">// e.g. "free-abc123"</span>
 
-<span class="ck">const</span> gate = <span class="cf">createGovernor</span>({ apiKey: process.env.PG_KEY });
+<span class="ck">async function</span> <span class="cf">pgCheck</span>(agentId: string, taskHash: string) {
+  <span class="ck">const</span> res = <span class="ck">await</span> <span class="cf">fetch</span>(<span class="cs">'https://governor.proceedgate.dev/v1/governor/check'</span>, {
+    method: <span class="cs">'POST'</span>,
+    headers: { <span class="cs">'Authorization'</span>: <span class="cs">`Bearer ${PG_KEY}`</span>, <span class="cs">'Content-Type'</span>: <span class="cs">'application/json'</span> },
+    body: <span class="cf">JSON.stringify</span>({
+      policy_id: <span class="cs">'retry_friction_v1'</span>,
+      action:    <span class="cs">'tool_call'</span>,
+      actor:     { id: agentId, project: WORKSPACE },
+      context:   { attempt_in_window: 1, task_hash: taskHash },
+    }),
+  });
+  <span class="ck">if</span> (res.status === 429) <span class="ck">throw new</span> <span class="cf">Error</span>(<span class="cs">'loop_detected'</span>);
+  <span class="ck">return</span> res.<span class="cf">json</span>(); <span class="cc">// { allowed, proceed_token, ... }</span>
+}
 
-Actor.<span class="cf">main</span>(<span class="ck">async</span> () => {
-  <span class="ck">const</span> { urls } = <span class="ck">await</span> Actor.<span class="cf">getInput</span>();
-
-  <span class="ck">for</span> (<span class="ck">const</span> url <span class="ck">of</span> urls) {
-    <span class="cc">// check before every fetch — throws if loop detected</span>
-    <span class="ck">await</span> gate.<span class="cf">check</span>({
-      agentId:  <span class="cs">'apify-scraper'</span>,
-      action:   <span class="cs">'http_request'</span>,
-      taskHash: <span class="cf">hash</span>(url),
-    });
-
-    <span class="ck">const</span> html = <span class="ck">await</span> <span class="cf">fetch</span>(url);
-    <span class="cc">// ... process</span>
-  }
-});</pre>
+<span class="cc">// inside your actor loop:</span>
+<span class="ck">for</span> (<span class="ck">const</span> url <span class="ck">of</span> urls) {
+  <span class="ck">await</span> <span class="cf">pgCheck</span>(<span class="cs">'apify-scraper'</span>, <span class="cf">sha256</span>(url)); <span class="cc">// throws on block</span>
+  <span class="ck">const</span> html = <span class="ck">await</span> <span class="cf">fetch</span>(url);
+}</pre>
     </div>
   </div>
 </section>

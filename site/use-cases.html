@@ -199,25 +199,27 @@
     <div class="code-demo-split">
       <div class="code-wrap">
         <div class="code-head"><span>llm-agent.ts</span></div>
-        <pre><span class="ck">import</span> { createGovernor } <span class="ck">from</span> <span class="cs">'proceed-gate'</span>;
-<span class="ck">import</span> OpenAI <span class="ck">from</span> <span class="cs">'openai'</span>;
+        <pre><span class="ck">const</span> PG_KEY  = process.env.PG_KEY;
+<span class="ck">const</span> PG_WS   = process.env.PG_WORKSPACE; <span class="cc">// from /v1/me</span>
 
-<span class="ck">const</span> gate = <span class="cf">createGovernor</span>({ apiKey: process.env.PG_KEY });
-<span class="ck">const</span> openai = <span class="ck">new</span> <span class="cf">OpenAI</span>();
-
-<span class="ck">async function</span> <span class="cf">reasoningStep</span>(prompt: string) {
-  <span class="cc">// gate before every LLM call</span>
-  <span class="ck">await</span> gate.<span class="cf">check</span>({
-    agentId:  <span class="cs">'reasoning-agent'</span>,
-    action:   <span class="cs">'model_call'</span>,
-    taskHash: <span class="cf">hash</span>(prompt),
+<span class="ck">async function</span> <span class="cf">pgCheck</span>(agentId: string, taskHash: string, attempt = 1) {
+  <span class="ck">const</span> res = <span class="ck">await</span> <span class="cf">fetch</span>(<span class="cs">'https://governor.proceedgate.dev/v1/governor/check'</span>, {
+    method: <span class="cs">'POST'</span>,
+    headers: { <span class="cs">'Authorization'</span>: <span class="cs">`Bearer ${PG_KEY}`</span>, <span class="cs">'Content-Type'</span>: <span class="cs">'application/json'</span> },
+    body: <span class="cf">JSON.stringify</span>({
+      policy_id: <span class="cs">'retry_friction_v1'</span>,
+      action:    <span class="cs">'model_call'</span>,
+      actor:     { id: agentId, project: PG_WS },
+      context:   { attempt_in_window: attempt, task_hash: taskHash },
+    }),
   });
+  <span class="ck">if</span> (!res.ok) <span class="ck">throw new</span> <span class="cf">Error</span>((await res.<span class="cf">json</span>()).error);
+  <span class="ck">return</span> res.<span class="cf">json</span>(); <span class="cc">// { allowed, proceed_token, zone, ... }</span>
+}
 
-  <span class="ck">return</span> openai.chat.completions.<span class="cf">create</span>({
-    model: <span class="cs">'gpt-4o'</span>,
-    messages: [{ role: <span class="cs">'user'</span>, content: prompt }],
-  });
-}</pre>
+<span class="cc">// before every GPT-4 call:</span>
+<span class="ck">const</span> gate = <span class="ck">await</span> <span class="cf">pgCheck</span>(<span class="cs">'reasoning-agent'</span>, <span class="cf">sha256</span>(prompt));
+<span class="ck">if</span> (!gate.allowed) <span class="ck">throw new</span> <span class="cf">Error</span>(<span class="cs">'loop_detected'</span>);</pre>
       </div>
 
       <div class="demo-panel">
@@ -263,19 +265,21 @@
     <div class="code-demo-split">
       <div class="code-wrap">
         <div class="code-head"><span>apify-actor.ts</span></div>
-        <pre><span class="ck">import</span> { createGovernor } <span class="ck">from</span> <span class="cs">'proceed-gate'</span>;
-<span class="ck">import</span> { Actor } <span class="ck">from</span> <span class="cs">'apify'</span>;
-
-<span class="ck">const</span> gate = <span class="cf">createGovernor</span>({ apiKey: process.env.PG_KEY });
+        <pre><span class="ck">const</span> PG_KEY = process.env.PG_KEY;
+<span class="ck">const</span> PG_WS  = process.env.PG_WORKSPACE;
 
 <span class="ck">for</span> (<span class="ck">const</span> url <span class="ck">of</span> urls) {
-  <span class="cc">// throws ProceedGateBlockedError if loop detected</span>
-  <span class="ck">await</span> gate.<span class="cf">check</span>({
-    agentId:  <span class="cs">'apify-scraper'</span>,
-    action:   <span class="cs">'http_request'</span>,
-    taskHash: <span class="cf">hash</span>(url),
+  <span class="ck">const</span> res = <span class="ck">await</span> <span class="cf">fetch</span>(<span class="cs">'https://governor.proceedgate.dev/v1/governor/check'</span>, {
+    method: <span class="cs">'POST'</span>,
+    headers: { <span class="cs">'Authorization'</span>: <span class="cs">`Bearer ${PG_KEY}`</span>, <span class="cs">'Content-Type'</span>: <span class="cs">'application/json'</span> },
+    body: <span class="cf">JSON.stringify</span>({
+      policy_id: <span class="cs">'retry_friction_v1'</span>,
+      action:    <span class="cs">'tool_call'</span>,
+      actor:     { id: <span class="cs">'apify-scraper'</span>, project: PG_WS },
+      context:   { attempt_in_window: 1, task_hash: <span class="cf">sha256</span>(url) },
+    }),
   });
-
+  <span class="ck">if</span> (res.status === 429) <span class="ck">throw new</span> <span class="cf">Error</span>(<span class="cs">'loop_detected'</span>);
   <span class="ck">const</span> html = <span class="ck">await</span> <span class="cf">fetch</span>(url);
 }</pre>
       </div>
@@ -323,19 +327,28 @@
     <div class="code-demo-split">
       <div class="code-wrap">
         <div class="code-head"><span>crew.ts</span></div>
-        <pre><span class="ck">import</span> { createGovernor } <span class="ck">from</span> <span class="cs">'proceed-gate'</span>;
+        <pre><span class="ck">const</span> PG_KEY = process.env.PG_KEY;
+<span class="ck">const</span> PG_WS  = process.env.PG_WORKSPACE; <span class="cc">// shared workspace for all agents</span>
 
-<span class="cc">// shared workspace, per-agent loop detection</span>
-<span class="ck">const</span> gate = <span class="cf">createGovernor</span>({
-  apiKey:      process.env.PG_KEY,
-  workspaceId: <span class="cs">'crew-pipeline-prod'</span>,
-});
+<span class="ck">async function</span> <span class="cf">check</span>(agentId: string, action: string, taskHash: string) {
+  <span class="ck">const</span> res = <span class="ck">await</span> <span class="cf">fetch</span>(<span class="cs">'https://governor.proceedgate.dev/v1/governor/check'</span>, {
+    method: <span class="cs">'POST'</span>,
+    headers: { <span class="cs">'Authorization'</span>: <span class="cs">`Bearer ${PG_KEY}`</span>, <span class="cs">'Content-Type'</span>: <span class="cs">'application/json'</span> },
+    body: <span class="cf">JSON.stringify</span>({
+      policy_id: <span class="cs">'retry_friction_v1'</span>,
+      action,
+      actor:   { id: agentId, project: PG_WS },
+      context: { attempt_in_window: 1, task_hash: taskHash },
+    }),
+  });
+  <span class="ck">if</span> (res.status === 429) <span class="ck">throw new</span> <span class="cf">Error</span>(<span class="cs">`${agentId}: loop_detected`</span>);
+  <span class="ck">return</span> res.<span class="cf">json</span>();
+}
 
-<span class="cc">// each agent passes its own id</span>
-<span class="ck">await</span> gate.<span class="cf">check</span>({ agentId: <span class="cs">'researcher'</span>, action: <span class="cs">'tool_call'</span>, taskHash: <span class="cf">hash</span>(query) });
-<span class="ck">await</span> gate.<span class="cf">check</span>({ agentId: <span class="cs">'analyst'</span>,    action: <span class="cs">'model_call'</span>, taskHash: <span class="cf">hash</span>(data) });
-<span class="ck">await</span> gate.<span class="cf">check</span>({ agentId: <span class="cs">'writer'</span>,     action: <span class="cs">'model_call'</span>, taskHash: <span class="cf">hash</span>(draft) });
-<span class="ck">await</span> gate.<span class="cf">check</span>({ agentId: <span class="cs">'reviewer'</span>,   action: <span class="cs">'model_call'</span>, taskHash: <span class="cf">hash</span>(review) });</pre>
+<span class="cc">// each agent checks independently, budget is shared</span>
+<span class="ck">await</span> <span class="cf">check</span>(<span class="cs">'researcher'</span>, <span class="cs">'tool_call'</span>,  <span class="cf">sha256</span>(query));
+<span class="ck">await</span> <span class="cf">check</span>(<span class="cs">'analyst'</span>,    <span class="cs">'model_call'</span>, <span class="cf">sha256</span>(data));
+<span class="ck">await</span> <span class="cf">check</span>(<span class="cs">'writer'</span>,     <span class="cs">'model_call'</span>, <span class="cf">sha256</span>(draft));</pre>
       </div>
 
       <div class="demo-panel">
@@ -487,7 +500,7 @@ async function testApi(useCase, action) {
     const ms   = Math.round(performance.now() - t0);
     const data = await res.json();
 
-    const isBlock = data.decision === 'block' || res.status === 429;
+    const isBlock = data.allowed === false || res.status === 429;
     resultEl.className = 'demo-result ' + (isBlock ? 'res-block' : 'res-allow');
     resultEl.textContent = JSON.stringify(data, null, 2);
     latencyEl.textContent = `${ms}ms · HTTP ${res.status}`;
