@@ -1,485 +1,502 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Use Cases — ProceedGate</title>
-  <meta name="description" content="ProceedGate protects any AI agent: LLM gateways, DeFi bots, scraping pipelines, multi-agent systems. See real demos.">
-  <meta name="theme-color" content="#0f172a">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
-  <link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ProceedGate — Use Cases</title>
+  <meta name="description" content="How ProceedGate works with LLM gateways, scraping pipelines, and multi-agent systems. Live API demos included." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%232dd4bf'/><path d='M10 16l4 4 8-8' stroke='%230f172a' stroke-width='2.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>" />
   <style>
-    /* Page-specific: use-case card layout (not in global system) */
-    .uc { background:var(--bg-secondary); border:1px solid var(--border-default); border-radius:var(--radius-lg); overflow:hidden; transition:border-color 0.3s,transform 0.2s; margin-bottom:var(--space-6); }
-    .uc:hover { border-color:rgba(45,212,191,0.3); transform:translateY(-2px); }
-    .uc__header { padding:var(--space-6) var(--space-6) 0; display:flex; gap:var(--space-4); align-items:flex-start; }
-    .uc__icon { width:56px; height:56px; border-radius:var(--radius-md); display:flex; align-items:center; justify-content:center; font-size:28px; flex-shrink:0; }
-    .uc__icon--llm { background:linear-gradient(135deg,rgba(124,58,237,0.2),transparent); border:1px solid rgba(124,58,237,0.3); }
-    .uc__icon--defi { background:linear-gradient(135deg,rgba(34,197,94,0.2),transparent); border:1px solid rgba(34,197,94,0.3); }
-    .uc__icon--scraping { background:linear-gradient(135deg,rgba(239,68,68,0.2),transparent); border:1px solid rgba(239,68,68,0.3); }
-    .uc__icon--multi { background:linear-gradient(135deg,rgba(59,130,246,0.2),transparent); border:1px solid rgba(59,130,246,0.3); }
-    .uc__icon--webhook { background:linear-gradient(135deg,rgba(234,179,8,0.2),transparent); border:1px solid rgba(234,179,8,0.3); }
-    .uc__title { font-size:1.25rem; font-weight:700; margin-bottom:4px; }
-    .uc__subtitle { font-size:0.875rem; color:var(--text-secondary); margin-bottom:var(--space-2); }
-    .uc__tags { display:flex; gap:8px; flex-wrap:wrap; }
-    .uc__body { padding:var(--space-5) var(--space-6) var(--space-6); }
-    .uc__grid { display:grid; grid-template-columns:1fr 1fr; gap:var(--space-5); }
-    .uc__scenario { padding:var(--space-4); background:rgba(255,255,255,0.03); border-radius:var(--radius-sm); border:1px solid var(--border-subtle); }
-    .uc__scenario h4 { font-size:0.8125rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:var(--space-2); }
-    .uc__scenario p { font-size:0.875rem; color:var(--text-secondary); line-height:1.7; margin:0; }
-    .uc__scenario .danger { color:var(--error); font-weight:600; }
-    .uc__scenario .success { color:var(--success); font-weight:600; }
-    .uc__footer { padding:0 var(--space-6) var(--space-5); display:flex; gap:var(--space-3); flex-wrap:wrap; }
-    .api-test { margin-top:var(--space-4); padding:var(--space-4); background:rgba(255,255,255,0.03); border-radius:var(--radius-sm); border:1px solid var(--border-subtle); }
-    .api-test h4 { font-size:0.8125rem; color:var(--color-teal); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:var(--space-2); }
-    .api-test__result { font-family:var(--font-mono); font-size:0.75rem; padding:10px; background:#000; border-radius:6px; color:var(--text-muted); min-height:40px; white-space:pre-wrap; word-break:break-all; }
-    .api-test button { margin-top:var(--space-2); }
-    @media(max-width:700px) { .uc__grid { grid-template-columns:1fr; } }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #09090b; --surface: #111113; --border: #1f1f23; --border-hi: #2a2a2f;
+      --tx: #fafafa; --tx-2: #a1a1aa; --tx-3: #52525b;
+      --teal: #2dd4bf; --teal-dim: rgba(45,212,191,0.10);
+      --red: #f87171; --green: #4ade80; --yellow: #fbbf24;
+      --r: 6px; --mono: 'SF Mono','Fira Code','Cascadia Code',Consolas,monospace;
+    }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--tx); font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif; font-size: 15px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+    a { color: inherit; text-decoration: none; }
+
+    nav { position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; height: 56px; border-bottom: 1px solid var(--border); background: rgba(9,9,11,0.85); backdrop-filter: blur(12px); }
+    .nav-logo { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 15px; letter-spacing: -0.01em; }
+    .nav-links { display: flex; align-items: center; gap: 4px; list-style: none; }
+    .nav-links a { padding: 6px 12px; border-radius: var(--r); font-size: 14px; color: var(--tx-2); transition: color 0.15s, background 0.15s; }
+    .nav-links a:hover { color: var(--tx); background: var(--surface); }
+    .nav-right { display: flex; align-items: center; gap: 8px; }
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: var(--r); font-size: 14px; font-weight: 500; cursor: pointer; border: none; transition: opacity 0.15s, background 0.15s, border-color 0.15s, color 0.15s; text-decoration: none; }
+    .btn-ghost { background: transparent; color: var(--tx-2); border: 1px solid var(--border); }
+    .btn-ghost:hover { color: var(--tx); border-color: var(--border-hi); }
+    .btn-primary { background: var(--teal); color: #09090b; font-weight: 600; }
+    .btn-primary:hover { opacity: 0.88; }
+    .btn-lg { padding: 10px 22px; font-size: 15px; }
+
+    .container { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+    .container-sm { max-width: 760px; margin: 0 auto; padding: 0 24px; }
+    section { padding: 80px 0; }
+    section + section { border-top: 1px solid var(--border); }
+
+    .label { font-size: 11.5px; font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.1em; color: var(--teal); margin-bottom: 12px; }
+    h1 { font-size: clamp(36px, 6vw, 58px); font-weight: 700; letter-spacing: -0.035em; line-height: 1.08; margin-bottom: 20px; }
+    h2 { font-size: clamp(22px, 3.5vw, 32px); font-weight: 700; letter-spacing: -0.025em; line-height: 1.14; margin-bottom: 14px; }
+    h3 { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; margin-bottom: 8px; }
+    .sub { font-size: 16px; color: var(--tx-2); max-width: 500px; line-height: 1.62; }
+
+    /* Hero */
+    #hero { padding: 80px 0 72px; text-align: center; position: relative; overflow: hidden; }
+    #hero::before { content: ''; position: absolute; top: -180px; left: 50%; transform: translateX(-50%); width: 600px; height: 600px; background: radial-gradient(circle, rgba(45,212,191,0.05) 0%, transparent 65%); pointer-events: none; }
+    .hero-sub { font-size: 17px; color: var(--tx-2); max-width: 480px; margin: 0 auto 40px; line-height: 1.58; }
+
+    /* Use case nav pills */
+    .uc-nav { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
+    .uc-pill { padding: 6px 16px; border: 1px solid var(--border); border-radius: 99px; font-size: 13px; font-family: var(--mono); color: var(--tx-2); cursor: pointer; transition: all 0.15s; background: transparent; }
+    .uc-pill:hover { color: var(--tx); border-color: var(--border-hi); }
+    .uc-pill.active { border-color: var(--teal); color: var(--teal); background: var(--teal-dim); }
+
+    /* Use case sections */
+    .uc-section { scroll-margin-top: 72px; }
+
+    .uc-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 36px; flex-wrap: wrap; }
+    .uc-header-left { flex: 1; min-width: 280px; }
+    .uc-tag { display: inline-flex; padding: 3px 10px; border: 1px solid var(--border); border-radius: 99px; font-size: 11px; font-family: var(--mono); color: var(--tx-3); margin-bottom: 14px; }
+
+    /* Problem / Solution grid */
+    .ps-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 28px; }
+    .ps-cell { background: var(--bg); padding: 24px 22px; }
+    .ps-label { font-size: 11px; font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px; }
+    .ps-label.problem { color: var(--red); }
+    .ps-label.solution { color: var(--green); }
+    .ps-cell p { font-size: 13.5px; color: var(--tx-2); line-height: 1.62; }
+
+    /* Code + demo split */
+    .code-demo-split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+
+    /* Code block */
+    .code-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+    .code-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: 12px; font-family: var(--mono); color: var(--tx-3); }
+    .code-wrap pre { padding: 18px 20px; font-family: var(--mono); font-size: 12.5px; line-height: 1.78; overflow-x: auto; }
+    .ck { color: #c084fc; } .cf { color: #60a5fa; } .cs { color: #86efac; } .cc { color: #3f3f46; }
+
+    /* Live demo panel */
+    .demo-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+    .demo-head { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .demo-head span { font-size: 12px; font-family: var(--mono); color: var(--tx-3); }
+    .demo-body { padding: 16px; }
+    .demo-btn { width: 100%; padding: 10px; background: var(--teal-dim); border: 1px solid rgba(45,212,191,0.25); border-radius: var(--r); color: var(--teal); font-size: 13px; font-family: var(--mono); cursor: pointer; margin-bottom: 14px; transition: background 0.15s; }
+    .demo-btn:hover { background: rgba(45,212,191,0.18); }
+    .demo-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .demo-counter { font-size: 11px; font-family: var(--mono); color: var(--tx-3); margin-bottom: 12px; text-align: center; }
+    .demo-result { font-family: var(--mono); font-size: 12px; line-height: 1.65; color: var(--tx-2); min-height: 100px; white-space: pre-wrap; }
+    .demo-latency { font-size: 11px; font-family: var(--mono); color: var(--tx-3); margin-top: 10px; }
+
+    /* Result colors */
+    .res-allow { color: var(--teal); }
+    .res-block { color: var(--red); }
+
+    /* Feature matrix */
+    .matrix { width: 100%; border-collapse: collapse; margin-top: 40px; font-size: 13.5px; }
+    .matrix th { padding: 11px 16px; text-align: left; font-size: 11px; font-family: var(--mono); color: var(--tx-3); text-transform: uppercase; letter-spacing: 0.08em; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    .matrix th:not(:first-child) { text-align: center; }
+    .matrix td { padding: 12px 16px; border-bottom: 1px solid var(--border); color: var(--tx-2); }
+    .matrix td:not(:first-child) { text-align: center; }
+    .matrix tr:last-child td { border-bottom: none; }
+    .matrix tr:hover td { background: rgba(255,255,255,0.015); }
+    .yes { color: var(--green); font-family: var(--mono); }
+    .no  { color: var(--tx-3); font-family: var(--mono); }
+    .col-h { color: var(--tx); font-weight: 600; }
+
+    /* CTA */
+    .cta-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 48px 40px; text-align: center; }
+    .cta-box h2 { margin-bottom: 12px; }
+    .cta-box p { color: var(--tx-2); margin-bottom: 28px; font-size: 15px; }
+
+    /* Footer */
+    footer { border-top: 1px solid var(--border); padding: 36px 0; }
+    .foot { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+    .foot-logo { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; }
+    .foot-links { display: flex; gap: 20px; list-style: none; }
+    .foot-links a { font-size: 13px; color: var(--tx-3); transition: color 0.15s; }
+    .foot-links a:hover { color: var(--tx-2); }
+    .foot-copy { font-size: 12.5px; color: var(--tx-3); }
+
+    .mono { font-family: var(--mono); font-size: 12px; color: var(--teal); background: var(--teal-dim); padding: 1px 5px; border-radius: 3px; }
+
+    @media (max-width: 768px) {
+      nav { padding: 0 16px; }
+      .nav-links { display: none; }
+      .container, .container-sm { padding: 0 16px; }
+      #hero { padding: 56px 0 48px; }
+      h1 { font-size: 32px; }
+      .ps-grid, .code-demo-split { grid-template-columns: 1fr; }
+      section { padding: 56px 0; }
+      .cta-box { padding: 32px 20px; }
+    }
   </style>
 </head>
 <body>
 
-<a class="skip-link" href="#main">Skip to content</a>
-
-<!-- ── Navbar ──────────────────────────────────────────── -->
-<nav class="navbar" role="navigation" aria-label="Main navigation">
-  <div class="container navbar__inner">
-    <a href="/" class="navbar__brand">
-      <span class="navbar__mark" aria-hidden="true"></span>
-      ProceedGate
-    </a>
-
-    <button class="navbar__toggle" aria-label="Open menu" aria-expanded="false" onclick="this.classList.toggle('open');document.getElementById('navLinks').classList.toggle('open');this.setAttribute('aria-expanded',this.classList.contains('open'))">
-      <span></span><span></span><span></span>
-    </button>
-
-    <div class="navbar__links" id="navLinks">
-      <a href="index.html">Home</a>
-      <a href="index.html#pricing">Pricing</a>
-      <a href="scraping.html">Scraping</a>
-      <a href="https://governor.proceedgate.dev/docs" target="_blank" rel="noopener">Docs</a>
-      <span class="navbar__sep" aria-hidden="true"></span>
-      <a href="dashboard.html">Dashboard</a>
-      <a href="pay.html" class="btn btn--primary btn--sm">Get Started</a>
-    </div>
+<nav>
+  <a href="/" class="nav-logo">
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+      <rect width="20" height="20" rx="5" fill="#2dd4bf"/>
+      <path d="M6 10l3 3 5-6" stroke="#09090b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    ProceedGate
+  </a>
+  <ul class="nav-links">
+    <li><a href="/">Home</a></li>
+    <li><a href="#llm">LLM Gateway</a></li>
+    <li><a href="#scraping">Scraping</a></li>
+    <li><a href="#multiagent">Multi-agent</a></li>
+    <li><a href="scraping.html">Scraping guide</a></li>
+  </ul>
+  <div class="nav-right">
+    <a href="dashboard.html" class="btn btn-ghost">Dashboard</a>
+    <a href="pay.html" class="btn btn-primary">Get started</a>
   </div>
 </nav>
 
-<!-- ── Hero ────────────────────────────────────────────── -->
-<header class="hero" id="main" style="min-height:auto;padding:var(--space-9) 0 var(--space-7);">
-  <h1 class="hero__headline">One API. <span class="text-gradient">Any Agent.</span></h1>
-  <p class="hero__sub">
-    ProceedGate protects autonomous AI operations — from LLM calls to DeFi swaps to scraping pipelines. Here are the use cases.
-  </p>
-
-  <div class="stats-bar" style="margin-top:var(--space-5);">
-    <div class="stat-item">
-      <div class="stat-item__number">5</div>
-      <div class="stat-item__label">use cases</div>
-    </div>
-    <div class="stat-item">
-      <div class="stat-item__number">4</div>
-      <div class="stat-item__label">live demos</div>
-    </div>
-    <div class="stat-item">
-      <div class="stat-item__number">&infin;</div>
-      <div class="stat-item__label">agent types</div>
+<!-- Hero -->
+<section id="hero">
+  <div class="container-sm">
+    <p class="label">Use cases</p>
+    <h1>One API.<br/>Any agent.</h1>
+    <p class="hero-sub">
+      Three real scenarios where ProceedGate stops runaway behavior.
+      Each demo below calls the live API — click 10+ times to trigger storm detection.
+    </p>
+    <div class="uc-nav">
+      <a href="#llm"        class="uc-pill">LLM Gateway</a>
+      <a href="#scraping"   class="uc-pill">Scraping Pipeline</a>
+      <a href="#multiagent" class="uc-pill">Multi-Agent</a>
     </div>
   </div>
-</header>
+</section>
 
-<!-- ── Use Cases ───────────────────────────────────────── -->
-<main style="max-width:1100px;margin:0 auto;padding:0 24px var(--space-8);">
-
-  <!-- ═══ LLM Gateway ═══ -->
-  <div class="uc fade-in" id="llm">
-    <div class="uc__header">
-      <div class="uc__icon uc__icon--llm">&#x1F9E0;</div>
-      <div>
-        <div class="uc__title">LLM API Gateway</div>
-        <div class="uc__subtitle">Gate every GPT-4 / Claude / Gemini call through cost governance</div>
-        <div class="uc__tags">
-          <span class="tag tag--popular">Most Common</span>
-          <span class="badge" style="background:rgba(239,68,68,0.15);color:var(--error);border-color:rgba(239,68,68,0.2)">Hot</span>
-        </div>
-      </div>
-    </div>
-    <div class="uc__body">
-      <div class="uc__grid">
-        <div class="uc__scenario">
-          <h4>The Problem</h4>
-          <p>Your coding assistant processes tickets using GPT-4 ($0.03/1K tokens). A <span class="danger">buggy ticket causes infinite reasoning</span> — the agent retries 15+ times. <span class="danger">$45+ burned in 3 minutes.</span></p>
-        </div>
-        <div class="uc__scenario">
-          <h4>With ProceedGate</h4>
-          <p>Each LLM call goes through <code>gate.check()</code>. After 10 identical calls in 60s, <span class="success">loop detection triggers &rarr; 429 BLOCKED</span>. Agent is stopped. <span class="success">$35+ saved.</span></p>
-        </div>
-      </div>
-      <div class="code-block" style="margin-top:var(--space-4);">
-        <div class="code-block__body">
-<pre><code><span class="cm">// Gate every LLM call</span>
-<span class="kw">const</span> decision = <span class="kw">await</span> <span class="fn">gate.check</span>({
-  action: <span class="str">'openai.gpt4.completion'</span>,
-  context: {
-    model: <span class="str">'gpt-4-turbo'</span>,
-    estimated_tokens: <span class="num">2500</span>,
-    estimated_cost_usd: <span class="num">0.075</span>,
-  }
-});
-
-<span class="kw">if</span> (decision.status === <span class="num">200</span>) {
-  <span class="kw">await</span> openai.chat.completions.<span class="fn">create</span>({...});
-} <span class="kw">else if</span> (decision.status === <span class="num">429</span>) {
-  <span class="cm">// Storm detected — ProceedGate blocked the loop</span>
-  log.<span class="fn">error</span>(<span class="str">'Agent loop detected, stopping'</span>);
-}</code></pre>
-        </div>
-      </div>
-      <div class="api-test">
-        <h4>Try it live — Hit the real API</h4>
-        <div class="api-test__result" id="llmTestResult">Click "Test API" to call the live ProceedGate API. Click 10+ times rapidly to trigger storm detection!</div>
-        <button class="btn btn--primary btn--sm" onclick="testApi('llm','model_call')">Test API &rarr;</button>
-      </div>
-    </div>
-    <div class="uc__footer">
-      <a href="https://github.com/loquit-doru/agent-cost-governor/blob/main/scripts/demo-llm-gateway.mjs" class="btn btn--sm" target="_blank" rel="noopener">View Demo Script &nearr;</a>
-    </div>
-  </div>
-
-  <!-- ═══ DeFi Bot ═══ -->
-  <div class="uc fade-in" id="defi">
-    <div class="uc__header">
-      <div class="uc__icon uc__icon--defi">&#x1F4B9;</div>
-      <div>
-        <div class="uc__title">DeFi Trading Bot</div>
-        <div class="uc__subtitle">Prevent panic-selling during flash crashes with per-swap cost gates</div>
-        <div class="uc__tags">
-          <span class="tag tag--new">On-Chain</span>
-        </div>
-      </div>
-    </div>
-    <div class="uc__body">
-      <div class="uc__grid">
-        <div class="uc__scenario">
-          <h4>The Problem</h4>
-          <p>BNB drops 15% in 30 seconds. Your arb bot <span class="danger">panic-executes 20 swaps</span> at escalating gas prices, losing <span class="danger">$200+ in gas + slippage.</span></p>
-        </div>
-        <div class="uc__scenario">
-          <h4>With ProceedGate</h4>
-          <p>When 10+ identical pair swaps fire in 60s, <span class="success">storm detection kicks in &rarr; 429 BLOCKED</span>. Bot is paused. <span class="success">Gas + slippage saved.</span></p>
-        </div>
-      </div>
-      <div class="code-block" style="margin-top:var(--space-4);">
-        <div class="code-block__body">
-<pre><code><span class="cm">// Gate every DEX swap</span>
-<span class="kw">const</span> decision = <span class="kw">await</span> <span class="fn">gate.check</span>({
-  action: <span class="str">'defi.pancakeswap.swap'</span>,
-  context: {
-    pair: <span class="str">'BNB/USDT'</span>,
-    amount_usd: <span class="num">5000</span>,
-    gas_estimate_usd: <span class="num">2.50</span>,
-    spread_percent: <span class="num">-8.0</span>  <span class="cm">// negative = losing trade</span>
-  }
-});
-<span class="cm">// 429 → Bot stops and waits for market to stabilize</span></code></pre>
-        </div>
-      </div>
-      <div class="api-test">
-        <h4>Try it live</h4>
-        <div class="api-test__result" id="defiTestResult">Click "Test API" to simulate a DeFi swap check</div>
-        <button class="btn btn--primary btn--sm" onclick="testApi('defi','tool_call')">Test API &rarr;</button>
-      </div>
-    </div>
-    <div class="uc__footer">
-      <a href="https://github.com/loquit-doru/agent-cost-governor/blob/main/scripts/demo-defi-bot.mjs" class="btn btn--sm" target="_blank" rel="noopener">View Demo Script &nearr;</a>
-    </div>
-  </div>
-
-  <!-- ═══ Scraping Pipeline ═══ -->
-  <div class="uc fade-in" id="scraping">
-    <div class="uc__header">
-      <div class="uc__icon uc__icon--scraping">&#x1F577;&#xFE0F;</div>
-      <div>
-        <div class="uc__title">Scraping Pipeline</div>
-        <div class="uc__subtitle">Stop Apify / SerpAPI / Firecrawl from burning credits on retry storms</div>
-        <div class="uc__tags">
-          <span class="tag tag--popular">Popular</span>
-        </div>
-      </div>
-    </div>
-    <div class="uc__body">
-      <div class="uc__grid">
-        <div class="uc__scenario">
-          <h4>The Problem</h4>
-          <p>CryptoScraper hits a 403 error. Built-in retry logic <span class="danger">hammers the API 50 times</span> before backoff kicks in. <span class="danger">$0.001/req &times; 50 req &times; 100 tasks = unexpected bill.</span></p>
-        </div>
-        <div class="uc__scenario">
-          <h4>With ProceedGate</h4>
-          <p>Detects &gt;10 identical requests/minute. <span class="success">Storm blocked after call #10</span>. Agent gets a 429 + reason, logs it, and moves on. <span class="success">90% of wasted calls prevented.</span></p>
-        </div>
-      </div>
-      <div class="code-block" style="margin-top:var(--space-4);">
-        <div class="code-block__body">
-<pre><code><span class="cm">// Gate every scraping request</span>
-<span class="kw">const</span> decision = <span class="kw">await</span> <span class="fn">gate.check</span>({
-  action: <span class="str">'scraper.coinmarketcap.fetch'</span>,
-  context: {
-    url: <span class="str">'https://api.coinmarketcap.com/v2/...'</span>,
-    estimated_cost_usd: <span class="num">0.001</span>,
-    retry_count: <span class="num">12</span>  <span class="cm">// ProceedGate sees this climbing</span>
-  }
-});</code></pre>
-        </div>
-      </div>
-      <div class="api-test">
-        <h4>Try it live</h4>
-        <div class="api-test__result" id="scrapingTestResult">Click "Test API" to simulate a scraping check</div>
-        <button class="btn btn--primary btn--sm" onclick="testApi('scraping','tool_call')">Test API &rarr;</button>
-      </div>
-    </div>
-    <div class="uc__footer">
-      <a href="scraping.html" class="btn btn--primary btn--sm">Scraping Deep Dive &rarr;</a>
-      <a href="https://github.com/loquit-doru/agent-cost-governor/blob/main/scripts/demo-agent.mjs" class="btn btn--sm" target="_blank" rel="noopener">View CryptoScraper &nearr;</a>
-    </div>
-  </div>
-
-  <!-- ═══ Multi-Agent ═══ -->
-  <div class="uc fade-in" id="multi-agent">
-    <div class="uc__header">
-      <div class="uc__icon uc__icon--multi">&#x1F3ED;</div>
-      <div>
-        <div class="uc__title">Multi-Agent Pipeline</div>
-        <div class="uc__subtitle">Gate CrewAI / AutoGen / LangGraph pipelines with shared budget</div>
-        <div class="uc__tags">
-          <span class="tag tag--new">New</span>
-        </div>
-      </div>
-    </div>
-    <div class="uc__body">
-      <div class="uc__grid">
-        <div class="uc__scenario">
-          <h4>The Problem</h4>
-          <p>4-agent pipeline: Researcher &rarr; Analyst &rarr; Writer &rarr; Reviewer. Researcher enters a <span class="danger">disambiguation loop</span>, searching repeatedly. <span class="danger">SerpAPI credits drain.</span></p>
-        </div>
-        <div class="uc__scenario">
-          <h4>With ProceedGate</h4>
-          <p>All 4 agents share <span class="success">one workspace = one budget = one storm detector</span>. When Researcher loops, ProceedGate blocks it without affecting others. <span class="success">Pipeline continues.</span></p>
-        </div>
-      </div>
-      <div class="code-block" style="margin-top:var(--space-4);">
-        <div class="code-block__body">
-<pre><code><span class="cm">// All agents share one workspace</span>
-<span class="kw">const</span> gate = <span class="fn">createGate</span>({ workspaceId: <span class="str">'ws_research_pipeline'</span> });
-
-<span class="cm">// Each agent identifies itself</span>
-<span class="kw">await</span> <span class="fn">gate.check</span>({
-  action: <span class="str">'serpapi.search'</span>,
-  context: {
-    agent: <span class="str">'researcher'</span>,
-    query: <span class="str">'AI agent cost overruns 2025'</span>,
-    pipeline: <span class="str">'research_report'</span>
-  }
-});</code></pre>
-        </div>
-      </div>
-      <div class="api-test">
-        <h4>Try it live</h4>
-        <div class="api-test__result" id="multiTestResult">Click "Test API" to simulate a multi-agent check</div>
-        <button class="btn btn--primary btn--sm" onclick="testApi('multi','tool_call')">Test API &rarr;</button>
-      </div>
-    </div>
-    <div class="uc__footer">
-      <a href="https://github.com/loquit-doru/agent-cost-governor/blob/main/scripts/demo-multi-agent.mjs" class="btn btn--sm" target="_blank" rel="noopener">View Demo Script &nearr;</a>
-    </div>
-  </div>
-
-  <!-- ═══ Webhooks ═══ -->
-  <div class="uc fade-in" id="webhooks">
-    <div class="uc__header">
-      <div class="uc__icon uc__icon--webhook">&#x26A1;</div>
-      <div>
-        <div class="uc__title">Webhook &amp; Automation Pipelines</div>
-        <div class="uc__subtitle">Gate Zapier / n8n / Make workflows that trigger paid APIs</div>
-        <div class="uc__tags">
-          <span class="badge">Coming Soon</span>
-        </div>
-      </div>
-    </div>
-    <div class="uc__body">
-      <div class="uc__grid">
-        <div class="uc__scenario">
-          <h4>The Problem</h4>
-          <p>A Zapier zap triggers on form submission &rarr; GPT-4 &rarr; Twilio SMS. A bot <span class="danger">spams your form 500 times</span>. <span class="danger">500 GPT-4 calls + 500 SMS = $200+ surprise.</span></p>
-        </div>
-        <div class="uc__scenario">
-          <h4>With ProceedGate</h4>
-          <p>Add a ProceedGate webhook step before expensive actions. <span class="success">Rate limiting + loop detection per source</span>. Bot spam blocked after 10 identical triggers. <span class="success">$190+ saved.</span></p>
-        </div>
-      </div>
-      <div class="code-block" style="margin-top:var(--space-4);">
-        <div class="code-block__body">
-<pre><code><span class="cm">// n8n webhook → ProceedGate → GPT-4 → Twilio</span>
-<span class="cm">// HTTP Request node in n8n:</span>
-POST https://governor.proceedgate.dev/v1/workspaces/{{wsId}}/check
-{
-  <span class="str">"action"</span>: <span class="str">"automation.form_to_gpt4_sms"</span>,
-  <span class="str">"context"</span>: {
-    <span class="str">"source_ip"</span>: <span class="str">"{{$json.ip}}"</span>,
-    <span class="str">"estimated_cost_usd"</span>: <span class="num">0.04</span>
-  }
-}</code></pre>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ═══ Feature Matrix ═══ -->
-  <section class="section fade-in" style="padding:var(--space-7) 0;">
-    <h2 class="section__title">Feature Matrix — What ProceedGate Catches</h2>
-    <div style="overflow-x:auto;">
-      <table class="comparison-table" style="font-size:0.875rem;">
-        <thead>
-          <tr>
-            <th>Feature</th>
-            <th>LLM Gateway</th>
-            <th>DeFi Bot</th>
-            <th>Scraping</th>
-            <th>Multi-Agent</th>
-            <th>Webhooks</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr><td>Loop detection (&gt;10 identical/min)</td><td class="check-yes">&#x2713;</td><td class="check-yes">&#x2713;</td><td class="check-yes">&#x2713;</td><td class="check-yes">&#x2713;</td><td class="check-yes">&#x2713;</td></tr>
-          <tr><td>Per-workspace budget cap</td><td class="check-yes">&#x2713;</td><td class="check-yes">&#x2713;</td><td class="check-yes">&#x2713;</td><td class="check-yes">&#x2713;</td><td class="check-yes">&#x2713;</td></tr>
-          <tr><td>Proceed token (JWT)</td><td class="check-yes">&#x2713;</td><td class="check-yes">&#x2713;</td><td class="check-yes">&#x2713;</td><td class="check-yes">&#x2713;</td><td class="check-yes">&#x2713;</td></tr>
-          <tr><td>Webhook alerts</td><td class="check-yes">&#x2713;</td><td class="check-yes">&#x2713;</td><td class="check-yes">&#x2713;</td><td class="check-yes">&#x2713;</td><td class="check-yes">&#x2713;</td></tr>
-          <tr><td>Multi-agent shared budget</td><td class="check-no">&mdash;</td><td class="check-no">&mdash;</td><td class="check-no">&mdash;</td><td class="check-yes">&#x2713;</td><td class="check-yes">&#x2713;</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </section>
-
-</main>
-
-<!-- ── CTA Banner ──────────────────────────────────────── -->
-<section class="section fade-in">
+<!-- Use Case 1: LLM Gateway -->
+<section id="llm" class="uc-section">
   <div class="container">
-    <div class="cta-banner">
-      <div class="cta-banner__title">Ready to Protect Your Agents?</div>
-      <p class="cta-banner__sub">Start with a 14-day free trial. Setup in 5 minutes.</p>
-      <div style="display:flex;gap:var(--space-4);justify-content:center;flex-wrap:wrap;">
-        <a href="pay.html" class="btn btn--lg">Start Free Trial</a>
-        <a href="https://github.com/loquit-doru/agent-cost-governor" target="_blank" rel="noopener" class="btn btn--lg" style="background:transparent;border-color:rgba(15,23,42,0.4);color:var(--bg-primary);">View on GitHub</a>
+    <div class="uc-header">
+      <div class="uc-header-left">
+        <div class="uc-tag">01 · LLM API Gateway</div>
+        <h2>Stop infinite reasoning loops</h2>
+        <p class="sub">A buggy prompt causes GPT-4 to keep calling itself, re-evaluating the same context. Each call costs ~$0.04. At 200 calls that's $8 before anyone notices.</p>
+      </div>
+    </div>
+
+    <div class="ps-grid">
+      <div class="ps-cell">
+        <div class="ps-label problem">Problem</div>
+        <p>An agent using <span class="mono">model_call</span> enters a reasoning loop — same prompt, same context, same output, repeat. The LLM API doesn't know it's a loop. It just bills per token.</p>
+      </div>
+      <div class="ps-cell">
+        <div class="ps-label solution">With ProceedGate</div>
+        <p>Every model call hashes the prompt context. After 10 identical hashes in 60s, the check returns <span class="mono">loop_detected</span> and stops the agent cold — before it burns through your monthly API budget.</p>
+      </div>
+    </div>
+
+    <div class="code-demo-split">
+      <div class="code-wrap">
+        <div class="code-head"><span>llm-agent.ts</span></div>
+        <pre><span class="ck">import</span> { createGovernor } <span class="ck">from</span> <span class="cs">'proceed-gate'</span>;
+<span class="ck">import</span> OpenAI <span class="ck">from</span> <span class="cs">'openai'</span>;
+
+<span class="ck">const</span> gate = <span class="cf">createGovernor</span>({ apiKey: process.env.PG_KEY });
+<span class="ck">const</span> openai = <span class="ck">new</span> <span class="cf">OpenAI</span>();
+
+<span class="ck">async function</span> <span class="cf">reasoningStep</span>(prompt: string) {
+  <span class="cc">// gate before every LLM call</span>
+  <span class="ck">await</span> gate.<span class="cf">check</span>({
+    agentId:  <span class="cs">'reasoning-agent'</span>,
+    action:   <span class="cs">'model_call'</span>,
+    taskHash: <span class="cf">hash</span>(prompt),
+  });
+
+  <span class="ck">return</span> openai.chat.completions.<span class="cf">create</span>({
+    model: <span class="cs">'gpt-4o'</span>,
+    messages: [{ role: <span class="cs">'user'</span>, content: prompt }],
+  });
+}</pre>
+      </div>
+
+      <div class="demo-panel">
+        <div class="demo-head">
+          <span>Live API test</span>
+          <span id="llm-count" style="color:var(--teal)">0 calls</span>
+        </div>
+        <div class="demo-body">
+          <button class="demo-btn" onclick="testApi('llm','model_call')">
+            POST /check — model_call
+          </button>
+          <div class="demo-counter" id="llm-hint">Click 10+ times to trigger storm detection</div>
+          <div class="demo-result" id="llm-result">—</div>
+          <div class="demo-latency" id="llm-latency"></div>
+        </div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ── Footer ──────────────────────────────────────────── -->
-<footer class="footer">
+<!-- Use Case 2: Scraping -->
+<section id="scraping" class="uc-section">
   <div class="container">
-    <div class="footer__grid">
-      <div class="footer__brand-col">
-        <div class="navbar__brand">
-          <span class="navbar__mark" aria-hidden="true"></span>
-          ProceedGate
-        </div>
-        <p class="footer__brand-text">
-          Cost control for AI agents.<br>
-          Block retry storms. Enforce budgets. Sleep at night.
-        </p>
-      </div>
-      <div class="footer__col">
-        <h4>Product</h4>
-        <a href="index.html">Home</a>
-        <a href="index.html#pricing">Pricing</a>
-        <a href="index.html#features">Features</a>
-      </div>
-      <div class="footer__col">
-        <h4>Use Cases</h4>
-        <a href="scraping.html">Scraping</a>
-        <a href="use-cases.html" style="color:var(--color-teal);">All Use Cases</a>
-      </div>
-      <div class="footer__col">
-        <h4>Developers</h4>
-        <a href="https://governor.proceedgate.dev/docs" target="_blank" rel="noopener">API Docs</a>
-        <a href="https://github.com/loquit-doru/agent-cost-governor" target="_blank" rel="noopener">GitHub</a>
-      </div>
-      <div class="footer__col">
-        <h4>Legal</h4>
-        <a href="#">Privacy Policy</a>
-        <a href="#">Terms of Service</a>
+    <div class="uc-header">
+      <div class="uc-header-left">
+        <div class="uc-tag">02 · Scraping Pipeline</div>
+        <h2>Block Apify and SerpAPI retry storms</h2>
+        <p class="sub">A 403 or rate limit triggers automatic retries. Without a circuit breaker the scraper retries the same URL hundreds of times — each one counting against your quota.</p>
       </div>
     </div>
-    <div class="footer__bottom">
-      <span>&copy; 2025 ProceedGate. All rights reserved.</span>
-      <div class="footer__social">
-        <a href="https://github.com/loquit-doru/agent-cost-governor" target="_blank" rel="noopener">GitHub</a>
-        <a href="https://x.com/proceedgate" target="_blank" rel="noopener">X</a>
+
+    <div class="ps-grid">
+      <div class="ps-cell">
+        <div class="ps-label problem">Problem</div>
+        <p>Apify actor hits a 403, calls <span class="mono">actor.retry()</span>. Default retry config: 8 attempts per request. Across 100 URLs that's 800 wasted API calls before the job fails.</p>
       </div>
+      <div class="ps-cell">
+        <div class="ps-label solution">With ProceedGate</div>
+        <p>Each URL is hashed before fetching. After 10 retries of the same hash in 60s, <span class="mono">loop_detected</span> stops the actor and fires a webhook alert. The other 90 URLs continue normally.</p>
+      </div>
+    </div>
+
+    <div class="code-demo-split">
+      <div class="code-wrap">
+        <div class="code-head"><span>apify-actor.ts</span></div>
+        <pre><span class="ck">import</span> { createGovernor } <span class="ck">from</span> <span class="cs">'proceed-gate'</span>;
+<span class="ck">import</span> { Actor } <span class="ck">from</span> <span class="cs">'apify'</span>;
+
+<span class="ck">const</span> gate = <span class="cf">createGovernor</span>({ apiKey: process.env.PG_KEY });
+
+<span class="ck">for</span> (<span class="ck">const</span> url <span class="ck">of</span> urls) {
+  <span class="cc">// throws ProceedGateBlockedError if loop detected</span>
+  <span class="ck">await</span> gate.<span class="cf">check</span>({
+    agentId:  <span class="cs">'apify-scraper'</span>,
+    action:   <span class="cs">'http_request'</span>,
+    taskHash: <span class="cf">hash</span>(url),
+  });
+
+  <span class="ck">const</span> html = <span class="ck">await</span> <span class="cf">fetch</span>(url);
+}</pre>
+      </div>
+
+      <div class="demo-panel">
+        <div class="demo-head">
+          <span>Live API test</span>
+          <span id="scraping-count" style="color:var(--teal)">0 calls</span>
+        </div>
+        <div class="demo-body">
+          <button class="demo-btn" onclick="testApi('scraping','http_request')">
+            POST /check — http_request
+          </button>
+          <div class="demo-counter" id="scraping-hint">Click 10+ times to trigger storm detection</div>
+          <div class="demo-result" id="scraping-result">—</div>
+          <div class="demo-latency" id="scraping-latency"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Use Case 3: Multi-Agent -->
+<section id="multiagent" class="uc-section">
+  <div class="container">
+    <div class="uc-header">
+      <div class="uc-header-left">
+        <div class="uc-tag">03 · Multi-Agent Pipeline</div>
+        <h2>Shared budget across a crew</h2>
+        <p class="sub">A pipeline of 4 agents (Researcher → Analyst → Writer → Reviewer) shares one budget. If Researcher enters a loop, it shouldn't drain the credits for everyone else.</p>
+      </div>
+    </div>
+
+    <div class="ps-grid">
+      <div class="ps-cell">
+        <div class="ps-label problem">Problem</div>
+        <p>In CrewAI or LangGraph, agents share a workspace. One stuck agent in a disambiguation loop consumes all remaining budget — the rest of the pipeline is starved and fails with no budget left.</p>
+      </div>
+      <div class="ps-cell">
+        <div class="ps-label solution">With ProceedGate</div>
+        <p>Each agent identifies itself via <span class="mono">agentId</span>. Loop detection is per-agent, but budget is shared per workspace. The stuck agent is blocked while the others continue unaffected.</p>
+      </div>
+    </div>
+
+    <div class="code-demo-split">
+      <div class="code-wrap">
+        <div class="code-head"><span>crew.ts</span></div>
+        <pre><span class="ck">import</span> { createGovernor } <span class="ck">from</span> <span class="cs">'proceed-gate'</span>;
+
+<span class="cc">// shared workspace, per-agent loop detection</span>
+<span class="ck">const</span> gate = <span class="cf">createGovernor</span>({
+  apiKey:      process.env.PG_KEY,
+  workspaceId: <span class="cs">'crew-pipeline-prod'</span>,
+});
+
+<span class="cc">// each agent passes its own id</span>
+<span class="ck">await</span> gate.<span class="cf">check</span>({ agentId: <span class="cs">'researcher'</span>, action: <span class="cs">'tool_call'</span>, taskHash: <span class="cf">hash</span>(query) });
+<span class="ck">await</span> gate.<span class="cf">check</span>({ agentId: <span class="cs">'analyst'</span>,    action: <span class="cs">'model_call'</span>, taskHash: <span class="cf">hash</span>(data) });
+<span class="ck">await</span> gate.<span class="cf">check</span>({ agentId: <span class="cs">'writer'</span>,     action: <span class="cs">'model_call'</span>, taskHash: <span class="cf">hash</span>(draft) });
+<span class="ck">await</span> gate.<span class="cf">check</span>({ agentId: <span class="cs">'reviewer'</span>,   action: <span class="cs">'model_call'</span>, taskHash: <span class="cf">hash</span>(review) });</pre>
+      </div>
+
+      <div class="demo-panel">
+        <div class="demo-head">
+          <span>Live API test</span>
+          <span id="multi-count" style="color:var(--teal)">0 calls</span>
+        </div>
+        <div class="demo-body">
+          <button class="demo-btn" onclick="testApi('multi','tool_call')">
+            POST /check — tool_call
+          </button>
+          <div class="demo-counter" id="multi-hint">Click 10+ times to trigger storm detection</div>
+          <div class="demo-result" id="multi-result">—</div>
+          <div class="demo-latency" id="multi-latency"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Feature matrix -->
+<section>
+  <div class="container">
+    <p class="label">Feature matrix</p>
+    <h2>What's available per use case</h2>
+    <p class="sub">All features are live in the free tier. No paid plan required to test loop detection or proceed tokens.</p>
+
+    <table class="matrix">
+      <thead>
+        <tr>
+          <th>Feature</th>
+          <th class="col-h">LLM Gateway</th>
+          <th class="col-h">Scraping</th>
+          <th class="col-h">Multi-Agent</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Loop detection (&gt;10 identical / 60s)</td>
+          <td class="yes">✓</td>
+          <td class="yes">✓</td>
+          <td class="yes">✓</td>
+        </tr>
+        <tr>
+          <td>AI gray zone evaluation (6–10 repeats)</td>
+          <td class="yes">✓</td>
+          <td class="yes">✓</td>
+          <td class="yes">✓</td>
+        </tr>
+        <tr>
+          <td>Signed proceed token (ES256)</td>
+          <td class="yes">✓</td>
+          <td class="yes">✓</td>
+          <td class="yes">✓</td>
+        </tr>
+        <tr>
+          <td>Per-workspace budget cap</td>
+          <td class="yes">✓</td>
+          <td class="yes">✓</td>
+          <td class="yes">✓</td>
+        </tr>
+        <tr>
+          <td>Per-agent loop detection (shared workspace)</td>
+          <td class="no">—</td>
+          <td class="no">—</td>
+          <td class="yes">✓</td>
+        </tr>
+        <tr>
+          <td>Webhook alert on loop block</td>
+          <td class="yes">✓</td>
+          <td class="yes">✓</td>
+          <td class="yes">✓</td>
+        </tr>
+        <tr>
+          <td>Agent reputation scoring</td>
+          <td class="yes">✓</td>
+          <td class="yes">✓</td>
+          <td class="yes">✓</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- CTA -->
+<section>
+  <div class="container-sm">
+    <div class="cta-box">
+      <h2>Start with 2,000 free checks</h2>
+      <p>No card required. The demos above use the real API — your integration will too.</p>
+      <a href="pay.html" class="btn btn-primary btn-lg">Get your API key →</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <div class="foot">
+      <div class="foot-logo">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+          <rect width="20" height="20" rx="5" fill="#2dd4bf"/>
+          <path d="M6 10l3 3 5-6" stroke="#09090b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        ProceedGate
+      </div>
+      <ul class="foot-links">
+        <li><a href="/">Home</a></li>
+        <li><a href="scraping.html">Scraping</a></li>
+        <li><a href="dashboard.html">Dashboard</a></li>
+        <li><a href="privacy.html">Privacy</a></li>
+        <li><a href="terms.html">Terms</a></li>
+      </ul>
+      <span class="foot-copy">&copy; 2026 ProceedGate</span>
     </div>
   </div>
 </footer>
 
-<!-- ── Scripts ─────────────────────────────────────────── -->
 <script>
-(function() {
-  // Scroll animations
-  const fadeEls = document.querySelectorAll('.fade-in');
-  if (fadeEls.length) {
-    const obs = new IntersectionObserver((entries) => {
-      entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); obs.unobserve(e.target); } });
-    }, { threshold: 0.12 });
-    fadeEls.forEach(el => obs.observe(el));
-  }
-
-  // Mobile nav
-  document.querySelectorAll('.navbar__links a').forEach(link => {
-    link.addEventListener('click', () => {
-      document.getElementById('navLinks').classList.remove('open');
-      document.querySelector('.navbar__toggle')?.classList.remove('open');
-    });
-  });
-})();
-
-const API_BASE = 'https://governor.proceedgate.dev';
-const clickCounts = {};
+const counts = { llm: 0, scraping: 0, multi: 0 };
 
 async function testApi(useCase, action) {
-  const resultEl = document.getElementById(useCase + 'TestResult');
-  resultEl.textContent = 'Calling API...';
-  resultEl.style.color = 'var(--warning)';
+  counts[useCase]++;
+  const n = counts[useCase];
 
-  clickCounts[useCase] = (clickCounts[useCase] || 0) + 1;
-  const count = clickCounts[useCase];
+  document.getElementById(useCase + '-count').textContent = n + (n === 1 ? ' call' : ' calls');
+  document.getElementById(useCase + '-hint').textContent =
+    n < 10 ? `${10 - n} more clicks to trigger storm` : 'Storm zone reached';
 
+  const resultEl  = document.getElementById(useCase + '-result');
+  const latencyEl = document.getElementById(useCase + '-latency');
+  const btn = document.querySelector(`button[onclick="testApi('${useCase}','${action}')"]`);
+
+  btn.disabled = true;
+  resultEl.textContent = 'calling…';
+  resultEl.className = 'demo-result';
+
+  const t0 = performance.now();
   try {
-    const t0 = performance.now();
-    const res = await fetch(API_BASE + '/v1/demo/check', {
+    const res = await fetch('https://governor.proceedgate.dev/v1/demo/check', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        action: action,
-        task_hash: 'demo-' + useCase,
-        step_hash: 'demo-' + useCase,
+        agent_id:   useCase + '-demo',
+        action,
+        task_hash:  btoa(useCase + '-fixed-hash'),
+        click_count: n,
       }),
     });
-    const ms = Math.round(performance.now() - t0);
+    const ms   = Math.round(performance.now() - t0);
     const data = await res.json();
 
-    if (res.status === 200) {
-      resultEl.style.color = 'var(--success)';
-      resultEl.textContent = `✅ ${res.status} ALLOWED — ${ms}ms  (click ${count}/10)\n${JSON.stringify(data, null, 2)}\n\n💡 Click 10+ times rapidly to trigger storm detection!`;
-    } else if (res.status === 429) {
-      resultEl.style.color = 'var(--error)';
-      resultEl.textContent = `🛑 ${res.status} BLOCKED — Storm detected! — ${ms}ms  (click ${count})\n${JSON.stringify(data, null, 2)}\n\n🔥 ProceedGate caught the retry storm! Wait 60s to reset.`;
-    } else {
-      resultEl.style.color = 'var(--text-muted)';
-      resultEl.textContent = `${res.status} — ${ms}ms\n${JSON.stringify(data, null, 2)}`;
-    }
-  } catch (err) {
-    resultEl.style.color = 'var(--error)';
-    resultEl.textContent = `Error: ${err.message}\n\nMake sure the API is reachable.`;
+    const isBlock = data.decision === 'block' || res.status === 429;
+    resultEl.className = 'demo-result ' + (isBlock ? 'res-block' : 'res-allow');
+    resultEl.textContent = JSON.stringify(data, null, 2);
+    latencyEl.textContent = `${ms}ms · HTTP ${res.status}`;
+  } catch (e) {
+    resultEl.className = 'demo-result res-block';
+    resultEl.textContent = 'Error: ' + e.message;
+    latencyEl.textContent = '';
+  } finally {
+    btn.disabled = false;
   }
 }
 </script>
