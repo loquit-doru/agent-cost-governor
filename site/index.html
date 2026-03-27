@@ -566,7 +566,7 @@
     <div class="terminal">
       <div class="t-bar">
         <span class="dr"></span><span class="dy"></span><span class="dg"></span>
-        <span class="t-title">POST /v1/governor/check → 200 allowed</span>
+        <span class="t-title">POST /v1/check → 200 allowed</span>
       </div>
       <div class="t-body">
 <span class="d">// request</span>
@@ -587,6 +587,511 @@
     </div>
   </div>
 </section>
+
+<!-- Flow animation -->
+<section id="anim">
+  <div class="container-sm">
+    <p class="label">In action</p>
+    <h2>Watch a loop get stopped</h2>
+    <p class="sub">Three scenarios, cycling automatically. Same agent, same URL — iteration count is the only thing that changes.</p>
+
+    <div class="flow-wrap">
+
+      <!-- Scenario pill -->
+      <div class="sc-pill">
+        <span class="sc-dot" id="scDot"></span>
+        <span id="scLabel">loading…</span>
+      </div>
+
+      <!-- Main diagram -->
+      <div class="flow-diagram">
+
+        <!-- Agent node -->
+        <div class="fnode">
+          <div class="fnode-box">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
+            </svg>
+          </div>
+          <span class="fnode-lbl">agent</span>
+        </div>
+
+        <!-- Left pipe -->
+        <div class="fpipe" id="fpipeL">
+          <div class="fpipe-track">
+            <div class="fpkt" id="fpktL"></div>
+          </div>
+          <span class="fpipe-lbl">POST /check</span>
+        </div>
+
+        <!-- Gate node -->
+        <div class="fgate" id="fgate">
+          <div class="fgate-box">
+            <div class="fzone" id="fzSafe">
+              <span class="fzone-dot"></span>safe · ≤5
+            </div>
+            <div class="fzone" id="fzGray">
+              <span class="fzone-dot"></span>gray · 6–10
+            </div>
+            <div class="fzone" id="fzStorm">
+              <span class="fzone-dot"></span>storm · &gt;10
+            </div>
+          </div>
+          <span class="fgate-iter">iter <strong id="fIter">—</strong></span>
+          <span class="fnode-lbl">ProceedGate</span>
+        </div>
+
+        <!-- Right pipe -->
+        <div class="fpipe fpipe-r" id="fpipeR">
+          <div class="fpipe-track">
+            <div class="fpkt" id="fpktR"></div>
+          </div>
+        </div>
+
+        <!-- Result node -->
+        <div class="fresult" id="fresult">
+          <div class="fresult-box" id="fresultBox">
+            <span id="fresultText">—</span>
+          </div>
+          <span class="fnode-lbl" id="fresultLbl">—</span>
+        </div>
+
+      </div><!-- /flow-diagram -->
+
+      <!-- Iteration progress bar -->
+      <div class="iter-bar-wrap">
+        <div class="iter-bar-track">
+          <div class="iter-bar-fill" id="iterFill"></div>
+          <div class="iter-threshold safe-th" style="left:45%"></div>
+          <div class="iter-threshold gray-th" style="left:90%"></div>
+        </div>
+        <div class="iter-bar-labels">
+          <span>0</span>
+          <span class="ibl-safe">safe</span>
+          <span class="ibl-gray">gray</span>
+          <span class="ibl-storm">storm</span>
+          <span>10+</span>
+        </div>
+      </div>
+
+    </div><!-- /flow-wrap -->
+  </div>
+</section>
+
+<style>
+/* ── Flow animation section ─────────────────────────────── */
+#anim { border-top: 1px solid var(--border); }
+
+.flow-wrap {
+  margin-top: 40px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 32px 28px 28px;
+  position: relative;
+}
+
+/* Scenario pill */
+.sc-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  font-size: 12px;
+  font-family: var(--mono);
+  color: var(--tx-2);
+  margin-bottom: 28px;
+  transition: border-color 0.4s, color 0.4s;
+}
+
+.sc-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--tx-3);
+  transition: background 0.4s, box-shadow 0.4s;
+  flex-shrink: 0;
+}
+
+/* Main diagram row */
+.flow-diagram {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  width: 100%;
+}
+
+/* Nodes */
+.fnode, .fgate, .fresult {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.fnode-box, .fgate-box, .fresult-box {
+  width: 72px; height: 72px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--tx-3);
+  transition: border-color 0.4s, color 0.4s, box-shadow 0.4s;
+}
+
+.fnode-lbl {
+  font-size: 11px;
+  font-family: var(--mono);
+  color: var(--tx-3);
+  white-space: nowrap;
+}
+
+/* Gate */
+.fgate-box {
+  width: 130px; height: 96px;
+  flex-direction: column;
+  gap: 0;
+  padding: 10px 12px;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.fgate-iter {
+  font-size: 11px;
+  font-family: var(--mono);
+  color: var(--tx-3);
+  margin-top: 4px;
+}
+
+.fgate-iter strong { color: var(--tx-2); }
+
+/* Zone indicators */
+.fzone {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11.5px;
+  font-family: var(--mono);
+  color: var(--tx-3);
+  padding: 2px 0;
+  transition: color 0.3s;
+  white-space: nowrap;
+}
+
+.fzone-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--tx-3);
+  flex-shrink: 0;
+  transition: background 0.3s, box-shadow 0.3s;
+}
+
+/* Zone active states */
+.fzone.active-safe  { color: var(--green); }
+.fzone.active-safe  .fzone-dot { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.fzone.active-gray  { color: var(--yellow); }
+.fzone.active-gray  .fzone-dot { background: var(--yellow); box-shadow: 0 0 6px var(--yellow); }
+.fzone.active-storm { color: var(--red); }
+.fzone.active-storm .fzone-dot { background: var(--red); box-shadow: 0 0 6px var(--red); }
+
+/* Pipes */
+.fpipe {
+  flex: 1;
+  position: relative;
+  height: 72px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+
+.fpipe-track {
+  width: 100%;
+  height: 1px;
+  background: var(--border);
+  position: relative;
+  overflow: visible;
+}
+
+/* Arrowhead via pseudo */
+.fpipe::after {
+  content: '';
+  position: absolute;
+  right: -1px;
+  top: 50%;
+  transform: translateY(-50%);
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 6px solid var(--border);
+}
+
+.fpipe-r::after { display: none; }
+
+.fpipe-lbl {
+  position: absolute;
+  top: calc(50% - 20px);
+  font-size: 10px;
+  font-family: var(--mono);
+  color: var(--tx-3);
+  white-space: nowrap;
+}
+
+/* Traveling packet */
+.fpkt {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--teal);
+  transform: translate(-50%, -50%) scale(0);
+  box-shadow: 0 0 8px var(--teal);
+  transition: background 0.3s, box-shadow 0.3s;
+  pointer-events: none;
+}
+
+.fpkt.red {
+  background: var(--red);
+  box-shadow: 0 0 8px var(--red);
+}
+
+/* Result box states */
+.fresult-box {
+  font-size: 13px;
+  font-family: var(--mono);
+  font-weight: 600;
+}
+
+.fresult-box.allow {
+  border-color: rgba(74,222,128,0.4);
+  color: var(--green);
+  box-shadow: 0 0 20px rgba(74,222,128,0.08);
+}
+
+.fresult-box.block {
+  border-color: rgba(248,113,113,0.4);
+  color: var(--red);
+  box-shadow: 0 0 20px rgba(248,113,113,0.08);
+}
+
+/* Gate box glow states */
+.fgate-box.eval {
+  border-color: rgba(45,212,191,0.35);
+  box-shadow: 0 0 20px rgba(45,212,191,0.08);
+}
+
+/* Iteration progress bar */
+.iter-bar-wrap {
+  margin-top: 24px;
+}
+
+.iter-bar-track {
+  height: 4px;
+  background: var(--border);
+  border-radius: 99px;
+  position: relative;
+  overflow: visible;
+}
+
+.iter-bar-fill {
+  height: 100%;
+  border-radius: 99px;
+  background: var(--green);
+  width: 0%;
+  transition: width 0.6s cubic-bezier(0.4,0,0.2,1), background 0.4s;
+}
+
+.iter-threshold {
+  position: absolute;
+  top: -4px;
+  width: 1px;
+  height: 12px;
+  background: var(--border-hi);
+}
+
+.iter-bar-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: 10px;
+  font-family: var(--mono);
+  color: var(--tx-3);
+}
+
+.ibl-safe  { color: var(--green); }
+.ibl-gray  { color: var(--yellow); }
+.ibl-storm { color: var(--red); }
+
+/* Scenario pill states */
+.sc-pill.safe  { border-color: rgba(74,222,128,0.3);  color: var(--green);  }
+.sc-pill.safe  .sc-dot { background: var(--green);  box-shadow: 0 0 6px var(--green);  }
+.sc-pill.gray  { border-color: rgba(251,191,36,0.3);  color: var(--yellow); }
+.sc-pill.gray  .sc-dot { background: var(--yellow); box-shadow: 0 0 6px var(--yellow); }
+.sc-pill.storm { border-color: rgba(248,113,113,0.3); color: var(--red);    }
+.sc-pill.storm .sc-dot { background: var(--red);    box-shadow: 0 0 6px var(--red);    }
+
+@media (max-width: 600px) {
+  .flow-wrap { padding: 20px 16px; }
+  .fgate-box { width: 110px; }
+  .fnode-box, .fresult-box { width: 56px; height: 56px; }
+}
+</style>
+
+<script>
+(function() {
+  const scenarios = [
+    {
+      iter: 2,
+      zone: 'safe',
+      decision: 'allow',
+      label: 'iteration 2 · normal operation',
+      bar: 18,
+    },
+    {
+      iter: 8,
+      zone: 'gray',
+      decision: 'allow',
+      label: 'iteration 8 · AI evaluation',
+      bar: 72,
+    },
+    {
+      iter: 11,
+      zone: 'storm',
+      decision: 'block',
+      label: 'iteration 11 · loop detected',
+      bar: 100,
+    },
+  ];
+
+  const barColors = { safe: '#4ade80', gray: '#fbbf24', storm: '#f87171' };
+
+  let idx = 0;
+  let running = true;
+
+  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+  function animatePacket(el, fromPct, toPct, durationMs) {
+    return new Promise(resolve => {
+      const start = performance.now();
+      el.style.transform = `translate(${fromPct * 100}%, -50%) scale(1)`;
+
+      function frame(now) {
+        const t = Math.min((now - start) / durationMs, 1);
+        const ease = t < 0.5 ? 2*t*t : -1+(4-2*t)*t;
+        const pct = fromPct + (toPct - fromPct) * ease;
+        el.style.transform = `translate(${pct * 100}%, -50%) scale(1)`;
+        if (t < 1) requestAnimationFrame(frame);
+        else resolve();
+      }
+
+      requestAnimationFrame(frame);
+    });
+  }
+
+  async function reset() {
+    const pktL = document.getElementById('fpktL');
+    const pktR = document.getElementById('fpktR');
+    const gate = document.getElementById('fgate').querySelector('.fgate-box');
+    const res  = document.getElementById('fresultBox');
+
+    pktL.style.transform = 'translate(-50%, -50%) scale(0)';
+    pktR.style.transform = 'translate(-50%, -50%) scale(0)';
+    pktL.classList.remove('red');
+    pktR.classList.remove('red');
+    gate.classList.remove('eval');
+    res.classList.remove('allow', 'block');
+    document.getElementById('fresultText').textContent = '—';
+    document.getElementById('fresultLbl').textContent = '—';
+    document.getElementById('fzSafe').className  = 'fzone';
+    document.getElementById('fzGray').className  = 'fzone';
+    document.getElementById('fzStorm').className = 'fzone';
+  }
+
+  async function runScenario(s) {
+    const pill  = document.querySelector('.sc-pill');
+    const pktL  = document.getElementById('fpktL');
+    const pktR  = document.getElementById('fpktR');
+    const gate  = document.getElementById('fgate').querySelector('.fgate-box');
+    const res   = document.getElementById('fresultBox');
+    const fill  = document.getElementById('iterFill');
+
+    // Set scenario label + pill
+    document.getElementById('scLabel').textContent = s.label;
+    document.getElementById('fIter').textContent = s.iter;
+    pill.className = 'sc-pill ' + s.zone;
+
+    // Progress bar
+    fill.style.width = s.bar + '%';
+    fill.style.background = barColors[s.zone];
+
+    await sleep(300);
+
+    // 1. Left packet travels to gate
+    pktL.style.transform = 'translate(-50%, -50%) scale(1)';
+    await animatePacket(pktL, 0, 1, 600);
+    await sleep(100);
+    pktL.style.transform = 'translate(-50%, -50%) scale(0)';
+
+    // 2. Gate evaluates — zone lights up
+    gate.classList.add('eval');
+    const zoneId = { safe: 'fzSafe', gray: 'fzGray', storm: 'fzStorm' }[s.zone];
+    document.getElementById(zoneId).className = 'fzone active-' + s.zone;
+
+    await sleep(s.zone === 'gray' ? 700 : 400);
+
+    // 3. Right packet (only for allow)
+    if (s.decision === 'allow') {
+      pktR.style.transform = 'translate(-50%, -50%) scale(1)';
+      await animatePacket(pktR, 0, 1, 600);
+      await sleep(100);
+      pktR.style.transform = 'translate(-50%, -50%) scale(0)';
+    } else {
+      // For block — small "bounce" on the gate
+      pktR.classList.add('red');
+      pktR.style.transform = 'translate(30%, -50%) scale(1)';
+      await sleep(200);
+      pktR.style.transform = 'translate(-50%, -50%) scale(0)';
+      pktR.classList.remove('red');
+    }
+
+    // 4. Show result
+    if (s.decision === 'allow') {
+      res.classList.add('allow');
+      document.getElementById('fresultText').textContent = 'ALLOW';
+      document.getElementById('fresultLbl').textContent = 'proceed_token ✓';
+    } else {
+      res.classList.add('block');
+      document.getElementById('fresultText').textContent = 'BLOCK';
+      document.getElementById('fresultLbl').textContent = '429 loop_detected';
+    }
+
+    // 5. Hold
+    await sleep(2400);
+  }
+
+  async function loop() {
+    await sleep(600);
+    while (running) {
+      const s = scenarios[idx % scenarios.length];
+      await reset();
+      await sleep(300);
+      await runScenario(s);
+      idx++;
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loop);
+  } else {
+    loop();
+  }
+})();
+</script>
 
 <!-- How it works -->
 <section id="how">
@@ -797,18 +1302,26 @@
     <div class="code-wrap">
       <div class="code-head">
         <span>agent.ts</span>
-        <span>npm install proceed-gate</span>
+        <span>curl works too — see below</span>
       </div>
-      <pre><span class="ck">import</span> { createGovernor } <span class="ck">from</span> <span class="cs">'proceed-gate'</span>;
+      <pre><span class="cc">// One endpoint — loop detection + credits + proceed_token</span>
+curl -X POST https://governor.proceedgate.dev/v1/check \
+  -H <span class="cs">"Authorization: Bearer $PG_KEY"</span> \
+  -H <span class="cs">"Content-Type: application/json"</span> \
+  -d <span class="cs">'{
+    "agent_id":  "my-agent",
+    "task_hash": "sha256-of-task",
+    "action":    "tool_call"
+  }'</span>
 
-<span class="ck">const</span> gate = <span class="cf">createGovernor</span>({ apiKey: process.env.PG_KEY });
-
-<span class="cc">// inside your agent loop — throws on block, returns token on allow</span>
-<span class="ck">await</span> gate.<span class="cf">check</span>({
-  agentId:  <span class="cs">'scraper-1'</span>,
-  action:   <span class="cs">'http_request'</span>,
-  taskHash: <span class="cf">hash</span>(url),
-});</pre>
+<span class="cc">// Response when allowed:</span>
+<span class="cs">{
+  "allowed": true,
+  "zone": "safe",
+  "iteration_count": 3,
+  "proceed_token": "eyJ...",
+  "credits_remaining": 9950
+}</span></pre>
     </div>
   </div>
 </section>
