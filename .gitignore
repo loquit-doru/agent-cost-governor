@@ -46,6 +46,7 @@ X_THREAD_TEMPLATE.md
 *.jpg
 *.jpeg
 *.png
+!site/favicon.jpg
 
 # Internal scripts
 scripts/prod-provision.ps1
