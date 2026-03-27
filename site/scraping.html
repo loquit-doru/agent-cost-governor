@@ -281,23 +281,20 @@
         <span>apify-actor.ts</span>
         <span>curl / fetch / any HTTP client</span>
       </div>
-      <pre><span class="cc">// Get your workspace_id from /v1/me after free signup</span>
-<span class="ck">const</span> PG_KEY = process.env.PG_KEY;
-<span class="ck">const</span> WORKSPACE = process.env.PG_WORKSPACE; <span class="cc">// e.g. "free-abc123"</span>
+      <pre><span class="ck">const</span> PG_KEY = process.env.PG_KEY;
 
 <span class="ck">async function</span> <span class="cf">pgCheck</span>(agentId: string, taskHash: string) {
-  <span class="ck">const</span> res = <span class="ck">await</span> <span class="cf">fetch</span>(<span class="cs">'https://governor.proceedgate.dev/v1/governor/check'</span>, {
+  <span class="ck">const</span> res = <span class="ck">await</span> <span class="cf">fetch</span>(<span class="cs">'https://governor.proceedgate.dev/v1/check'</span>, {
     method: <span class="cs">'POST'</span>,
     headers: { <span class="cs">'Authorization'</span>: <span class="cs">`Bearer ${PG_KEY}`</span>, <span class="cs">'Content-Type'</span>: <span class="cs">'application/json'</span> },
     body: <span class="cf">JSON.stringify</span>({
-      policy_id: <span class="cs">'retry_friction_v1'</span>,
+      agent_id:  agentId,
+      task_hash: taskHash,
       action:    <span class="cs">'tool_call'</span>,
-      actor:     { id: agentId, project: WORKSPACE },
-      context:   { attempt_in_window: 1, task_hash: taskHash },
     }),
   });
   <span class="ck">if</span> (res.status === 429) <span class="ck">throw new</span> <span class="cf">Error</span>(<span class="cs">'loop_detected'</span>);
-  <span class="ck">return</span> res.<span class="cf">json</span>(); <span class="cc">// { allowed, proceed_token, ... }</span>
+  <span class="ck">return</span> res.<span class="cf">json</span>(); <span class="cc">// { allowed, zone, proceed_token, ... }</span>
 }
 
 <span class="cc">// inside your actor loop:</span>

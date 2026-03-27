@@ -1177,20 +1177,14 @@
 
               <div style="background:rgba(45,212,191,.05); border:1px solid rgba(45,212,191,.2); border-radius:10px; padding:16px; text-align:left; margin-bottom:20px; font-size:13px; color:var(--text-muted);">
                 <div style="font-weight:600; color:white; margin-bottom:10px;">Quick start</div>
-                <div style="margin-bottom:6px; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted);">1. Simple check (credits)</div>
-                <pre style="font-family:monospace; font-size:11.5px; overflow-x:auto; line-height:1.65; margin-bottom:14px; white-space:pre-wrap;">curl -X POST https://governor.proceedgate.dev/v1/check/simple \\
-  -H "Authorization: Bearer ${data.api_key}" \\
-  -H "Content-Type: application/json" \\
-  -d '{"user_id": "my-agent"}'</pre>
-                <div style="margin-bottom:6px; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted);">2. Full governance check (loop detection + proceed_token)</div>
-                <pre style="font-family:monospace; font-size:11.5px; overflow-x:auto; line-height:1.65; white-space:pre-wrap;">curl -X POST https://governor.proceedgate.dev/v1/governor/check \\
+                <div style="margin-bottom:6px; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted);">Loop detection + credits + proceed_token — one call</div>
+                <pre style="font-family:monospace; font-size:11.5px; overflow-x:auto; line-height:1.65; white-space:pre-wrap;">curl -X POST https://governor.proceedgate.dev/v1/check \\
   -H "Authorization: Bearer ${data.api_key}" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "policy_id": "retry_friction_v1",
-    "action":    "model_call",
-    "actor":     {"id": "my-agent", "project": "${data.workspace_id}"},
-    "context":   {"attempt_in_window": 1, "task_hash": "sha256-of-input"}
+    "agent_id":  "my-agent",
+    "task_hash": "sha256-of-input",
+    "action":    "tool_call"
   }'</pre>
               </div>
 

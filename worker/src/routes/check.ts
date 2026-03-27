@@ -1304,4 +1304,176 @@ checkRoutes.post('/v1/check/simple', async (c) => {
   }, 200);
 });
 
+// ============================================================================
+// /v1/check - Simplified check endpoint (loop detection + credits, no policy config)
+// ============================================================================
+// Drop-in endpoint for agents that want full loop detection without managing
+// policy_id, actor.project, or attempt_in_window manually.
+// Workspace is auto-derived from the API key.
+// ============================================================================
+
+const easyCheckSchema = z.object({
+  agent_id: z.string().min(1).max(200),
+  task_hash: z.string().min(1).max(200),
+  action: z.enum(['model_call', 'tool_call', 'retry', 'override', 'plan_execute']).optional().default('tool_call'),
+  step_hash: z.string().max(200).optional(),
+});
+
+checkRoutes.post('/v1/check', async (c) => {
+  const startMs = Date.now();
+  const origin = new URL(c.req.url).origin;
+
+  // 1. Auth: extract workspace from Bearer token
+  const authHeader = c.req.header('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return c.json({ ok: false, error: 'missing_authorization', hint: 'Authorization: Bearer pg_ws_...' }, 401);
+  }
+  const apiKey = authHeader.slice(7).trim();
+  if (!apiKey.startsWith(API_KEY_PREFIXES.WORKSPACE)) {
+    return c.json({ ok: false, error: 'invalid_api_key_format', hint: `API key must start with ${API_KEY_PREFIXES.WORKSPACE}` }, 401);
+  }
+
+  // 2. Parse body
+  const body = await c.req.json().catch(() => null);
+  const parsed = easyCheckSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json({ ok: false, error: 'invalid_request', hint: 'Required: { agent_id, task_hash }', issues: parsed.error.issues }, 400);
+  }
+
+  // 3. Lookup workspace_id from API key
+  const apiKeyHash = await hashApiKey(apiKey);
+  const stub = getBillingStub(c.env);
+
+  const lookupRes = await stub.fetch(doUrl('/keys/lookup'), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ api_key_hash: apiKeyHash }),
+  });
+
+  if (!lookupRes.ok) {
+    return c.json({ ok: false, error: 'workspace_not_found', hint: 'API key not associated with any workspace.' }, 404);
+  }
+  const { workspace_id: workspaceId } = await lookupRes.json() as { workspace_id: string };
+
+  const { agent_id, task_hash, action, step_hash } = parsed.data;
+
+  // 4. Loop detection
+  const patternHash = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(`${action}:${task_hash}:${step_hash ?? ''}`),
+  ).then(buf => Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 16));
+
+  const similarityPrefix = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(action),
+  ).then(buf => Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 8));
+
+  const loopCheckRes = await stub.fetch(doUrl(`/workspaces/${workspaceId}/check-loop`), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      pattern_hash: patternHash,
+      window_ms: 60_000,
+      max_count: 10,
+      cost_usd: 0.05,
+      similarity_prefix: similarityPrefix,
+      action,
+      depth: 0,
+    }),
+  });
+
+  const loopData = await loopCheckRes.json() as { count: number; zone: 'safe' | 'gray' | 'storm' };
+
+  if (loopCheckRes.status === 429) {
+    logEvent({ event: 'loop_detected', workspace_id: workspaceId, actor_key: await actorKey(agent_id), action, pattern_hash: patternHash, count: loopData.count, zone: 'storm' });
+    writeMetric(c.env, { indexes: ['check_loop_blocked', 'retry_friction_v1', action, 'loop_detected'], doubles: [1, Date.now() - startMs] });
+    return c.json({
+      allowed: false,
+      zone: 'storm',
+      iteration_count: loopData.count,
+      error: 'loop_detected',
+      reason: `Blocked: ${loopData.count} identical requests in 60s. Your agent is in a retry storm.`,
+      hint: 'Vary task_hash between independent tasks, or wait 60 seconds.',
+    }, 429);
+  }
+
+  // Gray zone: use AI to decide
+  if (loopData.zone === 'gray') {
+    const grayData = loopData as typeof loopData & { timing?: { avg_interval_ms: number; interval_cv: number; requests_per_sec: number; window_elapsed_ms: number } };
+    if (grayData.timing) {
+      const { decision: grayDecision } = await cachedGrayZoneDecision(c.env, {
+        action,
+        actor_id: agent_id,
+        count: loopData.count,
+        max_count: 10,
+        avg_interval_ms: grayData.timing.avg_interval_ms,
+        interval_cv: grayData.timing.interval_cv,
+        requests_per_sec: grayData.timing.requests_per_sec,
+        window_elapsed_ms: grayData.timing.window_elapsed_ms,
+        task_hash,
+        step_hash: step_hash ?? '',
+      });
+
+      if (grayDecision.decision === 'block') {
+        writeMetric(c.env, { indexes: ['check_gray_blocked', 'retry_friction_v1', action, 'ai_block'], doubles: [1, Date.now() - startMs] });
+        return c.json({
+          allowed: false,
+          zone: 'gray',
+          iteration_count: loopData.count,
+          error: 'loop_detected',
+          reason: grayDecision.reasoning ?? `AI blocked: ${loopData.count} requests look like a loop.`,
+          hint: 'Vary task_hash between independent tasks, or wait 60 seconds.',
+        }, 429);
+      }
+    }
+  }
+
+  // 5. Consume credits
+  const consumed = await consumeWorkspaceCredits(c.env, workspaceId, 1, { action });
+
+  if (!consumed.ok) {
+    writeMetric(c.env, { indexes: ['check_credits_blocked', 'retry_friction_v1', action, consumed.error], doubles: [1, Date.now() - startMs] });
+    stub.fetch(doUrl(`/workspaces/${workspaceId}/block`), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ reason: consumed.error || 'insufficient_credits', estimated_cost_usd: 0.01, action }),
+    }).catch(() => {});
+    return c.json({
+      allowed: false,
+      zone: loopData.zone,
+      iteration_count: loopData.count,
+      error: 'insufficient_credits',
+      credits_remaining: consumed.credits,
+      reason: 'Insufficient credits. Top up to continue.',
+    }, 402);
+  }
+
+  // 6. Sign proceed token and return
+  const decisionId = makeDecisionId();
+  const signed = await signProceedToken({
+    env: c.env,
+    origin,
+    actorId: agent_id,
+    decisionId,
+    policyId: 'retry_friction_v1',
+    action,
+    taskHash: task_hash,
+    stepHash: step_hash,
+    contextHash: undefined,
+  });
+
+  logEvent({ event: 'check_ok', workspace_id: workspaceId, actor_key: await actorKey(agent_id), action, zone: loopData.zone, count: loopData.count });
+  writeMetric(c.env, { indexes: ['check_ok', 'retry_friction_v1', action, 'none'], doubles: [1, Date.now() - startMs] });
+
+  return c.json({
+    allowed: true,
+    zone: loopData.zone,
+    iteration_count: loopData.count,
+    proceed_token: signed.token,
+    expires_in_seconds: signed.expiresInSeconds,
+    credits_remaining: consumed.credits,
+  }, 200);
+});
+
 export { checkRoutes };
+

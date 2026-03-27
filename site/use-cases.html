@@ -199,18 +199,16 @@
     <div class="code-demo-split">
       <div class="code-wrap">
         <div class="code-head"><span>llm-agent.ts</span></div>
-        <pre><span class="ck">const</span> PG_KEY  = process.env.PG_KEY;
-<span class="ck">const</span> PG_WS   = process.env.PG_WORKSPACE; <span class="cc">// from /v1/me</span>
+        <pre><span class="ck">const</span> PG_KEY = process.env.PG_KEY;
 
-<span class="ck">async function</span> <span class="cf">pgCheck</span>(agentId: string, taskHash: string, attempt = 1) {
-  <span class="ck">const</span> res = <span class="ck">await</span> <span class="cf">fetch</span>(<span class="cs">'https://governor.proceedgate.dev/v1/governor/check'</span>, {
+<span class="ck">async function</span> <span class="cf">pgCheck</span>(agentId: string, taskHash: string) {
+  <span class="ck">const</span> res = <span class="ck">await</span> <span class="cf">fetch</span>(<span class="cs">'https://governor.proceedgate.dev/v1/check'</span>, {
     method: <span class="cs">'POST'</span>,
     headers: { <span class="cs">'Authorization'</span>: <span class="cs">`Bearer ${PG_KEY}`</span>, <span class="cs">'Content-Type'</span>: <span class="cs">'application/json'</span> },
     body: <span class="cf">JSON.stringify</span>({
-      policy_id: <span class="cs">'retry_friction_v1'</span>,
+      agent_id:  agentId,
+      task_hash: taskHash,
       action:    <span class="cs">'model_call'</span>,
-      actor:     { id: agentId, project: PG_WS },
-      context:   { attempt_in_window: attempt, task_hash: taskHash },
     }),
   });
   <span class="ck">if</span> (!res.ok) <span class="ck">throw new</span> <span class="cf">Error</span>((await res.<span class="cf">json</span>()).error);
@@ -266,17 +264,15 @@
       <div class="code-wrap">
         <div class="code-head"><span>apify-actor.ts</span></div>
         <pre><span class="ck">const</span> PG_KEY = process.env.PG_KEY;
-<span class="ck">const</span> PG_WS  = process.env.PG_WORKSPACE;
 
 <span class="ck">for</span> (<span class="ck">const</span> url <span class="ck">of</span> urls) {
-  <span class="ck">const</span> res = <span class="ck">await</span> <span class="cf">fetch</span>(<span class="cs">'https://governor.proceedgate.dev/v1/governor/check'</span>, {
+  <span class="ck">const</span> res = <span class="ck">await</span> <span class="cf">fetch</span>(<span class="cs">'https://governor.proceedgate.dev/v1/check'</span>, {
     method: <span class="cs">'POST'</span>,
     headers: { <span class="cs">'Authorization'</span>: <span class="cs">`Bearer ${PG_KEY}`</span>, <span class="cs">'Content-Type'</span>: <span class="cs">'application/json'</span> },
     body: <span class="cf">JSON.stringify</span>({
-      policy_id: <span class="cs">'retry_friction_v1'</span>,
+      agent_id:  <span class="cs">'apify-scraper'</span>,
+      task_hash: <span class="cf">sha256</span>(url),
       action:    <span class="cs">'tool_call'</span>,
-      actor:     { id: <span class="cs">'apify-scraper'</span>, project: PG_WS },
-      context:   { attempt_in_window: 1, task_hash: <span class="cf">sha256</span>(url) },
     }),
   });
   <span class="ck">if</span> (res.status === 429) <span class="ck">throw new</span> <span class="cf">Error</span>(<span class="cs">'loop_detected'</span>);
@@ -328,17 +324,15 @@
       <div class="code-wrap">
         <div class="code-head"><span>crew.ts</span></div>
         <pre><span class="ck">const</span> PG_KEY = process.env.PG_KEY;
-<span class="ck">const</span> PG_WS  = process.env.PG_WORKSPACE; <span class="cc">// shared workspace for all agents</span>
 
 <span class="ck">async function</span> <span class="cf">check</span>(agentId: string, action: string, taskHash: string) {
-  <span class="ck">const</span> res = <span class="ck">await</span> <span class="cf">fetch</span>(<span class="cs">'https://governor.proceedgate.dev/v1/governor/check'</span>, {
+  <span class="ck">const</span> res = <span class="ck">await</span> <span class="cf">fetch</span>(<span class="cs">'https://governor.proceedgate.dev/v1/check'</span>, {
     method: <span class="cs">'POST'</span>,
     headers: { <span class="cs">'Authorization'</span>: <span class="cs">`Bearer ${PG_KEY}`</span>, <span class="cs">'Content-Type'</span>: <span class="cs">'application/json'</span> },
     body: <span class="cf">JSON.stringify</span>({
-      policy_id: <span class="cs">'retry_friction_v1'</span>,
+      agent_id:  agentId,
+      task_hash: taskHash,
       action,
-      actor:   { id: agentId, project: PG_WS },
-      context: { attempt_in_window: 1, task_hash: taskHash },
     }),
   });
   <span class="ck">if</span> (res.status === 429) <span class="ck">throw new</span> <span class="cf">Error</span>(<span class="cs">`${agentId}: loop_detected`</span>);

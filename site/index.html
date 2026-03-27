@@ -566,7 +566,7 @@
     <div class="terminal">
       <div class="t-bar">
         <span class="dr"></span><span class="dy"></span><span class="dg"></span>
-        <span class="t-title">POST /v1/governor/check → 200 allowed</span>
+        <span class="t-title">POST /v1/check → 200 allowed</span>
       </div>
       <div class="t-body">
 <span class="d">// request</span>
@@ -1304,22 +1304,24 @@
         <span>agent.ts</span>
         <span>curl works too — see below</span>
       </div>
-      <pre><span class="cc">// Option A — simple check (credits only, no proceed_token)</span>
-curl -X POST https://governor.proceedgate.dev/v1/check/simple \
-  -H <span class="cs">"Authorization: Bearer $PG_KEY"</span> \
-  -H <span class="cs">"Content-Type: application/json"</span> \
-  -d <span class="cs">'{"user_id": "my-agent"}'</span>
-
-<span class="cc">// Option B — full governance check (loop detection + proceed_token)</span>
-curl -X POST https://governor.proceedgate.dev/v1/governor/check \
+      <pre><span class="cc">// One endpoint — loop detection + credits + proceed_token</span>
+curl -X POST https://governor.proceedgate.dev/v1/check \
   -H <span class="cs">"Authorization: Bearer $PG_KEY"</span> \
   -H <span class="cs">"Content-Type: application/json"</span> \
   -d <span class="cs">'{
-    "policy_id": "retry_friction_v1",
-    "action":    "model_call",
-    "actor":     {"id": "my-agent", "project": "$WORKSPACE_ID"},
-    "context":   {"attempt_in_window": 1, "task_hash": "sha256-of-prompt"}
-  }'</span></pre>
+    "agent_id":  "my-agent",
+    "task_hash": "sha256-of-task",
+    "action":    "tool_call"
+  }'</span>
+
+<span class="cc">// Response when allowed:</span>
+<span class="cs">{
+  "allowed": true,
+  "zone": "safe",
+  "iteration_count": 3,
+  "proceed_token": "eyJ...",
+  "credits_remaining": 9950
+}</span></pre>
     </div>
   </div>
 </section>
