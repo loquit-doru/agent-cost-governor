@@ -53,17 +53,36 @@ function addressToTopic(address: string): string {
   return `0x${a.slice(2).padStart(64, '0')}`;
 }
 
-function parseUsdcToUnits(price: string): bigint | null {
-  // Expect "<amount> USDC"; USDC is 6 decimals.
+// USDC decimals per chain:
+// - Base: 6 decimals (native Circle USDC)
+// - BSC:  18 decimals (Binance-Pegged USD Coin 0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d)
+// - opBNB: 18 decimals (bridged from BSC)
+function getUsdcDecimals(chain: 'base' | 'bsc' | 'opbnb' | ''): bigint {
+  if (chain === 'base') return 6n;
+  return 18n; // bsc, opbnb
+}
+
+function parseUsdcToUnits(price: string, decimals: bigint = 6n): bigint | null {
+  // Expect "<amount> USDC"
   const m = String(price || '')
     .trim()
     .match(/^([0-9]+(?:\.[0-9]+)?)\s*USDC$/i);
   if (!m) return null;
 
+  const multiplier = 10n ** decimals;
   const [whole, frac = ''] = m[1]!.split('.');
-  const fracPadded = (frac + '000000').slice(0, 6);
-  if (!/^[0-9]+$/.test(whole) || !/^[0-9]{6}$/.test(fracPadded)) return null;
-  return BigInt(whole) * 1_000_000n + BigInt(fracPadded);
+  const fracPadded = (frac + '0'.repeat(Number(decimals))).slice(0, Number(decimals));
+  if (!/^[0-9]+$/.test(whole) || !/^[0-9]+$/.test(fracPadded)) return null;
+  return BigInt(whole) * multiplier + BigInt(fracPadded);
+}
+
+function formatUsdcUnits(units: bigint, decimals: bigint = 6n): string {
+  const multiplier = 10n ** decimals;
+  const sign = units < 0n ? '-' : '';
+  const u = units < 0n ? -units : units;
+  const whole = u / multiplier;
+  const frac = (u % multiplier).toString().padStart(Number(decimals), '0').replace(/0+$/, '');
+  return `${sign}${whole.toString()}${frac ? `.${frac}` : ''} USDC`;
 }
 
 function normalizeChain(input: string): 'base' | 'bsc' | 'opbnb' | '' {
@@ -75,13 +94,6 @@ function normalizeChain(input: string): 'base' | 'bsc' | 'opbnb' | '' {
   return '';
 }
 
-function formatUsdcUnits(units: bigint): string {
-  const sign = units < 0n ? '-' : '';
-  const u = units < 0n ? -units : units;
-  const whole = u / 1_000_000n;
-  const frac = (u % 1_000_000n).toString().padStart(6, '0').replace(/0+$/, '');
-  return `${sign}${whole.toString()}${frac ? `.${frac}` : ''} USDC`;
-}
 
 async function rpcCall<T>(rpcUrl: string, method: string, params: unknown[]): Promise<T> {
   const res = await fetch(rpcUrl, {
@@ -164,7 +176,8 @@ export async function facilitatorVerifyPayment(
   const recipient = normalizeAddress(req.required_recipient);
   if (!recipient) return { ok: false, status: 400, error: 'invalid_required_recipient' };
 
-  const requiredUnits = parseUsdcToUnits(req.required_price);
+  const decimals = getUsdcDecimals(chain);
+  const requiredUnits = parseUsdcToUnits(req.required_price, decimals);
   if (requiredUnits === null) return { ok: false, status: 400, error: 'invalid_required_price' };
 
   // Local/dev convenience: allow stub tx hashes when explicitly enabled.
@@ -247,7 +260,7 @@ export async function facilitatorVerifyPayment(
     ok: true,
     receipt: {
       tx_hash: txHash,
-      paid_price: formatUsdcUnits(paidUnits),
+      paid_price: formatUsdcUnits(paidUnits, decimals),
       paid_chain: chain,
       paid_at: paidAt,
     },

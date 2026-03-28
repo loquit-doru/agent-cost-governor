@@ -60,6 +60,12 @@ PROCEED_TOKEN_TTL_SECONDS = "45"
 PAYMENT_VERIFY_MODE = "facilitator"
 FACILITATOR_URL = "internal"
 
+# RPC endpoints for on-chain payment verification
+BASE_RPC_URL = "https://mainnet.base.org"
+BSC_RPC_URL = "https://bsc-dataseed.binance.org"
+BSC_USDC_ADDRESS = "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+OPBNB_RPC_URL = "https://opbnb-mainnet-rpc.bnbchain.org"
+
 # Never allow stub tx hashes in production.
 ALLOW_STUB_TX = "false"
 
