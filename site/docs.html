@@ -122,10 +122,10 @@
     </div>
     <div class="sidebar-section">
       <div class="sidebar-label">API Reference</div>
-      <a class="sidebar-link" href="#check">POST /v1/check</a>
+      <a class="sidebar-link" href="#check">POST /v1/governor/check</a>
       <a class="sidebar-link" href="#governor-check">POST /v1/governor/check</a>
       <a class="sidebar-link" href="#governor-redeem">POST /v1/governor/redeem</a>
-      <a class="sidebar-link" href="#check-batch">POST /v1/check/batch</a>
+      <a class="sidebar-link" href="#check-batch">POST /v1/governor/check/batch</a>
       <a class="sidebar-link" href="#me">GET /v1/me</a>
       <a class="sidebar-link" href="#me-stats">GET /v1/me/stats</a>
       <a class="sidebar-link" href="#balance">GET /v1/billing/balance</a>
@@ -169,7 +169,7 @@
     <p>Get a free API key at <a href="pay.html">proceedgate.dev/pay.html</a> — 2,000 checks/month, no credit card.</p>
 
     <h3>1. Make your first check</h3>
-<pre>curl -X POST https://governor.proceedgate.dev/v1/check \
+<pre>curl -X POST https://governor.proceedgate.dev/v1/governor/check \
   -H <span class="y">"Authorization: Bearer $PG_KEY"</span> \
   -H <span class="y">"Content-Type: application/json"</span> \
   -d <span class="g">'{
@@ -200,7 +200,7 @@
     <h3>3. Drop it into your agent loop</h3>
 <pre><span class="d">// Node.js</span>
 <span class="t">async function</span> <span class="g">pgCheck</span>(agentId, taskHash) {
-  const res = await fetch(<span class="y">'https://governor.proceedgate.dev/v1/check'</span>, {
+  const res = await fetch(<span class="y">'https://governor.proceedgate.dev/v1/governor/check'</span>, {
     method: <span class="y">'POST'</span>,
     headers: { <span class="y">'Authorization'</span>: `Bearer ${process.env.PG_KEY}`, <span class="y">'Content-Type'</span>: <span class="y">'application/json'</span> },
     body: JSON.stringify({ agent_id: agentId, task_hash: taskHash, action: <span class="y">'tool_call'</span> }),
@@ -227,7 +227,7 @@ for (const url of urls) {
     <div class="endpoint">https://governor.proceedgate.dev</div>
     <p>All endpoints are served over HTTPS. The API is hosted on Cloudflare Workers (global edge, &lt;50ms p99).</p>
 
-    <!-- POST /v1/check -->
+    <!-- POST /v1/governor/check -->
     <h2 id="check"><span class="method post">POST</span>/v1/check</h2>
     <p>The primary endpoint. Runs loop detection + credit check and returns a signed <code>proceed_token</code>. Auto-derives your workspace from the API key — no extra config needed.</p>
 
@@ -325,7 +325,7 @@ x402-chain: BSC</pre>
   }
 }</pre>
 
-    <!-- POST /v1/check/batch -->
+    <!-- POST /v1/governor/check/batch -->
     <h2 id="check-batch"><span class="method post">POST</span>/v1/check/batch</h2>
     <p>Check multiple agent tasks in a single HTTP call. Useful when orchestrating many parallel agents. Returns an array of results in the same order as the input.</p>
 
@@ -445,7 +445,7 @@ curl -X POST https://governor.proceedgate.dev/v1/governor/session \
   -d <span class="g">'{ "agent_id": "scraper-1", "budget_usd": "50.00", "duration_hours": 8 }'</span>
 
 <span class="d"># 2. Run checks with session_id — spend is tracked cumulatively</span>
-curl -X POST https://governor.proceedgate.dev/v1/check \
+curl -X POST https://governor.proceedgate.dev/v1/governor/check \
   -H <span class="y">"Authorization: Bearer $PG_KEY"</span> \
   -H <span class="y">"Content-Type: application/json"</span> \
   -d <span class="g">'{ "agent_id": "scraper-1", "task_hash": "abc123", "session_id": "ses_m1abc_x7k3f2" }'</span>
@@ -517,7 +517,7 @@ const { payload } = await jose.jwtVerify(proceedToken, JWKS, {
     <p>Set <code>PG_KEY</code> in your environment, then call <code>pgCheck()</code> before each agent action.</p>
 <pre><span class="d">// pgCheck.js</span>
 const PG_KEY = process.env.PG_KEY;
-const PG_URL = <span class="y">'https://governor.proceedgate.dev/v1/check'</span>;
+const PG_URL = <span class="y">'https://governor.proceedgate.dev/v1/governor/check'</span>;
 
 <span class="t">export async function</span> <span class="g">pgCheck</span>(agentId, taskHash, action = <span class="y">'tool_call'</span>) {
   const res = await fetch(PG_URL, {
@@ -548,7 +548,7 @@ for (const url of urlQueue) {
 import os, hashlib, httpx
 
 PG_KEY = os.environ[<span class="y">"PG_KEY"</span>]
-PG_URL = <span class="y">"https://governor.proceedgate.dev/v1/check"</span>
+PG_URL = <span class="y">"https://governor.proceedgate.dev/v1/governor/check"</span>
 
 <span class="t">def</span> <span class="g">pg_check</span>(agent_id: str, task_hash: str, action: str = <span class="y">"tool_call"</span>):
     res = httpx.post(
