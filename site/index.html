@@ -1814,35 +1814,196 @@
 <section id="integration">
   <div class="container-sm">
     <p class="label">Integration</p>
-    <h2>Three lines in your agent loop</h2>
-    <p class="sub">The Node SDK wraps the check endpoint. Drop it into any framework — LangChain, CrewAI, Apify, or raw fetch.</p>
+    <h2>Works with your stack</h2>
+    <p class="sub">Drop-in SDKs for every major agent framework. No rewrites — add one wrapper and governance is live.</p>
 
-    <div class="code-wrap">
+    <!-- Framework pills -->
+    <div class="fw-pills">
+      <button class="fw-pill active" data-fw="node">Node.js</button>
+      <button class="fw-pill" data-fw="vercel">Vercel AI</button>
+      <button class="fw-pill" data-fw="langchain">LangChain</button>
+      <button class="fw-pill" data-fw="crewai">CrewAI</button>
+      <button class="fw-pill" data-fw="mcp">MCP</button>
+    </div>
+
+    <!-- Code panels -->
+    <div class="code-wrap" style="margin-top:0">
       <div class="code-head">
-        <span>agent.ts</span>
-        <span>curl works too — see below</span>
+        <span id="fwCodeTitle">@proceedgate/node</span>
+        <a href="docs.html#sdk-node" style="font-size:12px;color:var(--teal)">Full docs →</a>
       </div>
-      <pre><span class="cc">// One endpoint — loop detection + credits + proceed_token</span>
-curl -X POST https://governor.proceedgate.dev/v1/check \
-  -H <span class="cs">"Authorization: Bearer $PG_KEY"</span> \
-  -H <span class="cs">"Content-Type: application/json"</span> \
-  -d <span class="cs">'{
-    "agent_id":  "my-agent",
-    "task_hash": "sha256-of-task",
-    "action":    "tool_call"
-  }'</span>
 
-<span class="cc">// Response when allowed:</span>
-<span class="cs">{
-  "allowed": true,
-  "zone": "safe",
-  "iteration_count": 3,
-  "proceed_token": "eyJ...",
-  "credits_remaining": 9950
-}</span></pre>
+      <pre id="fw-node"><span class="cc">// npm i @proceedgate/node</span>
+<span class="ck">import</span> { createProceedGateClient, requireGateStepOk } <span class="ck">from</span> <span class="cs">'@proceedgate/node'</span>;
+
+<span class="ck">const</span> client = createProceedGateClient({
+  apiKey: process.env.PG_KEY,
+  actor:  { id: <span class="cs">'my-agent'</span>, project: <span class="cs">'my-workspace'</span> },
+});
+
+<span class="cc">// Before each agent action:</span>
+<span class="ck">await</span> requireGateStepOk(client, {
+  policyId: <span class="cs">'retry_friction_v1'</span>,
+  action:   <span class="cs">'tool_call'</span>,
+  context:  { attempt_in_window: 3, tool: <span class="cs">'web_scrape'</span> },
+});
+<span class="cc">// ✅ Throws ProceedGateFrictionError if blocked</span></pre>
+
+      <pre id="fw-vercel" style="display:none"><span class="cc">// npm i @proceedgate/vercel-ai</span>
+<span class="ck">import</span> { generateText, wrapLanguageModel } <span class="ck">from</span> <span class="cs">'ai'</span>;
+<span class="ck">import</span> { openai } <span class="ck">from</span> <span class="cs">'@ai-sdk/openai'</span>;
+<span class="ck">import</span> { proceedGateMiddleware } <span class="ck">from</span> <span class="cs">'@proceedgate/vercel-ai'</span>;
+
+<span class="ck">const</span> model = wrapLanguageModel({
+  model:      openai(<span class="cs">'gpt-4o'</span>),
+  middleware: proceedGateMiddleware({
+    apiKey:      process.env.PG_KEY,
+    workspaceId: <span class="cs">'my-workspace'</span>,
+    maxBudget:   <span class="cn">5.00</span>,   <span class="cc">// $5 hard cap</span>
+    onFriction:  <span class="cs">'block'</span>,
+  }),
+});
+
+<span class="cc">// Every call is now gated — zero other changes needed</span>
+<span class="ck">const</span> result = <span class="ck">await</span> generateText({ model, prompt: <span class="cs">'Analyze...'</span> });</pre>
+
+      <pre id="fw-langchain" style="display:none"><span class="cc">// npm i @proceedgate/langchain</span>
+<span class="ck">import</span> { ProceedGateCallbackHandler } <span class="ck">from</span> <span class="cs">'@proceedgate/langchain'</span>;
+<span class="ck">import</span> { ChatOpenAI } <span class="ck">from</span> <span class="cs">'@langchain/openai'</span>;
+
+<span class="ck">const</span> handler = <span class="ck">new</span> ProceedGateCallbackHandler({
+  apiKey:      process.env.PG_KEY,
+  workspaceId: <span class="cs">'my-workspace'</span>,
+  onFriction:  <span class="cs">'block'</span>,
+});
+
+<span class="cc">// Attach to any LangChain model or chain</span>
+<span class="ck">const</span> model = <span class="ck">new</span> ChatOpenAI({ callbacks: [handler] });
+
+<span class="cc">// Tool wrapper also available:</span>
+<span class="cc">// import { wrapToolWithGate } from '@proceedgate/langchain';</span></pre>
+
+      <pre id="fw-crewai" style="display:none"><span class="cc"># pip install proceedgate-crewai</span>
+<span class="ck">from</span> proceedgate_crewai <span class="ck">import</span> BudgetAwareCrew, gated_tool
+<span class="ck">from</span> crewai <span class="ck">import</span> Crew, Agent, Task
+
+<span class="cc"># Decorate any tool</span>
+<span class="ck">@gated_tool</span>(api_key=<span class="cs">"pg_ws_..."</span>, workspace_id=<span class="cs">"my-ws"</span>)
+<span class="ck">def</span> search_web(query: str) -> str:
+    <span class="ck">return</span> external_api(query)
+
+<span class="cc"># Or wrap the whole crew with a hard budget cap</span>
+crew = BudgetAwareCrew(
+    crew=Crew(agents=[...], tasks=[...]),
+    api_key=<span class="cs">"pg_ws_..."</span>, workspace_id=<span class="cs">"my-ws"</span>,
+    max_budget=<span class="cn">2.50</span>,   <span class="cc"># $2.50 hard stop</span>
+)
+result = crew.kickoff(inputs={<span class="cs">"topic"</span>: <span class="cs">"BNB DeFi"</span>})</pre>
+
+      <pre id="fw-mcp" style="display:none"><span class="cc"># npm i -g @proceedgate/mcp-server</span>
+
+<span class="cc">// claude_desktop_config.json — add ProceedGate as MCP server:</span>
+{
+  <span class="cs">"mcpServers"</span>: {
+    <span class="cs">"proceedgate"</span>: {
+      <span class="cs">"command"</span>: <span class="cs">"proceedgate-mcp"</span>,
+      <span class="cs">"args"</span>: [
+        <span class="cs">"--api-key"</span>,      <span class="cs">"pg_ws_..."</span>,
+        <span class="cs">"--workspace-id"</span>, <span class="cs">"my-ws"</span>
+      ]
+    }
+  }
+}
+
+<span class="cc">// Available MCP tools: gate_check · gate_redeem</span>
+<span class="cc">//   get_balance · set_budget · get_usage_report</span></pre>
+    </div>
+
+    <!-- SDK grid badges -->
+    <div class="fw-grid">
+      <div class="fw-badge">
+        <span class="fw-badge-dot" style="background:var(--green)"></span>
+        <span>@proceedgate/node</span>
+        <span class="fw-badge-sub">TypeScript · any framework</span>
+      </div>
+      <div class="fw-badge">
+        <span class="fw-badge-dot" style="background:var(--yellow)"></span>
+        <span>@proceedgate/vercel-ai</span>
+        <span class="fw-badge-sub">Middleware · gatedTool</span>
+      </div>
+      <div class="fw-badge">
+        <span class="fw-badge-dot" style="background:var(--teal)"></span>
+        <span>@proceedgate/langchain</span>
+        <span class="fw-badge-sub">Callback · Executor</span>
+      </div>
+      <div class="fw-badge">
+        <span class="fw-badge-dot" style="background:#f87171"></span>
+        <span>proceedgate-crewai</span>
+        <span class="fw-badge-sub">Python · BudgetAwareCrew</span>
+      </div>
+      <div class="fw-badge">
+        <span class="fw-badge-dot" style="background:#a78bfa"></span>
+        <span>@proceedgate/mcp-server</span>
+        <span class="fw-badge-sub">Claude Code · Cursor</span>
+      </div>
     </div>
   </div>
 </section>
+
+<style>
+.fw-pills {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  margin: 28px 0 16px;
+}
+.fw-pill {
+  padding: 6px 14px; border-radius: 99px; font-size: 13px;
+  border: 1px solid var(--border); background: transparent;
+  color: var(--tx-3); cursor: pointer; transition: all .15s;
+}
+.fw-pill:hover { color: var(--tx-2); border-color: var(--border-hi); }
+.fw-pill.active { color: var(--teal); border-color: rgba(45,212,191,.4); background: rgba(45,212,191,.07); }
+
+.fw-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  margin-top: 20px;
+}
+@media (max-width: 600px) { .fw-grid { grid-template-columns: 1fr 1fr; } }
+.fw-badge {
+  display: flex; flex-direction: column; gap: 3px;
+  padding: 10px 12px; border-radius: 8px;
+  background: var(--surface); border: 1px solid var(--border);
+  font-size: 12px; font-family: var(--mono); color: var(--tx-2);
+}
+.fw-badge-dot { width: 6px; height: 6px; border-radius: 50%; margin-bottom: 2px; }
+.fw-badge-sub { font-size: 10px; color: var(--tx-3); }
+
+/* Inline code colors */
+.ck { color: #c084fc; }  /* keyword purple */
+.cn { color: #fb923c; }  /* number orange */
+</style>
+
+<script>
+(function() {
+  const pills  = document.querySelectorAll('.fw-pill');
+  const titles = { node:'@proceedgate/node', vercel:'@proceedgate/vercel-ai', langchain:'@proceedgate/langchain', crewai:'proceedgate-crewai', mcp:'@proceedgate/mcp-server' };
+  const docs   = { node:'sdk-node', vercel:'sdk-vercel', langchain:'sdk-langchain', crewai:'sdk-crewai', mcp:'sdk-mcp' };
+
+  pills.forEach(pill => {
+    pill.addEventListener('click', function() {
+      const fw = this.dataset.fw;
+      pills.forEach(p => p.classList.remove('active'));
+      this.classList.add('active');
+      ['node','vercel','langchain','crewai','mcp'].forEach(f => {
+        const el = document.getElementById('fw-' + f);
+        if (el) el.style.display = f === fw ? '' : 'none';
+      });
+      document.getElementById('fwCodeTitle').textContent = titles[fw];
+      const link = document.querySelector('#integration .code-head a');
+      if (link) link.href = 'docs.html#' + docs[fw];
+    });
+  });
+})();
+</script>
 
 <!-- Footer -->
 <footer>
