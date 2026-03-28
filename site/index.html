@@ -1752,6 +1752,227 @@
   </div>
 </section>
 
+<!-- MPP Payments -->
+<section id="payments">
+  <div class="container-sm">
+    <p class="label">Payments</p>
+    <h2>Agents pay. No human needed.</h2>
+    <p class="sub">When an action requires friction, ProceedGate returns HTTP&nbsp;402 with a payment challenge. The agent settles onchain — autonomously, in seconds.</p>
+
+    <!-- Flow diagram -->
+    <div class="pay-flow">
+
+      <div class="pay-node">
+        <div class="pay-node-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+        </div>
+        <div class="pay-node-label">Agent</div>
+        <div class="pay-node-sub">sends check request</div>
+      </div>
+
+      <div class="pay-arrow">
+        <div class="pay-arrow-line"></div>
+        <div class="pay-arrow-badge">POST /check</div>
+        <div class="pay-arrow-head">→</div>
+      </div>
+
+      <div class="pay-node pay-node-gate">
+        <div class="pay-node-icon" style="background:var(--teal-dim);border-color:rgba(45,212,191,.3);color:var(--teal)">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect width="20" height="20" rx="5" fill="#2dd4bf"/><path d="M6 10l3 3 5-6" stroke="#09090b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="pay-node-label">ProceedGate</div>
+        <div class="pay-node-sub">loop detected</div>
+      </div>
+
+      <div class="pay-arrow pay-arrow-402">
+        <div class="pay-arrow-line"></div>
+        <div class="pay-arrow-badge" style="background:rgba(251,191,36,.12);color:var(--yellow);border-color:rgba(251,191,36,.3)">HTTP 402</div>
+        <div class="pay-arrow-head" style="color:var(--yellow)">→</div>
+      </div>
+
+      <div class="pay-node">
+        <div class="pay-node-icon" style="background:rgba(251,191,36,.08);border-color:rgba(251,191,36,.2);color:var(--yellow)">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+        </div>
+        <div class="pay-node-label">Agent Wallet</div>
+        <div class="pay-node-sub">pays 0.004 USDC</div>
+      </div>
+
+      <div class="pay-arrow">
+        <div class="pay-arrow-line"></div>
+        <div class="pay-arrow-badge" style="background:rgba(74,222,128,.08);color:var(--green);border-color:rgba(74,222,128,.2)">tx_hash</div>
+        <div class="pay-arrow-head" style="color:var(--green)">→</div>
+      </div>
+
+      <div class="pay-node">
+        <div class="pay-node-icon" style="background:rgba(74,222,128,.08);border-color:rgba(74,222,128,.2);color:var(--green)">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <div class="pay-node-label">proceed_token</div>
+        <div class="pay-node-sub">ES256 · 45s TTL</div>
+      </div>
+
+    </div><!-- /pay-flow -->
+
+    <!-- Chain badge + stats -->
+    <div class="pay-stats">
+      <div class="pay-chain">
+        <div class="pay-chain-dot"></div>
+        <span>BSC Mainnet</span>
+        <span class="pay-chain-sep">·</span>
+        <span>USDC</span>
+        <span class="pay-chain-sep">·</span>
+        <span>~3s settlement</span>
+        <span class="pay-chain-sep">·</span>
+        <span>&lt;$0.01 gas</span>
+      </div>
+      <div class="pay-stat-grid">
+        <div class="pay-stat">
+          <div class="pay-stat-val">$0.004</div>
+          <div class="pay-stat-lbl">per friction event</div>
+        </div>
+        <div class="pay-stat">
+          <div class="pay-stat-val">x402</div>
+          <div class="pay-stat-lbl">HTTP-native protocol</div>
+        </div>
+        <div class="pay-stat">
+          <div class="pay-stat-val">0</div>
+          <div class="pay-stat-lbl">humans required</div>
+        </div>
+        <div class="pay-stat">
+          <div class="pay-stat-val">CostLedger</div>
+          <div class="pay-stat-lbl">onchain audit trail</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- vs competitors callout -->
+    <div class="pay-compare">
+      <div class="pay-compare-col pay-compare-bad">
+        <div class="pay-compare-head">
+          <span class="pay-compare-dot" style="background:var(--tx-3)"></span>
+          Everyone else
+        </div>
+        <ul>
+          <li>Human tops up credits manually</li>
+          <li>Agent gets blocked, waits for human</li>
+          <li>Stripe / bank transfer</li>
+          <li>Off-chain, auditable only by vendor</li>
+        </ul>
+      </div>
+      <div class="pay-compare-col pay-compare-good">
+        <div class="pay-compare-head">
+          <span class="pay-compare-dot" style="background:var(--teal)"></span>
+          ProceedGate
+        </div>
+        <ul>
+          <li>Agent wallet pays automatically</li>
+          <li>Agent receives proceed_token, continues</li>
+          <li>USDC on BSC — HTTP 402 native</li>
+          <li>Every payment on-chain, public, verifiable</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<style>
+/* ── MPP Payments section ────────────────────────────────── */
+#payments { border-top: 1px solid var(--border); }
+
+.pay-flow {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin: 36px 0 28px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+@media (max-width: 700px) {
+  .pay-flow { flex-direction: column; gap: 8px; align-items: flex-start; }
+  .pay-arrow { flex-direction: row; width: auto; }
+}
+
+.pay-node {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 6px; flex-shrink: 0; text-align: center; min-width: 88px;
+}
+.pay-node-icon {
+  width: 52px; height: 52px; border-radius: 12px;
+  background: var(--surface); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--tx-3);
+}
+.pay-node-label { font-size: 12px; font-weight: 600; color: var(--tx); }
+.pay-node-sub { font-size: 10px; color: var(--tx-3); font-family: var(--mono); white-space: nowrap; }
+
+.pay-arrow {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; gap: 5px; min-width: 60px; position: relative;
+}
+.pay-arrow-line { width: 100%; height: 1px; background: var(--border); }
+.pay-arrow-badge {
+  font-size: 10px; font-weight: 600; font-family: var(--mono);
+  padding: 2px 7px; border-radius: 4px;
+  background: rgba(45,212,191,.08); color: var(--teal);
+  border: 1px solid rgba(45,212,191,.2); white-space: nowrap;
+}
+.pay-arrow-head { font-size: 16px; color: var(--teal); line-height: 1; }
+
+/* Chain badge + stats */
+.pay-stats { display: flex; flex-direction: column; gap: 14px; margin-bottom: 20px; }
+.pay-chain {
+  display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  padding: 8px 14px; border-radius: 99px;
+  background: var(--surface); border: 1px solid var(--border);
+  font-size: 12px; font-family: var(--mono); color: var(--tx-2);
+}
+.pay-chain-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--green); box-shadow: 0 0 6px var(--green);
+  animation: pulse 2s infinite;
+}
+.pay-chain-sep { color: var(--tx-3); }
+
+.pay-stat-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+}
+@media (max-width: 600px) { .pay-stat-grid { grid-template-columns: repeat(2, 1fr); } }
+.pay-stat {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 14px 16px; text-align: center;
+}
+.pay-stat-val {
+  font-size: 20px; font-weight: 700; font-family: var(--mono);
+  color: var(--teal); letter-spacing: -.01em;
+}
+.pay-stat-lbl { font-size: 11px; color: var(--tx-3); margin-top: 3px; }
+
+/* Compare */
+.pay-compare {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  margin-top: 4px;
+}
+@media (max-width: 600px) { .pay-compare { grid-template-columns: 1fr; } }
+.pay-compare-col {
+  border-radius: 10px; padding: 16px 18px;
+  border: 1px solid var(--border);
+}
+.pay-compare-bad  { background: rgba(255,255,255,.02); }
+.pay-compare-good { background: rgba(45,212,191,.05); border-color: rgba(45,212,191,.2); }
+.pay-compare-head {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 600; margin-bottom: 12px; color: var(--tx-2);
+}
+.pay-compare-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.pay-compare-col ul { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+.pay-compare-col li { font-size: 13px; color: var(--tx-3); padding-left: 14px; position: relative; }
+.pay-compare-bad  li::before { content: '✕'; position: absolute; left: 0; color: var(--tx-3); font-size: 11px; }
+.pay-compare-good li::before { content: '✓'; position: absolute; left: 0; color: var(--teal); font-size: 11px; }
+.pay-compare-good li { color: var(--tx-2); }
+</style>
+
 <!-- Pricing -->
 <section id="pricing">
   <div class="container">
