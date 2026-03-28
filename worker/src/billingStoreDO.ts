@@ -630,9 +630,187 @@ export class BillingStoreDO {
     return { ok: true };
   }
 
+  // ========================================================================
+  // Governor Sessions — cumulative budget tracking (MPP-inspired)
+  // ========================================================================
+  async handleSession(request: Request, url: URL, parts: string[]): Promise<Response> {
+    // POST /sessions — create a new session
+    if (request.method === 'POST' && parts.length === 1) {
+      const body = await request.json().catch(() => null) as {
+        session_id?: string;
+        workspace_id?: string;
+        agent_id?: string;
+        budget_usd?: string;
+        duration_hours?: number;
+      } | null;
+      if (!body?.session_id || !body?.workspace_id || !body?.agent_id || !body?.budget_usd) {
+        return Response.json({ ok: false, error: 'missing_fields' }, { status: 400 });
+      }
+
+      const existing = await this.state.storage.get<GovernorSession>(`session:${body.session_id}`);
+      if (existing) {
+        return Response.json({ ok: false, error: 'session_exists' }, { status: 409 });
+      }
+
+      const durationMs = (body.duration_hours ?? 24) * 60 * 60 * 1000;
+      const nowMs = Date.now();
+      const session: GovernorSession = {
+        sessionId: body.session_id,
+        workspaceId: body.workspace_id,
+        agentId: body.agent_id,
+        budgetLimitUsd: body.budget_usd,
+        totalSpentUsd: '0',
+        requestCount: 0,
+        status: 'open',
+        expiresAtMs: nowMs + durationMs,
+        createdAtMs: nowMs,
+        updatedAtMs: nowMs,
+      };
+
+      await this.state.storage.put(`session:${body.session_id}`, session);
+
+      // Track active session IDs per workspace
+      const activeIds = await this.state.storage.get<string[]>(`sessions:${body.workspace_id}`) || [];
+      activeIds.push(body.session_id);
+      await this.state.storage.put(`sessions:${body.workspace_id}`, activeIds);
+
+      return Response.json({ ok: true, session }, { status: 201 });
+    }
+
+    // GET /sessions/:id — get session status
+    if (request.method === 'GET' && parts.length === 2) {
+      const sessionId = parts[1]!;
+      const session = await this.state.storage.get<GovernorSession>(`session:${sessionId}`);
+      if (!session) {
+        return Response.json({ ok: false, error: 'not_found' }, { status: 404 });
+      }
+
+      // Auto-expire
+      if (session.status === 'open' && Date.now() > session.expiresAtMs) {
+        session.status = 'closed';
+        session.updatedAtMs = Date.now();
+        await this.state.storage.put(`session:${sessionId}`, session);
+      }
+
+      const budgetLimit = parseFloat(session.budgetLimitUsd);
+      const totalSpent = parseFloat(session.totalSpentUsd);
+
+      return Response.json({
+        ok: true,
+        session: {
+          ...session,
+          remainingUsd: (budgetLimit - totalSpent).toFixed(6),
+        },
+      }, { status: 200 });
+    }
+
+    // POST /sessions/:id/record — record cumulative spend (voucher-style)
+    if (request.method === 'POST' && parts.length === 3 && parts[2] === 'record') {
+      const sessionId = parts[1]!;
+      const session = await this.state.storage.get<GovernorSession>(`session:${sessionId}`);
+      if (!session) {
+        return Response.json({ ok: false, error: 'not_found' }, { status: 404 });
+      }
+
+      // Auto-expire check
+      if (session.status === 'open' && Date.now() > session.expiresAtMs) {
+        session.status = 'closed';
+        session.updatedAtMs = Date.now();
+        await this.state.storage.put(`session:${sessionId}`, session);
+        return Response.json({ ok: false, error: 'session_expired' }, { status: 410 });
+      }
+
+      if (session.status !== 'open') {
+        return Response.json({ ok: false, error: `session_${session.status}` }, { status: 400 });
+      }
+
+      const body = await request.json().catch(() => null) as {
+        cost_usd?: string;
+        request_count?: number;
+      } | null;
+      if (!body?.cost_usd) {
+        return Response.json({ ok: false, error: 'missing_cost_usd' }, { status: 400 });
+      }
+
+      const addedCost = parseFloat(body.cost_usd);
+      const newTotal = parseFloat(session.totalSpentUsd) + addedCost;
+      const budgetLimit = parseFloat(session.budgetLimitUsd);
+
+      session.totalSpentUsd = newTotal.toFixed(6);
+      session.requestCount = (body.request_count ?? session.requestCount + 1);
+      session.updatedAtMs = Date.now();
+
+      if (newTotal >= budgetLimit) {
+        session.status = 'exceeded';
+      }
+
+      await this.state.storage.put(`session:${sessionId}`, session);
+
+      return Response.json({
+        ok: true,
+        session_id: sessionId,
+        total_spent_usd: session.totalSpentUsd,
+        remaining_usd: Math.max(0, budgetLimit - newTotal).toFixed(6),
+        request_count: session.requestCount,
+        status: session.status,
+        budget_exceeded: newTotal >= budgetLimit,
+      }, { status: 200 });
+    }
+
+    // DELETE /sessions/:id — close session (settle)
+    if (request.method === 'DELETE' && parts.length === 2) {
+      const sessionId = parts[1]!;
+      const session = await this.state.storage.get<GovernorSession>(`session:${sessionId}`);
+      if (!session) {
+        return Response.json({ ok: false, error: 'not_found' }, { status: 404 });
+      }
+
+      session.status = 'closed';
+      session.updatedAtMs = Date.now();
+      await this.state.storage.put(`session:${sessionId}`, session);
+
+      // Remove from active sessions list
+      const activeIds = await this.state.storage.get<string[]>(`sessions:${session.workspaceId}`) || [];
+      const filtered = activeIds.filter(id => id !== sessionId);
+      await this.state.storage.put(`sessions:${session.workspaceId}`, filtered);
+
+      return Response.json({
+        ok: true,
+        session_id: sessionId,
+        final_spent_usd: session.totalSpentUsd,
+        request_count: session.requestCount,
+        status: 'closed',
+      }, { status: 200 });
+    }
+
+    // GET /sessions — list active sessions for a workspace
+    if (request.method === 'GET' && parts.length === 1) {
+      const workspaceId = url.searchParams.get('workspace_id');
+      if (!workspaceId) {
+        return Response.json({ ok: false, error: 'missing_workspace_id' }, { status: 400 });
+      }
+
+      const activeIds = await this.state.storage.get<string[]>(`sessions:${workspaceId}`) || [];
+      const sessions: GovernorSession[] = [];
+      for (const id of activeIds) {
+        const s = await this.state.storage.get<GovernorSession>(`session:${id}`);
+        if (s) sessions.push(s);
+      }
+
+      return Response.json({ ok: true, sessions }, { status: 200 });
+    }
+
+    return new Response('method_not_allowed', { status: 405 });
+  }
+
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
     const parts = url.pathname.split('/').filter(Boolean);
+
+    // Early session routing — handle before any other block
+    if (parts[0] === 'sessions') {
+      return this.handleSession(request, url, parts);
+    }
 
     // Internal DO API:
     // - PUT  /quotes/:id { record }
@@ -2065,179 +2243,6 @@ export class BillingStoreDO {
         by_plan: planCounts,
         workspaces,
       }, { status: 200 });
-    }
-
-    // ========================================================================
-    // Governor Sessions — cumulative budget tracking (MPP-inspired)
-    // ========================================================================
-    if (parts[0] === 'sessions') {
-      // POST /sessions — create a new session
-      if (request.method === 'POST' && parts.length === 1) {
-        const body = await request.json().catch(() => null) as {
-          session_id?: string;
-          workspace_id?: string;
-          agent_id?: string;
-          budget_usd?: string;
-          duration_hours?: number;
-        } | null;
-        if (!body?.session_id || !body?.workspace_id || !body?.agent_id || !body?.budget_usd) {
-          return Response.json({ ok: false, error: 'missing_fields' }, { status: 400 });
-        }
-
-        const existing = await this.state.storage.get<GovernorSession>(`session:${body.session_id}`);
-        if (existing) {
-          return Response.json({ ok: false, error: 'session_exists' }, { status: 409 });
-        }
-
-        const durationMs = (body.duration_hours ?? 24) * 60 * 60 * 1000;
-        const nowMs = Date.now();
-        const session: GovernorSession = {
-          sessionId: body.session_id,
-          workspaceId: body.workspace_id,
-          agentId: body.agent_id,
-          budgetLimitUsd: body.budget_usd,
-          totalSpentUsd: '0',
-          requestCount: 0,
-          status: 'open',
-          expiresAtMs: nowMs + durationMs,
-          createdAtMs: nowMs,
-          updatedAtMs: nowMs,
-        };
-
-        await this.state.storage.put(`session:${body.session_id}`, session);
-
-        // Track active session IDs per workspace
-        const activeIds = await this.state.storage.get<string[]>(`sessions:${body.workspace_id}`) || [];
-        activeIds.push(body.session_id);
-        await this.state.storage.put(`sessions:${body.workspace_id}`, activeIds);
-
-        return Response.json({ ok: true, session }, { status: 201 });
-      }
-
-      // GET /sessions/:id — get session status
-      if (request.method === 'GET' && parts.length === 2) {
-        const sessionId = parts[1]!;
-        const session = await this.state.storage.get<GovernorSession>(`session:${sessionId}`);
-        if (!session) {
-          return Response.json({ ok: false, error: 'not_found' }, { status: 404 });
-        }
-
-        // Auto-expire
-        if (session.status === 'open' && Date.now() > session.expiresAtMs) {
-          session.status = 'closed';
-          session.updatedAtMs = Date.now();
-          await this.state.storage.put(`session:${sessionId}`, session);
-        }
-
-        const budgetLimit = parseFloat(session.budgetLimitUsd);
-        const totalSpent = parseFloat(session.totalSpentUsd);
-
-        return Response.json({
-          ok: true,
-          session: {
-            ...session,
-            remainingUsd: (budgetLimit - totalSpent).toFixed(6),
-          },
-        }, { status: 200 });
-      }
-
-      // POST /sessions/:id/record — record cumulative spend (voucher-style)
-      if (request.method === 'POST' && parts.length === 3 && parts[2] === 'record') {
-        const sessionId = parts[1]!;
-        const session = await this.state.storage.get<GovernorSession>(`session:${sessionId}`);
-        if (!session) {
-          return Response.json({ ok: false, error: 'not_found' }, { status: 404 });
-        }
-
-        // Auto-expire check
-        if (session.status === 'open' && Date.now() > session.expiresAtMs) {
-          session.status = 'closed';
-          session.updatedAtMs = Date.now();
-          await this.state.storage.put(`session:${sessionId}`, session);
-          return Response.json({ ok: false, error: 'session_expired' }, { status: 410 });
-        }
-
-        if (session.status !== 'open') {
-          return Response.json({ ok: false, error: `session_${session.status}` }, { status: 400 });
-        }
-
-        const body = await request.json().catch(() => null) as {
-          cost_usd?: string;
-          request_count?: number;
-        } | null;
-        if (!body?.cost_usd) {
-          return Response.json({ ok: false, error: 'missing_cost_usd' }, { status: 400 });
-        }
-
-        const addedCost = parseFloat(body.cost_usd);
-        const newTotal = parseFloat(session.totalSpentUsd) + addedCost;
-        const budgetLimit = parseFloat(session.budgetLimitUsd);
-
-        session.totalSpentUsd = newTotal.toFixed(6);
-        session.requestCount = (body.request_count ?? session.requestCount + 1);
-        session.updatedAtMs = Date.now();
-
-        if (newTotal >= budgetLimit) {
-          session.status = 'exceeded';
-        }
-
-        await this.state.storage.put(`session:${sessionId}`, session);
-
-        return Response.json({
-          ok: true,
-          session_id: sessionId,
-          total_spent_usd: session.totalSpentUsd,
-          remaining_usd: Math.max(0, budgetLimit - newTotal).toFixed(6),
-          request_count: session.requestCount,
-          status: session.status,
-          budget_exceeded: newTotal >= budgetLimit,
-        }, { status: 200 });
-      }
-
-      // DELETE /sessions/:id — close session (settle)
-      if (request.method === 'DELETE' && parts.length === 2) {
-        const sessionId = parts[1]!;
-        const session = await this.state.storage.get<GovernorSession>(`session:${sessionId}`);
-        if (!session) {
-          return Response.json({ ok: false, error: 'not_found' }, { status: 404 });
-        }
-
-        session.status = 'closed';
-        session.updatedAtMs = Date.now();
-        await this.state.storage.put(`session:${sessionId}`, session);
-
-        // Remove from active sessions list
-        const activeIds = await this.state.storage.get<string[]>(`sessions:${session.workspaceId}`) || [];
-        const filtered = activeIds.filter(id => id !== sessionId);
-        await this.state.storage.put(`sessions:${session.workspaceId}`, filtered);
-
-        return Response.json({
-          ok: true,
-          session_id: sessionId,
-          final_spent_usd: session.totalSpentUsd,
-          request_count: session.requestCount,
-          status: 'closed',
-        }, { status: 200 });
-      }
-
-      // GET /sessions — list active sessions for a workspace
-      if (request.method === 'GET' && parts.length === 1) {
-        const workspaceId = url.searchParams.get('workspace_id');
-        if (!workspaceId) {
-          return Response.json({ ok: false, error: 'missing_workspace_id' }, { status: 400 });
-        }
-
-        const activeIds = await this.state.storage.get<string[]>(`sessions:${workspaceId}`) || [];
-        const sessions: GovernorSession[] = [];
-        for (const id of activeIds) {
-          const s = await this.state.storage.get<GovernorSession>(`session:${id}`);
-          if (s) sessions.push(s);
-        }
-
-        return Response.json({ ok: true, sessions }, { status: 200 });
-      }
-
-      return new Response('method_not_allowed', { status: 405 });
     }
 
     return new Response('not_found', { status: 404 });
