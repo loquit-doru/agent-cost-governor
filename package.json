@@ -6,7 +6,8 @@
     "runner",
     "sdk-node",
     "mcp-server",
-    "sdk/langchain"
+    "sdk/langchain",
+    "sdk/vercel-ai"
   ],
   "devDependencies": {
     "@openzeppelin/contracts": "^5.4.0",

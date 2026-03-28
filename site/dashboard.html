@@ -213,6 +213,30 @@
     .badge.warn { background: rgba(251,191,36,.12); color: var(--yellow); }
     .mono { font-family: var(--mono); }
 
+    /* ── Sessions ──────────────────────────────────────────── */
+    .session-card {
+      display: grid; grid-template-columns: 1fr auto; gap: 8px;
+      padding: 12px 18px; border-bottom: 1px solid var(--border);
+      align-items: center;
+    }
+    .session-card:last-child { border-bottom: none; }
+    .session-id { font-family: var(--mono); font-size: 11px; color: var(--teal); }
+    .session-agent { font-size: 12px; color: var(--tx-2); }
+    .session-budget { font-size: 12px; color: var(--tx-2); }
+    .session-bar-wrap { height: 4px; background: var(--border); border-radius: 2px; margin-top: 6px; max-width: 200px; }
+    .session-bar { height: 100%; border-radius: 2px; transition: width .3s; }
+    .session-bar.ok { background: var(--green); }
+    .session-bar.warn { background: var(--yellow); }
+    .session-bar.danger { background: var(--red); }
+
+    /* ── Cost bars ─────────────────────────────────────────── */
+    .cost-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .cost-row:last-child { margin-bottom: 0; }
+    .cost-label { font-size: 12px; font-family: var(--mono); color: var(--tx-2); min-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .cost-bar-wrap { flex: 1; height: 6px; background: var(--border); border-radius: 3px; }
+    .cost-bar { height: 100%; background: var(--teal); border-radius: 3px; min-width: 2px; transition: width .3s; }
+    .cost-amount { font-size: 11px; font-family: var(--mono); color: var(--tx-3); min-width: 50px; text-align: right; }
+
     /* ── Empty state ─────────────────────────────────────── */
     .empty { padding: 32px; text-align: center; color: var(--tx-3); font-size: 13px; }
 
@@ -268,8 +292,10 @@
     ProceedGate
   </a>
   <div class="nav-links">
+    <a href="docs.html">Docs</a>
     <a href="scraping.html">Scraping</a>
     <a href="use-cases.html">Use Cases</a>
+    <a href="dashboard.html" style="color:var(--tx)">Dashboard</a>
     <a href="pay.html" class="cta">Get API Key</a>
   </div>
   <div class="nav-right">
@@ -406,6 +432,40 @@
         </div>
       </div>
       <div class="live-results" id="liveResults"></div>
+    </div>
+  </div>
+
+  <!-- Sessions -->
+  <div class="panel" style="margin-bottom:16px">
+    <div class="panel-head">
+      Active Sessions
+      <span class="muted" id="sessionCount">—</span>
+    </div>
+    <div id="sessionsBody" style="max-height:280px;overflow-y:auto;">
+      <div class="feed-empty" id="sessionsEmpty">No active sessions</div>
+      <div id="sessionsList" style="display:none;"></div>
+    </div>
+  </div>
+
+  <!-- Cost Breakdown -->
+  <div class="grid-2" style="margin-bottom:16px">
+    <div class="panel">
+      <div class="panel-head">
+        Cost by Tool
+        <span class="muted">top tools by spend</span>
+      </div>
+      <div class="panel-body" id="costByTool">
+        <div style="color:var(--tx-3);font-size:13px;text-align:center;padding:12px 0;">No data yet</div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head">
+        Cost by Agent
+        <span class="muted">top agents by spend</span>
+      </div>
+      <div class="panel-body" id="costByAgent">
+        <div style="color:var(--tx-3);font-size:13px;text-align:center;padding:12px 0;">No data yet</div>
+      </div>
     </div>
   </div>
 
@@ -608,8 +668,96 @@
     renderFeed(data.decisions || []);
     renderChart(data.storm_chart || []);
     renderActivity(data.decisions || []);
+    renderSessions(data.sessions || []);
+    renderCostBreakdown(data);
     document.getElementById('feedCount').textContent =
       decisions > 0 ? decisions.toLocaleString() + ' total' : 'none yet';
+  }
+
+  // ─── Sessions ──────────────────────────────────────────────────────────────
+  function renderSessions(sessions) {
+    const emptyEl = document.getElementById('sessionsEmpty');
+    const listEl  = document.getElementById('sessionsList');
+    const countEl = document.getElementById('sessionCount');
+
+    if (!sessions.length) {
+      emptyEl.style.display = '';
+      listEl.style.display = 'none';
+      countEl.textContent = '0 active';
+      return;
+    }
+
+    emptyEl.style.display = 'none';
+    listEl.style.display = '';
+    countEl.textContent = sessions.length + ' active';
+    listEl.innerHTML = '';
+
+    sessions.forEach(function(s) {
+      const spent = parseFloat(s.total_spent_usd || 0);
+      const budget = parseFloat(s.budget_usd || 1);
+      const pct = Math.min(100, (spent / budget) * 100);
+      const barClass = pct > 90 ? 'danger' : pct > 60 ? 'warn' : 'ok';
+      const card = document.createElement('div');
+      card.className = 'session-card';
+      card.innerHTML =
+        '<div>' +
+          '<div class="session-id">' + (s.session_id || '—') + '</div>' +
+          '<div class="session-agent">Agent: ' + (s.agent_id || '—') + ' · ' + (s.request_count || 0) + ' requests</div>' +
+          '<div class="session-bar-wrap"><div class="session-bar ' + barClass + '" style="width:' + pct + '%"></div></div>' +
+        '</div>' +
+        '<div style="text-align:right;">' +
+          '<div class="session-budget" style="font-family:var(--mono);font-weight:600;">$' + spent.toFixed(2) + ' / $' + budget.toFixed(2) + '</div>' +
+          '<div style="font-size:10px;color:var(--tx-3);margin-top:2px;">' + Math.round(pct) + '% used</div>' +
+        '</div>';
+      listEl.appendChild(card);
+    });
+  }
+
+  // ─── Cost Breakdown ────────────────────────────────────────────────────────
+  function renderCostBreakdown(data) {
+    renderCostBars('costByTool', data.cost_by_tool || generateDemoCostByTool(data));
+    renderCostBars('costByAgent', data.cost_by_agent || generateDemoCostByAgent(data));
+  }
+
+  function renderCostBars(containerId, items) {
+    const el = document.getElementById(containerId);
+    if (!items || !items.length) {
+      el.innerHTML = '<div style="color:var(--tx-3);font-size:13px;text-align:center;padding:12px 0;">No data yet</div>';
+      return;
+    }
+    const max = Math.max(1, ...items.map(function(i) { return i.cost; }));
+    el.innerHTML = '';
+    items.slice(0, 5).forEach(function(item) {
+      const pct = Math.max(2, (item.cost / max) * 100);
+      const row = document.createElement('div');
+      row.className = 'cost-row';
+      row.innerHTML =
+        '<div class="cost-label" title="' + item.name + '">' + item.name + '</div>' +
+        '<div class="cost-bar-wrap"><div class="cost-bar" style="width:' + pct + '%"></div></div>' +
+        '<div class="cost-amount">$' + item.cost.toFixed(3) + '</div>';
+      el.appendChild(row);
+    });
+  }
+
+  function generateDemoCostByTool(data) {
+    if (!_isDemo && !(data.decisions || []).length) return [];
+    return [
+      { name: 'web_scrape', cost: 0.045 },
+      { name: 'search_api', cost: 0.032 },
+      { name: 'model_call', cost: 0.028 },
+      { name: 'browser', cost: 0.015 },
+      { name: 'file_read', cost: 0.008 },
+    ];
+  }
+
+  function generateDemoCostByAgent(data) {
+    if (!_isDemo && !(data.decisions || []).length) return [];
+    return [
+      { name: 'crypto-scraper', cost: 0.052 },
+      { name: 'researcher', cost: 0.035 },
+      { name: 'treasury-guard', cost: 0.022 },
+      { name: 'analyst', cost: 0.011 },
+    ];
   }
 
   // ─── Feed ─────────────────────────────────────────────────────────────────

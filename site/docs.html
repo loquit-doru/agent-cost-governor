@@ -145,9 +145,17 @@
       <a class="sidebar-link" href="#x-service-info">x-service-info</a>
     </div>
     <div class="sidebar-section">
+      <div class="sidebar-label">SDKs</div>
+      <a class="sidebar-link" href="#sdk-node">@proceedgate/node</a>
+      <a class="sidebar-link" href="#sdk-langchain">LangChain</a>
+      <a class="sidebar-link" href="#sdk-vercel">Vercel AI SDK</a>
+      <a class="sidebar-link" href="#sdk-crewai">CrewAI (Python)</a>
+      <a class="sidebar-link" href="#sdk-mcp">MCP Server</a>
+    </div>
+    <div class="sidebar-section">
       <div class="sidebar-label">Integration</div>
-      <a class="sidebar-link" href="#nodejs">Node.js</a>
-      <a class="sidebar-link" href="#python">Python</a>
+      <a class="sidebar-link" href="#nodejs">Node.js (raw)</a>
+      <a class="sidebar-link" href="#python">Python (raw)</a>
       <a class="sidebar-link" href="#errors">Error Codes</a>
     </div>
   </aside>
@@ -563,6 +571,165 @@ PG_URL = <span class="y">"https://governor.proceedgate.dev/v1/check"</span>
 for url in urls:
     pg_check(<span class="y">"scraper"</span>, sha256(url))
     html = httpx.get(url).text</pre>
+
+    <!-- SDK: @proceedgate/node -->
+    <h2 id="sdk-node">@proceedgate/node</h2>
+    <p>Framework-agnostic Node.js / TypeScript SDK. Detects retry storms, enforces budgets, returns signed tokens. Works with any agent framework.</p>
+<pre>npm i @proceedgate/node</pre>
+
+    <h3>gateStep — non-throwing check</h3>
+<pre>import { createProceedGateClient, gateStep } from <span class="y">'@proceedgate/node'</span>;
+
+const client = createProceedGateClient({
+  baseUrl: <span class="y">'https://governor.proceedgate.dev'</span>,
+  actor: { id: <span class="y">'my-agent'</span>, project: <span class="y">'my-workspace-id'</span> },
+  apiKey: process.env.PG_KEY,
+});
+
+const result = await gateStep(client, {
+  policyId: <span class="y">'retry_friction_v1'</span>,
+  action: <span class="y">'tool_call'</span>,
+  context: { attempt_in_window: 3, window_seconds: 60, tool: <span class="y">'web_scrape'</span> },
+});
+
+if (result.kind === <span class="y">'ok'</span>) {
+  <span class="d">// Allowed — proceed_token in result.proceedToken</span>
+} else {
+  console.log(<span class="y">'Blocked:'</span>, result.friction?.price); <span class="d">// e.g. "0.004 USDC"</span>
+}</pre>
+
+    <h3>requireGateStepOk — throws on friction</h3>
+<pre>import { requireGateStepOk, ProceedGateFrictionError } from <span class="y">'@proceedgate/node'</span>;
+
+try {
+  await requireGateStepOk(client, {
+    policyId: <span class="y">'retry_friction_v1'</span>,
+    action: <span class="y">'retry'</span>,
+    context: { attempt_in_window: 7, window_seconds: 60 },
+  });
+  <span class="d">// Allowed — run action</span>
+} catch (e) {
+  if (e instanceof ProceedGateFrictionError) {
+    console.log(<span class="y">'Blocked:'</span>, e.decisionId, e.friction);
+  }
+}</pre>
+
+    <!-- SDK: LangChain -->
+    <h2 id="sdk-langchain">@proceedgate/langchain</h2>
+    <p>LangChain integration with three components: callback handler, tool wrapper, and agent executor. Works with <code>@langchain/core ≥0.2</code>.</p>
+<pre>npm i @proceedgate/langchain</pre>
+
+    <h3>Callback handler (intercepts all LLM + tool calls)</h3>
+<pre>import { ProceedGateCallbackHandler } from <span class="y">'@proceedgate/langchain'</span>;
+import { ChatOpenAI } from <span class="y">'@langchain/openai'</span>;
+
+const handler = new ProceedGateCallbackHandler({
+  apiKey: process.env.PG_KEY,
+  workspaceId: <span class="y">'my-workspace'</span>,
+  onFriction: <span class="y">'block'</span>,
+});
+
+const model = new ChatOpenAI({ callbacks: [handler] });</pre>
+
+    <h3>Tool wrapper</h3>
+<pre>import { wrapToolWithGate } from <span class="y">'@proceedgate/langchain'</span>;
+
+const gatedSearch = wrapToolWithGate(searchTool, {
+  apiKey: process.env.PG_KEY,
+  workspaceId: <span class="y">'my-workspace'</span>,
+});</pre>
+
+    <!-- SDK: Vercel AI -->
+    <h2 id="sdk-vercel">@proceedgate/vercel-ai</h2>
+    <p>Vercel AI SDK integration. Wraps language models and tools with ProceedGate governance via the middleware API. Compatible with <code>ai ≥3.0</code>.</p>
+<pre>npm i @proceedgate/vercel-ai</pre>
+
+    <h3>Middleware (gates every LLM call)</h3>
+<pre>import { generateText, wrapLanguageModel } from <span class="y">'ai'</span>;
+import { openai } from <span class="y">'@ai-sdk/openai'</span>;
+import { proceedGateMiddleware } from <span class="y">'@proceedgate/vercel-ai'</span>;
+
+const model = wrapLanguageModel({
+  model: openai(<span class="y">'gpt-4o'</span>),
+  middleware: proceedGateMiddleware({
+    apiKey: process.env.PG_KEY,
+    workspaceId: <span class="y">'my-workspace'</span>,
+    onFriction: <span class="y">'block'</span>,
+    maxBudget: 5.00, <span class="d">// $5 hard cap</span>
+  }),
+});
+
+const result = await generateText({ model, prompt: <span class="y">'Analyze...'</span> });</pre>
+
+    <h3>Tool gating</h3>
+<pre>import { tool } from <span class="y">'ai'</span>;
+import { z } from <span class="y">'zod'</span>;
+import { gatedTool } from <span class="y">'@proceedgate/vercel-ai'</span>;
+
+const gate = gatedTool({ apiKey: process.env.PG_KEY, workspaceId: <span class="y">'ws'</span> });
+
+const searchTool = gate(
+  tool({
+    description: <span class="y">'Search the web'</span>,
+    parameters: z.object({ query: z.string() }),
+    execute: async ({ query }) => doSearch(query),
+  }),
+  { costEstimate: 0.01 }
+);</pre>
+
+    <!-- SDK: CrewAI -->
+    <h2 id="sdk-crewai">proceedgate-crewai (Python)</h2>
+    <p>CrewAI integration for Python agents. Three components: callback handler, tool decorator, and budget-aware crew wrapper.</p>
+<pre>pip install proceedgate-crewai</pre>
+
+    <h3>Tool decorator</h3>
+<pre><span class="t">from</span> proceedgate_crewai <span class="t">import</span> gated_tool
+
+<span class="g">@gated_tool</span>(api_key=<span class="y">"pg_ws_..."</span>, workspace_id=<span class="y">"my-ws"</span>)
+<span class="t">def</span> <span class="g">search_web</span>(query: str) -&gt; str:
+    <span class="t">return</span> external_search_api(query)</pre>
+
+    <h3>Budget-aware crew</h3>
+<pre><span class="t">from</span> crewai <span class="t">import</span> Crew, Agent, Task
+<span class="t">from</span> proceedgate_crewai <span class="t">import</span> BudgetAwareCrew
+
+crew = Crew(agents=[...], tasks=[...])
+
+gated = BudgetAwareCrew(
+    crew=crew,
+    api_key=<span class="y">"pg_ws_..."</span>,
+    workspace_id=<span class="y">"my-ws"</span>,
+    max_budget=<span class="g">2.50</span>,  <span class="d"># $2.50 hard stop</span>
+)
+
+result = gated.kickoff(inputs={<span class="y">"topic"</span>: <span class="y">"BNB Chain DeFi"</span>})
+print(f<span class="y">"Spent: ${gated.total_cost:.4f}"</span>)</pre>
+
+    <!-- SDK: MCP Server -->
+    <h2 id="sdk-mcp">@proceedgate/mcp-server</h2>
+    <p>Model Context Protocol server for AI coding tools (Claude Code, Cursor, etc.). Exposes 5 tools for governance, balance, and usage reporting.</p>
+<pre>npm i -g @proceedgate/mcp-server</pre>
+
+    <h3>Claude Desktop / Claude Code setup</h3>
+<pre><span class="d">// claude_desktop_config.json</span>
+{
+  <span class="t">"mcpServers"</span>: {
+    <span class="t">"proceedgate"</span>: {
+      <span class="t">"command"</span>: <span class="y">"proceedgate-mcp"</span>,
+      <span class="t">"args"</span>: [<span class="y">"--api-key"</span>, <span class="y">"pg_ws_..."</span>, <span class="y">"--workspace-id"</span>, <span class="y">"my-ws"</span>]
+    }
+  }
+}</pre>
+
+    <p>Available MCP tools:</p>
+    <table>
+      <tr><th>Tool</th><th>Description</th></tr>
+      <tr><td><code>gate_check</code></td><td>Check if an action is allowed under current policy</td></tr>
+      <tr><td><code>gate_redeem</code></td><td>Resolve friction and get proceed token after payment</td></tr>
+      <tr><td><code>get_balance</code></td><td>Current credit balance and budget status</td></tr>
+      <tr><td><code>set_budget</code></td><td>Set daily/weekly/monthly spending limits</td></tr>
+      <tr><td><code>get_usage_report</code></td><td>Cost breakdown by action type and tool</td></tr>
+    </table>
 
     <!-- Error codes -->
     <h2 id="errors">Error Codes</h2>

@@ -152,11 +152,13 @@ All payments on **BNB Smart Chain (BSC)** using USDC. Protocol: x402 (HTTP-nativ
 ## What’s in this repo
 
 - **Worker** (Cloudflare Workers + TypeScript + Hono): Governor API with loop detection, session budgets, and OpenAPI discovery.
-- **SDK** (`@proceedgate/node`): Framework-agnostic Node.js SDK.
-- **MCP Server** (`@proceedgate/mcp-server`): Model Context Protocol server for AI tools (Claude Code, etc.).
-- **LangChain** (`@proceedgate/langchain`): LangChain tool wrapper with automatic gating.
+- **SDK** (`@proceedgate/node`): Framework-agnostic Node.js SDK — gateStep, requireGateStepOk, withProceedGateGate, JWT verification.
+- **Vercel AI SDK** (`@proceedgate/vercel-ai`): Middleware + tool wrapper for the Vercel AI SDK.
+- **LangChain** (`@proceedgate/langchain`): Callback handler, tool wrapper, and agent executor for LangChain.
+- **CrewAI** (`proceedgate-crewai`, Python): Callback, tool decorator, and BudgetAwareCrew for CrewAI agents.
+- **MCP Server** (`@proceedgate/mcp-server`): Model Context Protocol server — 5 tools for Claude Code, Cursor, etc.
 - **Runner** (Node.js + TypeScript CLI): reference enforcement implementation.
-- **Site** (`site/`): Static site on Cloudflare Pages.
+- **Site** (`site/`): Static site on Cloudflare Pages with live dashboard.
 
 ## Quickstart
 
