@@ -112,10 +112,51 @@ ProceedGate doesn't just count requests — it analyzes agent behavior with 7 si
 
 Response headers expose governance state: `X-Proceedgate-Zone`, `X-Proceedgate-AI-Decided`, `X-Proceedgate-AI-Model`.
 
+## Session-based budget tracking
+
+Open a session with a budget cap → make checks → cumulative spend tracked → close session.
+
+```bash
+# Open session ($100 budget, 24h duration)
+curl -X POST https://governor.proceedgate.dev/v1/governor/session \
+  -H "Authorization: Bearer $PG_KEY" -H "Content-Type: application/json" \
+  -d '{"agent_id":"my-agent","budget_usd":"100.00","duration_hours":24}'
+
+# Check status (remaining budget, request count)
+curl https://governor.proceedgate.dev/v1/governor/session/ses_... \
+  -H "Authorization: Bearer $PG_KEY"
+
+# Close session (finalize spend)
+curl -X DELETE https://governor.proceedgate.dev/v1/governor/session/ses_... \
+  -H "Authorization: Bearer $PG_KEY"
+```
+
+Pass `session_id` in check context for cumulative tracking:
+
+```json
+{ "context": { "session_id": "ses_...", "tool": "web_scrape" } }
+```
+
+## OpenAPI discovery
+
+AI agents auto-discover ProceedGate capabilities via `GET /openapi.json` with machine-readable extensions:
+- `x-service-info`: realm, categories, supported protocols (x402, mpp)
+- `x-cost-info`: per-endpoint credit cost, loop detection config, session support
+
+## Payments
+
+All payments on **BNB Smart Chain (BSC)** using USDC. Protocol: x402 (HTTP-native payment settlement).
+- USDC contract: `0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d`
+- Chain ID: 56
+
 ## What’s in this repo
 
-- Worker (Cloudflare Workers + TypeScript + Hono): Governor API.
-- Runner (Node.js + TypeScript CLI): reference enforcement implementation.
+- **Worker** (Cloudflare Workers + TypeScript + Hono): Governor API with loop detection, session budgets, and OpenAPI discovery.
+- **SDK** (`@proceedgate/node`): Framework-agnostic Node.js SDK.
+- **MCP Server** (`@proceedgate/mcp-server`): Model Context Protocol server for AI tools (Claude Code, etc.).
+- **LangChain** (`@proceedgate/langchain`): LangChain tool wrapper with automatic gating.
+- **Runner** (Node.js + TypeScript CLI): reference enforcement implementation.
+- **Site** (`site/`): Static site on Cloudflare Pages.
 
 ## Quickstart
 
@@ -247,6 +288,8 @@ Note: There is also an optional manual-only GitHub Pages workflow for previewing
 ## Docs
 
 - Spec (frozen v1 contract): `SPEC.md`
+- Changelog: `CHANGELOG.md`
+- API docs: https://proceedgate.dev/docs.html
 - Framework-agnostic integration guide (Node SDK): `INTEGRATION.md` (`@proceedgate/node`)
 - Smoke test: `SMOKE_TEST.md`
 - Payment verification modes: `PAYMENT_VERIFICATION.md`

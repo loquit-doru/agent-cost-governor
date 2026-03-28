@@ -87,7 +87,7 @@ Headers:
 
 - `x402-price: <amount> USDC`
 - `x402-recipient: 0x...`
-- `x402-chain: Base` (or `Any EVM`)
+- `x402-chain: BSC` (BNB Smart Chain, or `Any EVM`)
 
 Body:
 
@@ -137,7 +137,7 @@ Response `200`:
   "receipt": {
     "tx_hash": "0x...",
     "paid_price": "0.004 USDC",
-    "paid_chain": "base",
+    "paid_chain": "bsc",
     "paid_at": "2026-01-16T12:34:56.000Z"
   }
 }
@@ -241,3 +241,137 @@ When a request enters the gray zone, the following signals are computed and pass
 | `X-Proceedgate-Loop-Detected` | `true` when storm or AI-blocked |
 | `X-Proceedgate-AI-Decided` | `true` if AI made the decision (vs. heuristic) |
 | `X-Proceedgate-AI-Model` | Model used (e.g., `llama-3.1-8b-governance`) |
+
+---
+
+## Session-based budget tracking (v1.1)
+
+Sessions provide cumulative budget tracking inspired by MPP voucher accumulation. Open a session with a budget cap, make governance checks within it, and close when done.
+
+### `POST /v1/governor/session`
+
+Request (JSON):
+
+```json
+{
+  "agent_id": "scraper-bot",
+  "budget_usd": "100.00",
+  "duration_hours": 24
+}
+```
+
+Response `201`:
+
+```json
+{
+  "ok": true,
+  "session_id": "ses_m1abc_x7k3f2",
+  "budget_usd": "100.00",
+  "expires_at": "2026-03-29T10:00:00.000Z"
+}
+```
+
+### `GET /v1/governor/session/:sessionId`
+
+Response `200`:
+
+```json
+{
+  "ok": true,
+  "session_id": "ses_m1abc_x7k3f2",
+  "agent_id": "scraper-bot",
+  "status": "open",
+  "budget_usd": "100.00",
+  "total_spent_usd": "12.350000",
+  "remaining_usd": "87.650000",
+  "request_count": 247,
+  "expires_at": "2026-03-29T10:00:00.000Z",
+  "created_at": "2026-03-28T10:00:00.000Z"
+}
+```
+
+### `DELETE /v1/governor/session/:sessionId`
+
+Response `200`:
+
+```json
+{
+  "ok": true,
+  "session_id": "ses_m1abc_x7k3f2",
+  "final_spent_usd": "12.350000",
+  "request_count": 247,
+  "status": "closed"
+}
+```
+
+### Session integration with `/v1/governor/check`
+
+Pass `session_id` in the `context` field of a check request to track cumulative spend:
+
+```json
+{
+  "context": {
+    "session_id": "ses_m1abc_x7k3f2",
+    "attempt_in_window": 1,
+    "window_seconds": 60,
+    "tool": "web_scrape"
+  }
+}
+```
+
+Session response headers on check:
+
+| Header | Description |
+|--------|-------------|
+| `X-Proceedgate-Session-Id` | Session ID |
+| `X-Proceedgate-Session-Spent` | Cumulative spend so far |
+| `X-Proceedgate-Session-Remaining` | Budget remaining |
+
+### Session errors
+
+| Status | Error | Description |
+|--------|-------|-------------|
+| `402` | `session_budget_exceeded` | Cumulative spend has exceeded session budget |
+| `404` | `session_not_found` | Session ID does not exist |
+| `410` | `session_expired` | Session duration has elapsed |
+
+---
+
+## OpenAPI discovery (v1.1)
+
+`GET /openapi.json` returns a standard OpenAPI 3.1 spec with custom extensions for machine-readable discovery:
+
+### `x-service-info` (on `info`)
+
+```json
+{
+  "realm": "cost-governance",
+  "categories": ["ai-agents", "cost-control", "loop-detection", "budget-management"],
+  "supportedIntents": ["check", "budget", "session"],
+  "documentation": "https://proceedgate.dev",
+  "protocols": ["x402", "mpp"]
+}
+```
+
+### `x-cost-info` (on endpoints)
+
+```json
+{
+  "creditCost": 1,
+  "loopDetection": {
+    "windowSeconds": 60,
+    "safeThreshold": 5,
+    "stormThreshold": 10
+  },
+  "sessionSupport": true
+}
+```
+
+Free endpoints (billing, balance) have `"creditCost": 0`.
+
+---
+
+## MPP cost ledger (v1.1)
+
+- `GET /costs/:agentId` — aggregate cost summary for an agent
+- `GET /costs/:agentId/history` — paginated cost entries with timestamps

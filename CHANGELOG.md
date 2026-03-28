@@ -1,5 +1,39 @@
 # Changelog
 
+## [1.1.0] — 2026-03-28
+
+### Added — Session-based Budget Tracking
+- `POST /v1/governor/session` — Open a session with budget cap
+- `GET /v1/governor/session/:id` — Get session status (remaining budget, request count)
+- `DELETE /v1/governor/session/:id` — Close/settle session
+- Session tracking integrated into `/v1/governor/check` via `context.session_id`
+- Cumulative spend tracking inspired by MPP voucher accumulation pattern
+
+### Added — OpenAPI Discovery
+- `GET /openapi.json` — Standard OpenAPI 3.1 spec with custom extensions
+- `x-service-info` extension on info block (realm, categories, protocols)
+- `x-cost-info` extension on endpoints (credit cost, loop detection config, session support)
+- Machine-readable discovery for AI agents to auto-detect capabilities
+
+### Changed — Payment Chain Migration
+- Migrated all payments from Base chain to **BNB Chain (BSC)**
+- Updated `X402_CHAIN` default from `Base` to `BSC`
+- Updated subscription flow to default to BSC (chain ID 56)
+- Updated USDC address to BSC: `0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d`
+- Updated pay.html with BNB Chain network selection
+- Updated legal pages (privacy, terms) to reference BNB Chain
+
+### Fixed
+- DO session routing: extracted to dedicated `handleSession()` method for reliable routing
+- Session route workspace fallback when `API_AUTH_MODE=off`
+
+### Docs
+- Added session endpoint documentation to docs.html
+- Added OpenAPI discovery section to docs.html
+- Added session error codes (402, 404, 410) to error table
+- Added DELETE method CSS styling to docs
+- Updated SPEC.md with sessions, discovery, and BSC references
+
 ## [Unreleased] — 2026-03-26
 
 ### Added — MPP (Machine Payments Protocol) Integration

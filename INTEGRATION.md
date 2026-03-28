@@ -135,6 +135,64 @@ const { results } = await res.json();
 
 ---
 
+## Session-based budgets
+
+Open a session with a budget cap, make checks within it, and close when done. Cumulative spend is tracked automatically.
+
+```typescript
+const PG_KEY = process.env.PG_KEY!;
+const WORKSPACE = 'my-workspace-id';
+
+// 1. Open a session ($50 budget, 24h duration)
+const session = await fetch('https://governor.proceedgate.dev/v1/governor/session', {
+  method: 'POST',
+  headers: { 'Authorization': `Bearer ${PG_KEY}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ agent_id: 'my-scraper', budget_usd: '50.00', duration_hours: 24 }),
+}).then(r => r.json());
+
+const sessionId = session.session_id;
+
+// 2. Make checks with session tracking
+for (const url of urls) {
+  const check = await fetch('https://governor.proceedgate.dev/v1/governor/check', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${PG_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      policy_id: 'retry_friction_v1',
+      action: 'tool_call',
+      actor: { id: 'my-scraper', project: WORKSPACE },
+      context: {
+        attempt_in_window: 1,
+        window_seconds: 60,
+        tool: 'web_scrape',
+        session_id: sessionId,  // ← tracks cumulative spend
+      },
+    }),
+  }).then(r => r.json());
+
+  if (!check.allowed) {
+    console.log('Budget exceeded or blocked:', check.reason_code);
+    break;
+  }
+  await scrape(url);
+}
+
+// 3. Check session status
+const status = await fetch(
+  `https://governor.proceedgate.dev/v1/governor/session/${sessionId}`,
+  { headers: { 'Authorization': `Bearer ${PG_KEY}` } },
+).then(r => r.json());
+console.log(`Spent: $${status.total_spent_usd} / $${status.budget_usd}`);
+
+// 4. Close session
+await fetch(
+  `https://governor.proceedgate.dev/v1/governor/session/${sessionId}`,
+  { method: 'DELETE', headers: { 'Authorization': `Bearer ${PG_KEY}` } },
+);
+```
+
+---
+
 ## Python
 
 ```python
@@ -212,6 +270,14 @@ Get your key at https://proceedgate.dev/pay.html — 2,000 free checks/month.
 | `401`  | `missing_authorization` | Check `PG_KEY` env var is set |
 | `5xx`  | server error | Retry with exponential backoff. If critical, use `fail_open` mode. |
 
+### Session errors
+
+| Status | Error | Action |
+|--------|-------|--------|
+| `402`  | `session_budget_exceeded` | Session budget is exhausted. Close or create a new session. |
+| `404`  | `session_not_found` | Session ID doesn't exist. Create a new session. |
+| `410`  | `session_expired` | Session duration has elapsed. Create a new session. |
+
 ### Fail-open pattern (never block on ProceedGate downtime)
 
 ```typescript
@@ -249,3 +315,31 @@ async function verifyToken(token: string) {
   return payload; // { sub: agentId, act: action, task: taskHash, exp, ... }
 }
 ```
+
+---
+
+## OpenAPI discovery
+
+AI agents can auto-discover ProceedGate capabilities:
+
+```typescript
+const spec = await fetch('https://governor.proceedgate.dev/openapi.json').then(r => r.json());
+
+// Service info
+console.log(spec.info['x-service-info']);
+// { realm: 'cost-governance', protocols: ['x402', 'mpp'], ... }
+
+// Per-endpoint cost info
+const checkEndpoint = spec.paths['/v1/governor/check'].post;
+console.log(checkEndpoint['x-cost-info']);
+// { creditCost: 1, loopDetection: { windowSeconds: 60, ... }, sessionSupport: true }
+```
+
+---
+
+## Payments on BNB Chain (BSC)
+
+All payments are processed on **BNB Smart Chain** (chain ID 56) using USDC:
+- USDC contract: `0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d`
+- Protocol: x402 (HTTP-native payment settlement)
+- Friction payments resolve via `POST /v1/governor/redeem` with `x402-tx-hash` header

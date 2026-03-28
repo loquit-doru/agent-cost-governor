@@ -123,14 +123,19 @@
     <div class="sidebar-section">
       <div class="sidebar-label">API Reference</div>
       <a class="sidebar-link" href="#check">POST /v1/check</a>
+      <a class="sidebar-link" href="#governor-check">POST /v1/governor/check</a>
+      <a class="sidebar-link" href="#governor-redeem">POST /v1/governor/redeem</a>
       <a class="sidebar-link" href="#check-batch">POST /v1/check/batch</a>
       <a class="sidebar-link" href="#me">GET /v1/me</a>
       <a class="sidebar-link" href="#me-stats">GET /v1/me/stats</a>
       <a class="sidebar-link" href="#balance">GET /v1/billing/balance</a>
+      <a class="sidebar-link" href="#usage">GET /v1/billing/usage</a>
       <a class="sidebar-link" href="#budget">PUT /v1/billing/budget</a>
+      <a class="sidebar-link" href="#webhook">PUT /v1/billing/webhook</a>
       <a class="sidebar-link" href="#session-create">POST /v1/governor/session</a>
       <a class="sidebar-link" href="#session-get">GET /v1/governor/session/:id</a>
       <a class="sidebar-link" href="#session-close">DELETE /v1/governor/session/:id</a>
+      <a class="sidebar-link" href="#jwks">GET /.well-known/jwks.json</a>
       <a class="sidebar-link" href="#health">GET /health</a>
     </div>
     <div class="sidebar-section">
@@ -249,6 +254,69 @@ for (const url of urls) {
       <tr><td><code>hint</code></td><td>string</td><td>How to fix (vary task_hash, wait 60s)</td></tr>
     </table>
 
+    <!-- POST /v1/governor/check -->
+    <h2 id="governor-check"><span class="method post">POST</span>/v1/governor/check</h2>
+    <p>Full governance check with AI reasoning, loop detection, and policy evaluation. Returns detailed reasoning chain and confidence scores.</p>
+
+    <h3>Request body</h3>
+    <table>
+      <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+      <tr><td><code>policy_id</code></td><td>string</td><td><code>retry_friction_v1</code> or <code>low_confidence_loop_v1</code></td></tr>
+      <tr><td><code>action</code></td><td>string</td><td>Action type: <code>tool_call</code>, <code>model_call</code>, <code>retry</code></td></tr>
+      <tr><td><code>actor.id</code></td><td>string</td><td>Agent identifier</td></tr>
+      <tr><td><code>actor.project</code></td><td>string</td><td>Workspace ID</td></tr>
+      <tr><td><code>context.attempt_in_window</code></td><td>number</td><td>Attempt count in current window</td></tr>
+      <tr><td><code>context.window_seconds</code></td><td>number</td><td>Window duration</td></tr>
+      <tr><td><code>context.tool</code></td><td>string</td><td>Tool name</td></tr>
+      <tr><td><code>context.confidence</code></td><td>number</td><td>Optional: confidence score (0-1)</td></tr>
+      <tr><td><code>context.session_id</code></td><td>string</td><td>Optional: session ID for cumulative budget tracking</td></tr>
+    </table>
+
+    <h3>Response (200 allowed)</h3>
+<pre>{
+  <span class="t">"allowed"</span>: true,
+  <span class="t">"decision_id"</span>: <span class="y">"dec_01KMT..."</span>,
+  <span class="t">"proceed_token"</span>: <span class="y">"eyJhbG..."</span>,
+  <span class="t">"expires_in_seconds"</span>: 45,
+  <span class="t">"reason_code"</span>: <span class="y">"none"</span>,
+  <span class="t">"confidence"</span>: 0.98,
+  <span class="t">"ai_reasoning"</span>: <span class="y">"All governance checks passed..."</span>,
+  <span class="t">"reasoning_chain"</span>: [
+    { <span class="t">"step"</span>: <span class="y">"pattern_check"</span>, <span class="t">"conclusion"</span>: <span class="y">"Request is within safe limits"</span> },
+    { <span class="t">"step"</span>: <span class="y">"budget_check"</span>, <span class="t">"conclusion"</span>: <span class="y">"Cost budget allows operation"</span> },
+    { <span class="t">"step"</span>: <span class="y">"governance_decision"</span>, <span class="t">"conclusion"</span>: <span class="y">"ALLOW"</span> }
+  ]
+}</pre>
+
+    <h3>Response (402 friction required)</h3>
+    <p>Returned when the agent exceeds free attempts. Includes x402 payment headers:</p>
+<pre>x402-price: 0.004 USDC
+x402-recipient: 0x607Fc9D41858Aa...
+x402-chain: BSC</pre>
+
+    <!-- POST /v1/governor/redeem -->
+    <h2 id="governor-redeem"><span class="method post">POST</span>/v1/governor/redeem</h2>
+    <p>Resolve friction by providing a payment transaction hash. Returns a <code>proceed_token</code> upon successful verification.</p>
+
+    <h3>Request</h3>
+    <p>Header: <code>x402-tx-hash: 0x...</code></p>
+<pre>{
+  <span class="t">"decision_id"</span>: <span class="y">"dec_01KMT..."</span>
+}</pre>
+
+    <h3>Response (200)</h3>
+<pre>{
+  <span class="t">"ok"</span>: true,
+  <span class="t">"decision_id"</span>: <span class="y">"dec_01KMT..."</span>,
+  <span class="t">"proceed_token"</span>: <span class="y">"eyJhbG..."</span>,
+  <span class="t">"expires_in_seconds"</span>: 45,
+  <span class="t">"receipt"</span>: {
+    <span class="t">"tx_hash"</span>: <span class="y">"0x..."</span>,
+    <span class="t">"paid_price"</span>: <span class="y">"0.004 USDC"</span>,
+    <span class="t">"paid_chain"</span>: <span class="y">"bsc"</span>
+  }
+}</pre>
+
     <!-- POST /v1/check/batch -->
     <h2 id="check-batch"><span class="method post">POST</span>/v1/check/batch</h2>
     <p>Check multiple agent tasks in a single HTTP call. Useful when orchestrating many parallel agents. Returns an array of results in the same order as the input.</p>
@@ -310,6 +378,34 @@ for (const url of urls) {
   -H <span class="y">"Authorization: Bearer $PG_KEY"</span> \
   -H <span class="y">"Content-Type: application/json"</span> \
   -d <span class="g">'{ "workspace_id": "free-abc123", "daily": 100, "weekly": 500 }'</span></pre>
+
+    <!-- GET /v1/billing/usage -->
+    <h2 id="usage"><span class="method get">GET</span>/v1/billing/usage</h2>
+    <p>Returns detailed usage breakdown for your workspace: credits used by action type, tool, and daily totals.</p>
+<pre>curl "https://governor.proceedgate.dev/v1/billing/usage?workspace_id=free-abc123&period=week" \
+  -H <span class="y">"Authorization: Bearer $PG_KEY"</span></pre>
+    <h3>Response (200)</h3>
+<pre>{
+  <span class="t">"workspace_id"</span>: <span class="y">"free-abc123"</span>,
+  <span class="t">"period"</span>: <span class="y">"week"</span>,
+  <span class="t">"total_credits_used"</span>: 142,
+  <span class="t">"total_cost_usd"</span>: 0.00142,
+  <span class="t">"breakdown"</span>: {
+    <span class="t">"by_action"</span>: { <span class="y">"tool_call"</span>: 100, <span class="y">"model_call"</span>: 42 },
+    <span class="t">"by_tool"</span>: { <span class="y">"web_scrape"</span>: 80, <span class="y">"search_api"</span>: 62 },
+    <span class="t">"by_day"</span>: [
+      { <span class="t">"date"</span>: <span class="y">"2026-03-28"</span>, <span class="t">"credits"</span>: 45 }
+    ]
+  }
+}</pre>
+
+    <!-- PUT /v1/billing/webhook -->
+    <h2 id="webhook"><span class="method post">PUT</span>/v1/billing/webhook</h2>
+    <p>Register a webhook URL for real-time alerts (storm blocks, low credits, budget exceeded). Supports Slack, Discord, and custom HTTP endpoints.</p>
+<pre>curl -X PUT https://governor.proceedgate.dev/v1/billing/webhook \
+  -H <span class="y">"Authorization: Bearer $PG_KEY"</span> \
+  -H <span class="y">"Content-Type: application/json"</span> \
+  -d <span class="g">'{ "workspace_id": "free-abc123", "webhook_url": "https://hooks.slack.com/services/..." }'</span></pre>
 
     <!-- Sessions -->
     <h2 id="session-create"><span class="method post">POST</span>/v1/governor/session</h2>
@@ -385,6 +481,23 @@ curl -X DELETE https://governor.proceedgate.dev/v1/governor/session/ses_m1abc_x7
   <span class="t">"request_count"</span>: 247,
   <span class="t">"status"</span>: <span class="y">"closed"</span>
 }</pre>
+
+    <!-- GET /.well-known/jwks.json -->
+    <h2 id="jwks"><span class="method get">GET</span>/.well-known/jwks.json</h2>
+    <p>Public key discovery for verifying <code>proceed_token</code> JWTs. Standard JWKS format. Use this to verify governance tokens downstream without calling the governor.</p>
+<pre>curl https://governor.proceedgate.dev/.well-known/jwks.json</pre>
+    <h3>Usage with jose (Node.js)</h3>
+<pre>import * as jose from <span class="y">'jose'</span>;
+
+const JWKS = jose.createRemoteJWKSet(
+  new URL(<span class="y">'https://governor.proceedgate.dev/.well-known/jwks.json'</span>)
+);
+
+const { payload } = await jose.jwtVerify(proceedToken, JWKS, {
+  issuer:   <span class="y">'https://governor.proceedgate.dev'</span>,
+  audience: <span class="y">'agent-cost-governor'</span>,
+});
+<span class="d">// payload.sub = agent_id, payload.jti = decision_id</span></pre>
 
     <!-- GET /health -->
     <h2 id="health"><span class="method get">GET</span>/health</h2>
