@@ -2,6 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+  <link rel="icon" type="image/jpeg" href="favicon.jpg" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="ProceedGate — Subscribe with USDC" />
     <meta name="theme-color" content="#0f172a" />
@@ -206,24 +207,13 @@
                 </div>
               </div>
               
-              <div class="plan-option selected" data-plan="pro" data-price="59" data-checks="1000000">
+              <div class="plan-option selected" data-plan="pro" data-price="49" data-checks="1000000">
                 <div>
                   <div class="plan-name">Pro</div>
                   <div class="plan-desc">1M checks/month • 5 projects</div>
                 </div>
                 <div class="plan-price">
-                  <div class="plan-price-amount">$59</div>
-                  <div class="plan-price-period">/month</div>
-                </div>
-              </div>
-              
-              <div class="plan-option" data-plan="scale" data-price="199" data-checks="5000000">
-                <div>
-                  <div class="plan-name">Scale</div>
-                  <div class="plan-desc">5M checks/month • 25 projects</div>
-                </div>
-                <div class="plan-price">
-                  <div class="plan-price-amount">$199</div>
+                  <div class="plan-price-amount">$49</div>
                   <div class="plan-price-period">/month</div>
                 </div>
               </div>
@@ -260,18 +250,11 @@
 
             <h3 style="margin: 20px 0 12px; font-size: 16px;">Pay with</h3>
             <div class="network-grid">
-              <div class="network-option selected" data-network="base" data-chain="8453">
-                <div class="network-icon">🔵</div>
+              <div class="network-option selected" data-network="bsc" data-chain="56">
+                <div class="network-icon">🟡</div>
                 <div>
-                  <div class="network-name">Base</div>
-                  <div class="network-fee">~$0.01 fee</div>
-                </div>
-              </div>
-              <div class="network-option" data-network="polygon" data-chain="137">
-                <div class="network-icon">🟣</div>
-                <div>
-                  <div class="network-name">Polygon</div>
-                  <div class="network-fee">~$0.01 fee</div>
+                  <div class="network-name">BNB Chain</div>
+                  <div class="network-fee">~$0.03 fee</div>
                 </div>
               </div>
             </div>
@@ -309,7 +292,7 @@
               </div>
               <div class="invoice-row">
                 <span class="invoice-label">Network</span>
-                <span class="invoice-value" id="invoiceNetwork">Base (USDC)</span>
+                <span class="invoice-value" id="invoiceNetwork">BNB Chain (USDC)</span>
               </div>
               <div class="invoice-row" style="padding-top: 12px; margin-top: 4px; border-top: 1px solid rgba(255,255,255,.1);">
                 <span class="invoice-label">Total</span>
@@ -440,10 +423,10 @@
       // State
       const state = {
         plan: 'pro',
-        planPrice: 59,
+        planPrice: 49,
         months: 6,
-        network: 'base',
-        chainId: 8453,
+        network: 'bsc',
+        chainId: 56,
         invoiceId: null,
         invoiceValid: false, // Track if invoice was created successfully on server
         paymentAddress: null,
@@ -903,8 +886,7 @@
           } catch (e) {
             if (e.code === 4902) {
               const networks = {
-                8453: { name: 'Base', rpc: 'https://mainnet.base.org', explorer: 'https://basescan.org' },
-                137: { name: 'Polygon', rpc: 'https://polygon-rpc.com', explorer: 'https://polygonscan.com' },
+                56: { name: 'BNB Smart Chain', rpc: 'https://bsc-dataseed.binance.org', explorer: 'https://bscscan.com', currency: { name: 'BNB', symbol: 'BNB', decimals: 18 } },
               };
               const net = networks[state.chainId];
               await provider.request({
@@ -912,7 +894,7 @@
                 params: [{
                   chainId: chainIdHex,
                   chainName: net.name,
-                  nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+                  nativeCurrency: net.currency,
                   rpcUrls: [net.rpc],
                   blockExplorerUrls: [net.explorer],
                 }],
@@ -924,8 +906,7 @@
           
           // USDC contract addresses
           const usdcAddresses = {
-            8453: '0x833589fCD6eDb6E08f4c7C32D4f71b54bda02913', // Base
-            137: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359',  // Polygon
+            56: '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d', // BSC
           };
           
           const usdc = usdcAddresses[state.chainId];
@@ -1215,7 +1196,7 @@
           <span class="text-muted">© 2024-2026 ProceedGate. All rights reserved.</span>
           <div style="display: flex; gap: 8px;">
             <span class="badge">🔐 USDC only</span>
-            <span class="badge">Base + Polygon</span>
+            <span class="badge">BNB Chain</span>
           </div>
         </div>
       </div>

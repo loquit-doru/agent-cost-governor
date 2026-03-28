@@ -20,7 +20,7 @@ export function getX402Price(env: Env, price: string): string {
 }
 
 export function getX402Chain(env: Env): string {
-  return String(env.X402_CHAIN ?? 'Base').trim() || 'Base';
+  return String(env.X402_CHAIN ?? 'BSC').trim() || 'BSC';
 }
 
 export function getX402Recipient(env: Env): string {
@@ -43,7 +43,7 @@ export function getBillingCreditCostMicroUsdc(env: Env): number {
 }
 
 export function getBillingChain(env: Env): string {
-  return String(env.BILLING_CHAIN ?? env.X402_CHAIN ?? 'Base').trim() || 'Base';
+  return String(env.BILLING_CHAIN ?? env.X402_CHAIN ?? 'BSC').trim() || 'BSC';
 }
 
 export function getBillingRecipient(env: Env): string {

@@ -102,7 +102,7 @@ type PeriodMonths = keyof typeof PERIODS;
 const subscribeSchema = z.object({
   plan: z.enum(['starter', 'pro', 'scale']), // Free tier uses separate endpoint
   months: z.number().refine((n): n is PeriodMonths => n === 1 || n === 3 || n === 6 || n === 12),
-  chain: z.enum(['base', 'polygon']).optional().default('base'),
+  chain: z.enum(['bsc', 'base', 'polygon']).optional().default('bsc'),
   email: z.string().email().optional(),
 });
 
@@ -203,7 +203,9 @@ function calculateTotal(plan: PlanId, months: PeriodMonths): number {
 
 // Helper: Get chain ID
 function getChainId(chain: string): number {
-  return chain === 'polygon' ? 137 : 8453;
+  if (chain === 'polygon') return 137;
+  if (chain === 'base') return 8453;
+  return 56; // BSC
 }
 
 // ============================================================================
@@ -748,7 +750,7 @@ subscribeRoutes.get('/v1/billing/workspace', async (c) => {
 const renewSchema = z.object({
   plan: z.enum(['starter', 'pro', 'scale']),
   months: z.number().refine((n): n is PeriodMonths => n === 1 || n === 3 || n === 6 || n === 12),
-  chain: z.enum(['base', 'polygon']).optional().default('base'),
+  chain: z.enum(['bsc', 'base', 'polygon']).optional().default('bsc'),
 });
 
 subscribeRoutes.post('/v1/billing/renew', async (c) => {
@@ -1738,8 +1740,8 @@ subscribeRoutes.post('/v1/admin/workspace', async (c) => {
       invoiceId: 'manual_' + Date.now(),
       workspaceId,
       txHash,
-      chain: 'base',
-      chainId: 8453,
+      chain: 'bsc',
+      chainId: 56,
       amountUsdc: PLANS[plan].priceMonthly * months,
       plan,
       months,

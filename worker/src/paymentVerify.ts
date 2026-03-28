@@ -37,7 +37,7 @@ export async function verifyPayment(env: Env, txHash: string, record: DecisionRe
       receipt: {
         tx_hash: txHash,
         paid_price: record.price,
-        paid_chain: String(record.chain || 'base').toLowerCase(),
+        paid_chain: String(record.chain || 'bsc').toLowerCase(),
         paid_at: nowIso(),
       },
     };

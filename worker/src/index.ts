@@ -26,6 +26,7 @@ import { mcpRoutes } from './routes/mcp.js';
 import { proxyRoutes } from './routes/proxy.js';
 import { badgeRoutes } from './routes/badge.js';
 import { costsRoutes } from './routes/costs.js';
+import { sessionRoutes } from './routes/session.js';
 
 // Durable Objects (re-export)
 export { DecisionStoreDO } from './decisionStoreDO.js';
@@ -73,6 +74,7 @@ app.route('/', facilitatorRoutes);
 app.route('/', proxyRoutes);
 app.route('/', badgeRoutes);
 app.route('/', costsRoutes);
+app.route('/', sessionRoutes);
 
 // 404 fallback
 app.notFound((c) => {

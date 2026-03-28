@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <link rel="icon" type="image/jpeg" href="favicon.jpg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ProceedGate — A circuit breaker for AI agents</title>
   <meta name="description" content="One check before every action. ProceedGate detects loops, enforces budgets, and returns a signed token as proof. Built on Cloudflare Workers." />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%232dd4bf'/><path d='M10 16l4 4 8-8' stroke='%230f172a' stroke-width='2.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -131,6 +131,22 @@
       background: radial-gradient(circle, rgba(45,212,191,0.055) 0%, transparent 65%);
       pointer-events: none;
     }
+
+    .winner-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 5px 14px;
+      border: 1px solid rgba(251,191,36,.35);
+      background: rgba(251,191,36,.07);
+      border-radius: 99px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #fbbf24;
+      margin-bottom: 16px;
+      text-decoration: none;
+    }
+    .winner-badge:hover { background: rgba(251,191,36,.13); }
 
     .hero-label {
       display: inline-flex;
@@ -545,6 +561,9 @@
 <!-- Hero -->
 <section id="hero">
   <div class="container-sm">
+    <a class="winner-badge" href="https://dorahacks.io/hackathon/goodvibes/winner" target="_blank" rel="noopener">
+      🏆 BNBChain GoodVibes Hackathon Winner
+    </a>
     <div class="hero-label">
       <span class="status-dot"></span>
       Open beta &nbsp;·&nbsp; 2,000 free checks

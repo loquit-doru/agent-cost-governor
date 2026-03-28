@@ -20,7 +20,7 @@ Every decision check returns either:
 
 ProceedGate uses a prepaid credits model:
 - 1 credit = 1 governor check
-- Top up via USDC on Base
+- Top up via USDC on BNB Chain
 - 10 microUSDC ($0.00001) per credit
 
 ## Authentication
@@ -35,6 +35,13 @@ Production uses per-workspace API keys:
       license: {
         name: 'Proprietary',
         url: 'https://proceedgate.dev/terms',
+      },
+      'x-service-info': {
+        realm: 'cost-governance',
+        categories: ['ai-agents', 'cost-control', 'loop-detection', 'budget-management'],
+        supportedIntents: ['check', 'budget', 'session'],
+        documentation: 'https://proceedgate.dev',
+        protocols: ['x402', 'mpp'],
       },
     },
     servers: [
@@ -61,6 +68,18 @@ Production uses per-workspace API keys:
           summary: 'Check if action is allowed',
           description: 'Submit a decision request. Returns 200 with proceed_token if allowed, or 402 with payment info if friction is required.',
           operationId: 'governorCheck',
+          'x-cost-info': {
+            creditCost: 1,
+            creditPriceMicroUsdc: 10,
+            loopDetection: {
+              enabled: true,
+              maxIdenticalRequests: 10,
+              windowSeconds: 60,
+              zones: ['safe', 'gray', 'storm'],
+            },
+            budgetLimits: ['daily', 'weekly', 'monthly'],
+            sessionSupport: true,
+          },
           security: [{ bearerAuth: [] }],
           requestBody: {
             required: true,
@@ -153,6 +172,7 @@ Production uses per-workspace API keys:
           tags: ['Billing'],
           summary: 'Get workspace credit balance',
           operationId: 'getBalance',
+          'x-cost-info': { creditCost: 0, description: 'Free endpoint — no credits consumed' },
           security: [{ bearerAuth: [] }],
           parameters: [
             {
@@ -250,6 +270,7 @@ Production uses per-workspace API keys:
           tags: ['Billing'],
           summary: 'Get usage statistics',
           operationId: 'getUsage',
+          'x-cost-info': { creditCost: 0, description: 'Free endpoint — no credits consumed' },
           security: [{ bearerAuth: [] }],
           parameters: [
             {
@@ -380,6 +401,109 @@ Production uses per-workspace API keys:
             '401': { $ref: '#/components/responses/Unauthorized' },
             '409': {
               description: 'Workspace already exists',
+            },
+          },
+        },
+      },
+      '/v1/governor/session': {
+        post: {
+          tags: ['Governor'],
+          summary: 'Open a budget session',
+          description: 'Create a session with a budget cap. The session tracks cumulative spend across multiple check requests. Inspired by MPP voucher accumulation pattern.',
+          operationId: 'createSession',
+          'x-cost-info': { creditCost: 0, description: 'Free endpoint — session management does not consume credits' },
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/CreateSessionRequest' },
+                example: {
+                  agent_id: 'agent:my-scraper',
+                  budget_usd: '50.00',
+                  duration_hours: 24,
+                },
+              },
+            },
+          },
+          responses: {
+            '201': {
+              description: 'Session created',
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/CreateSessionResponse' },
+                },
+              },
+            },
+            '400': { $ref: '#/components/responses/BadRequest' },
+            '401': { $ref: '#/components/responses/Unauthorized' },
+          },
+        },
+      },
+      '/v1/governor/session/{sessionId}': {
+        get: {
+          tags: ['Governor'],
+          summary: 'Get session status',
+          description: 'Returns cumulative spend, remaining budget, and request count for a session.',
+          operationId: 'getSession',
+          'x-cost-info': { creditCost: 0 },
+          parameters: [
+            {
+              name: 'sessionId',
+              in: 'path',
+              required: true,
+              schema: { type: 'string' },
+              description: 'Session identifier (e.g. ses_abc123)',
+            },
+          ],
+          responses: {
+            '200': {
+              description: 'Session status',
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/SessionStatus' },
+                },
+              },
+            },
+            '404': {
+              description: 'Session not found',
+            },
+          },
+        },
+        delete: {
+          tags: ['Governor'],
+          summary: 'Close/settle session',
+          description: 'Close the session and finalize cumulative spend. Like MPP settlement.',
+          operationId: 'closeSession',
+          'x-cost-info': { creditCost: 0 },
+          parameters: [
+            {
+              name: 'sessionId',
+              in: 'path',
+              required: true,
+              schema: { type: 'string' },
+            },
+          ],
+          responses: {
+            '200': {
+              description: 'Session closed',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      ok: { type: 'boolean' },
+                      session_id: { type: 'string' },
+                      final_spent_usd: { type: 'string' },
+                      request_count: { type: 'integer' },
+                      status: { type: 'string', example: 'closed' },
+                    },
+                  },
+                },
+              },
+            },
+            '404': {
+              description: 'Session not found',
             },
           },
         },
@@ -516,6 +640,7 @@ Production uses per-workspace API keys:
                 task_hash: { type: 'string', description: 'SHA256 of task' },
                 step_hash: { type: 'string', description: 'SHA256 of step' },
                 context_hash: { type: 'string', description: 'SHA256 of context' },
+                session_id: { type: 'string', description: 'Optional session ID for cumulative budget tracking' },
               },
               required: ['attempt_in_window'],
             },
@@ -598,7 +723,7 @@ Production uses per-workspace API keys:
             workspace_id: { type: 'string' },
             credits: { type: 'integer' },
             required_price: { type: 'string', example: '0.10 USDC' },
-            required_chain: { type: 'string', example: 'Base' },
+            required_chain: { type: 'string', example: 'BSC' },
             required_recipient: { type: 'string' },
             expires_at: { type: 'string', format: 'date-time' },
           },
@@ -683,6 +808,39 @@ Production uses per-workspace API keys:
             use: { type: 'string' },
             alg: { type: 'string' },
             kid: { type: 'string' },
+          },
+        },
+        CreateSessionRequest: {
+          type: 'object',
+          required: ['agent_id', 'budget_usd'],
+          properties: {
+            agent_id: { type: 'string', description: 'Agent identifier' },
+            budget_usd: { type: 'string', description: 'Maximum USD budget for this session', example: '50.00' },
+            duration_hours: { type: 'number', description: 'Session duration in hours (default: 24)', default: 24 },
+          },
+        },
+        CreateSessionResponse: {
+          type: 'object',
+          properties: {
+            ok: { type: 'boolean' },
+            session_id: { type: 'string', example: 'ses_m1abc_x7k3f2' },
+            budget_usd: { type: 'string', example: '50.00' },
+            expires_at: { type: 'string', format: 'date-time' },
+          },
+        },
+        SessionStatus: {
+          type: 'object',
+          properties: {
+            ok: { type: 'boolean' },
+            session_id: { type: 'string' },
+            agent_id: { type: 'string' },
+            status: { type: 'string', enum: ['open', 'closed', 'exceeded'] },
+            budget_usd: { type: 'string', example: '50.00' },
+            total_spent_usd: { type: 'string', example: '12.35' },
+            remaining_usd: { type: 'string', example: '37.65' },
+            request_count: { type: 'integer', example: 247 },
+            expires_at: { type: 'string', format: 'date-time' },
+            created_at: { type: 'string', format: 'date-time' },
           },
         },
         Error: {

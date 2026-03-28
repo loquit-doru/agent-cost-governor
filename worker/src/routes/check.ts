@@ -12,7 +12,7 @@ import { logEvent, actorKey } from '../observability.js';
 import { writeMetric } from '../metrics.js';
 import { webhookCreditsLow, webhookBudgetExceeded } from '../services/webhook.js';
 import { sendLowCreditsAlert } from '../services/email.js';
-import { getBillingStub, doUrl } from '../lib/do.js';
+import { getBillingStub, doUrl, billingRequest } from '../lib/do.js';
 import { hashApiKey } from '../lib/crypto.js';
 import { API_KEY_PREFIXES } from '../lib/constants.js';
 import { generateReasoning, generateReasoningWithAI, aiDecideGrayZone, cachedGrayZoneDecision } from '../lib/aiReasoning.js';
@@ -619,6 +619,53 @@ checkRoutes.post('/v1/governor/check', async (c) => {
         body: JSON.stringify({ blocked: false, zone: loopData.zone ?? 'safe', backoff_detected: loopData.backoff_detected }),
       }).catch(() => {})
     );
+  }
+
+  // ── Session budget tracking (MPP voucher-style cumulative tracking) ──
+  const sessionId = parsed.data.context.session_id;
+  if (sessionId) {
+    const costEstimate = parsed.data.context.cost_estimate ?? 0.01; // Default per-check cost
+    const sessionRes = await billingRequest<{
+      ok: boolean;
+      total_spent_usd?: string;
+      remaining_usd?: string;
+      request_count?: number;
+      status?: string;
+      budget_exceeded?: boolean;
+      error?: string;
+    }>(c.env, `/sessions/${sessionId}/record`, {
+      method: 'POST',
+      body: { cost_usd: String(costEstimate) },
+    });
+
+    if (!sessionRes.ok) {
+      if (sessionRes.data.error === 'not_found') {
+        return c.json({ ok: false, error: 'session_not_found', session_id: sessionId }, 404);
+      }
+      if (sessionRes.data.error === 'session_expired') {
+        return c.json({ ok: false, error: 'session_expired', session_id: sessionId }, 410);
+      }
+      return c.json({ ok: false, error: sessionRes.data.error ?? 'session_error', session_id: sessionId }, 400);
+    }
+
+    if (sessionRes.data.budget_exceeded) {
+      c.header('X-Proceedgate-Session-Spent', sessionRes.data.total_spent_usd ?? '0');
+      c.header('X-Proceedgate-Session-Remaining', '0');
+      c.header('cache-control', 'no-store');
+      return c.json({
+        allowed: false,
+        error: 'session_budget_exceeded',
+        session_id: sessionId,
+        total_spent_usd: sessionRes.data.total_spent_usd,
+        request_count: sessionRes.data.request_count,
+        message: 'Session budget exceeded. Close this session and open a new one with a higher budget.',
+      }, 402);
+    }
+
+    // Set session tracking headers on response
+    c.header('X-Proceedgate-Session-ID', sessionId);
+    c.header('X-Proceedgate-Session-Spent', sessionRes.data.total_spent_usd ?? '0');
+    c.header('X-Proceedgate-Session-Remaining', sessionRes.data.remaining_usd ?? '0');
   }
 
   const decisionId = makeDecisionId();

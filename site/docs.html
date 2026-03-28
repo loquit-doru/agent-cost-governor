@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <link rel="icon" type="image/jpeg" href="favicon.jpg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Docs — ProceedGate</title>
   <meta name="description" content="ProceedGate API documentation. Quickstart, endpoints, error codes, and integration examples." />
@@ -67,8 +68,9 @@
 
     /* Method badge */
     .method { display: inline-block; font-size: 11px; font-weight: 700; font-family: var(--mono); padding: 2px 7px; border-radius: 4px; margin-right: 8px; vertical-align: middle; }
-    .method.post { background: rgba(45,212,191,.15); color: var(--teal); }
-    .method.get  { background: rgba(74,222,128,.15); color: var(--green); }
+    .method.post   { background: rgba(45,212,191,.15); color: var(--teal); }
+    .method.get    { background: rgba(74,222,128,.15); color: var(--green); }
+    .method.delete { background: rgba(239,68,68,.15); color: #ef4444; }
 
     /* Endpoint block */
     .endpoint { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 18px; margin: 16px 0; font-family: var(--mono); font-size: 13px; }
@@ -126,7 +128,16 @@
       <a class="sidebar-link" href="#me-stats">GET /v1/me/stats</a>
       <a class="sidebar-link" href="#balance">GET /v1/billing/balance</a>
       <a class="sidebar-link" href="#budget">PUT /v1/billing/budget</a>
+      <a class="sidebar-link" href="#session-create">POST /v1/governor/session</a>
+      <a class="sidebar-link" href="#session-get">GET /v1/governor/session/:id</a>
+      <a class="sidebar-link" href="#session-close">DELETE /v1/governor/session/:id</a>
       <a class="sidebar-link" href="#health">GET /health</a>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Discovery</div>
+      <a class="sidebar-link" href="#openapi">OpenAPI Spec</a>
+      <a class="sidebar-link" href="#x-cost-info">x-cost-info</a>
+      <a class="sidebar-link" href="#x-service-info">x-service-info</a>
     </div>
     <div class="sidebar-section">
       <div class="sidebar-label">Integration</div>
@@ -214,6 +225,7 @@ for (const url of urls) {
       <tr><td><code>task_hash</code></td><td>string</td><td>✓</td><td>SHA-256 (or any hash) of the current task/input. Identical hashes trigger loop detection.</td></tr>
       <tr><td><code>action</code></td><td>enum</td><td></td><td><code>tool_call</code> · <code>model_call</code> · <code>retry</code> · <code>override</code> · <code>plan_execute</code>. Default: <code>tool_call</code></td></tr>
       <tr><td><code>step_hash</code></td><td>string</td><td></td><td>Optional sub-step hash for finer loop granularity.</td></tr>
+      <tr><td><code>session_id</code></td><td>string</td><td></td><td>Optional <a href="#session-create">session ID</a> for cumulative budget tracking. When set, spend is tracked against the session budget and response includes <code>X-Proceedgate-Session-Spent</code> / <code>X-Proceedgate-Session-Remaining</code> headers.</td></tr>
     </table>
 
     <h3>Response (200 — allowed)</h3>
@@ -299,6 +311,81 @@ for (const url of urls) {
   -H <span class="y">"Content-Type: application/json"</span> \
   -d <span class="g">'{ "workspace_id": "free-abc123", "daily": 100, "weekly": 500 }'</span></pre>
 
+    <!-- Sessions -->
+    <h2 id="session-create"><span class="method post">POST</span>/v1/governor/session</h2>
+    <p>Open a budget session. Sessions track <strong>cumulative spend</strong> across multiple <code>/v1/check</code> calls — like an escrow with a hard cap. Inspired by the <a href="https://mpp.dev">MPP</a> voucher accumulation pattern.</p>
+
+    <div class="alert info">Sessions are optional. If you just want per-workspace budget limits, use <a href="#budget">PUT /v1/billing/budget</a> instead. Sessions are useful when you need per-agent, per-task budget caps with a defined time window.</div>
+
+    <h3>Request body</h3>
+    <table>
+      <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
+      <tr><td><code>agent_id</code></td><td>string</td><td>✓</td><td>Agent that owns this session</td></tr>
+      <tr><td><code>budget_usd</code></td><td>string</td><td>✓</td><td>Maximum USD spend for this session (e.g. <code>"50.00"</code>)</td></tr>
+      <tr><td><code>duration_hours</code></td><td>number</td><td></td><td>Session lifetime in hours. Default: <code>24</code></td></tr>
+    </table>
+
+    <h3>Response (201)</h3>
+<pre>{
+  <span class="t">"ok"</span>: true,
+  <span class="t">"session_id"</span>: <span class="y">"ses_m1abc_x7k3f2"</span>,
+  <span class="t">"budget_usd"</span>: <span class="y">"50.00"</span>,
+  <span class="t">"expires_at"</span>: <span class="y">"2026-03-29T14:30:00.000Z"</span>
+}</pre>
+
+    <h3>Example: full session flow</h3>
+<pre><span class="d"># 1. Open session with $50 budget</span>
+curl -X POST https://governor.proceedgate.dev/v1/governor/session \
+  -H <span class="y">"Authorization: Bearer $PG_KEY"</span> \
+  -H <span class="y">"Content-Type: application/json"</span> \
+  -d <span class="g">'{ "agent_id": "scraper-1", "budget_usd": "50.00", "duration_hours": 8 }'</span>
+
+<span class="d"># 2. Run checks with session_id — spend is tracked cumulatively</span>
+curl -X POST https://governor.proceedgate.dev/v1/check \
+  -H <span class="y">"Authorization: Bearer $PG_KEY"</span> \
+  -H <span class="y">"Content-Type: application/json"</span> \
+  -d <span class="g">'{ "agent_id": "scraper-1", "task_hash": "abc123", "session_id": "ses_m1abc_x7k3f2" }'</span>
+<span class="d"># Response headers include:</span>
+<span class="d">#   X-Proceedgate-Session-Spent: 0.010000</span>
+<span class="d">#   X-Proceedgate-Session-Remaining: 49.990000</span>
+
+<span class="d"># 3. Close session when done (settle)</span>
+curl -X DELETE https://governor.proceedgate.dev/v1/governor/session/ses_m1abc_x7k3f2 \
+  -H <span class="y">"Authorization: Bearer $PG_KEY"</span></pre>
+
+    <!-- GET /v1/governor/session/:id -->
+    <h2 id="session-get"><span class="method get">GET</span>/v1/governor/session/:id</h2>
+    <p>Get the current status of a session — cumulative spend, remaining budget, and request count.</p>
+
+    <div class="endpoint">GET /v1/governor/session/<span class="t">ses_m1abc_x7k3f2</span></div>
+
+    <h3>Response (200)</h3>
+    <table>
+      <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+      <tr><td><code>session_id</code></td><td>string</td><td>Session identifier</td></tr>
+      <tr><td><code>agent_id</code></td><td>string</td><td>Agent that owns the session</td></tr>
+      <tr><td><code>status</code></td><td>enum</td><td><code>open</code> · <code>closed</code> · <code>exceeded</code></td></tr>
+      <tr><td><code>budget_usd</code></td><td>string</td><td>Original budget cap</td></tr>
+      <tr><td><code>total_spent_usd</code></td><td>string</td><td>Cumulative spend so far</td></tr>
+      <tr><td><code>remaining_usd</code></td><td>string</td><td>Budget remaining</td></tr>
+      <tr><td><code>request_count</code></td><td>number</td><td>Total checks made in this session</td></tr>
+      <tr><td><code>expires_at</code></td><td>ISO 8601</td><td>Session expiry time</td></tr>
+      <tr><td><code>created_at</code></td><td>ISO 8601</td><td>Session creation time</td></tr>
+    </table>
+
+    <!-- DELETE /v1/governor/session/:id -->
+    <h2 id="session-close"><span class="method delete">DELETE</span>/v1/governor/session/:id</h2>
+    <p>Close a session and finalize the cumulative spend. Like an MPP settlement — no more checks can be made against this session after closing.</p>
+
+    <h3>Response (200)</h3>
+<pre>{
+  <span class="t">"ok"</span>: true,
+  <span class="t">"session_id"</span>: <span class="y">"ses_m1abc_x7k3f2"</span>,
+  <span class="t">"final_spent_usd"</span>: <span class="y">"12.350000"</span>,
+  <span class="t">"request_count"</span>: 247,
+  <span class="t">"status"</span>: <span class="y">"closed"</span>
+}</pre>
+
     <!-- GET /health -->
     <h2 id="health"><span class="method get">GET</span>/health</h2>
     <p>Returns <code>200 OK</code> with API status and latency. Use for uptime monitoring.</p>
@@ -373,6 +460,9 @@ for url in urls:
       <tr><td><span class="status err">401</span></td><td><code>invalid_api_key_format</code></td><td>Key doesn't start with <code>pg_ws_</code></td><td>Use the key from your dashboard</td></tr>
       <tr><td><span class="status err">402</span></td><td><code>insufficient_credits</code></td><td>Workspace out of credits</td><td>Top up at <a href="pay.html">proceedgate.dev/pay.html</a></td></tr>
       <tr><td><span class="status err">404</span></td><td><code>workspace_not_found</code></td><td>API key not linked to a workspace</td><td>Re-generate your key from the dashboard</td></tr>
+      <tr><td><span class="status err">402</span></td><td><code>session_budget_exceeded</code></td><td>Session budget cap reached</td><td>Close session and open a new one with a higher budget</td></tr>
+      <tr><td><span class="status err">404</span></td><td><code>session_not_found</code></td><td>Session ID doesn't exist</td><td>Check the <code>session_id</code> or create a new session</td></tr>
+      <tr><td><span class="status warn">410</span></td><td><code>session_expired</code></td><td>Session past its <code>duration_hours</code></td><td>Open a new session</td></tr>
       <tr><td><span class="status warn">429</span></td><td><code>loop_detected</code></td><td>Retry storm detected</td><td>Vary <code>task_hash</code> between tasks; wait 60s to reset</td></tr>
       <tr><td><span class="status err">500</span></td><td><code>internal_error</code></td><td>Server error</td><td>Retry with exponential backoff; check <a href="status.html">status page</a></td></tr>
     </table>
@@ -380,6 +470,65 @@ for url in urls:
     <div class="alert warn">
       On <strong>429</strong>, do <em>not</em> retry immediately — that will just extend the block. Use a different <code>task_hash</code> for genuinely new work, or wait 60 seconds for the window to reset.
     </div>
+
+    <!-- Discovery -->
+    <h2 id="openapi"><span class="method get">GET</span>/openapi.json</h2>
+    <p>Returns the full <a href="https://spec.openapis.org/oas/latest.html">OpenAPI 3.1</a> specification for the ProceedGate API. AI agents can use this endpoint to auto-discover capabilities, pricing, and payment requirements before making requests.</p>
+
+<pre>curl https://governor.proceedgate.dev/openapi.json</pre>
+
+    <p>The spec includes two custom extensions designed for machine-to-machine discovery:</p>
+
+    <h2 id="x-cost-info">x-cost-info Extension</h2>
+    <p>Each endpoint in the OpenAPI spec includes an <code>x-cost-info</code> object that tells agents what a request will cost <em>before they make it</em>. This follows the same discovery pattern as <a href="https://mpp.dev">MPP</a>'s <code>x-payment-info</code>.</p>
+
+    <h3>Example (on /v1/check)</h3>
+<pre>{
+  <span class="t">"x-cost-info"</span>: {
+    <span class="t">"creditCost"</span>: <span class="g">1</span>,
+    <span class="t">"creditPriceMicroUsdc"</span>: <span class="g">10</span>,
+    <span class="t">"loopDetection"</span>: {
+      <span class="t">"enabled"</span>: <span class="g">true</span>,
+      <span class="t">"maxIdenticalRequests"</span>: <span class="g">10</span>,
+      <span class="t">"windowSeconds"</span>: <span class="g">60</span>,
+      <span class="t">"zones"</span>: [<span class="y">"safe"</span>, <span class="y">"gray"</span>, <span class="y">"storm"</span>]
+    },
+    <span class="t">"budgetLimits"</span>: [<span class="y">"daily"</span>, <span class="y">"weekly"</span>, <span class="y">"monthly"</span>],
+    <span class="t">"sessionSupport"</span>: <span class="g">true</span>
+  }
+}</pre>
+
+    <table>
+      <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+      <tr><td><code>creditCost</code></td><td>number</td><td>Credits consumed per request (<code>0</code> for free endpoints)</td></tr>
+      <tr><td><code>creditPriceMicroUsdc</code></td><td>number</td><td>Price per credit in microUSDC (10 = $0.00001)</td></tr>
+      <tr><td><code>loopDetection</code></td><td>object</td><td>Loop detection config: max requests, window, zone names</td></tr>
+      <tr><td><code>budgetLimits</code></td><td>string[]</td><td>Supported budget cap granularities</td></tr>
+      <tr><td><code>sessionSupport</code></td><td>boolean</td><td>Whether cumulative session tracking is available</td></tr>
+    </table>
+
+    <div class="alert info">Free endpoints like <code>/v1/billing/balance</code> have <code>"creditCost": 0</code> so agents know they can call them without spending credits.</div>
+
+    <h2 id="x-service-info">x-service-info Extension</h2>
+    <p>The top-level <code>info</code> object includes <code>x-service-info</code> — a machine-readable summary of what ProceedGate does and which protocols it supports. This helps AI agents decide whether this API is relevant to their task.</p>
+
+<pre>{
+  <span class="t">"x-service-info"</span>: {
+    <span class="t">"realm"</span>: <span class="y">"cost-governance"</span>,
+    <span class="t">"categories"</span>: [<span class="y">"ai-agents"</span>, <span class="y">"cost-control"</span>, <span class="y">"loop-detection"</span>, <span class="y">"budget-management"</span>],
+    <span class="t">"supportedIntents"</span>: [<span class="y">"check"</span>, <span class="y">"budget"</span>, <span class="y">"session"</span>],
+    <span class="t">"documentation"</span>: <span class="y">"https://proceedgate.dev"</span>,
+    <span class="t">"protocols"</span>: [<span class="y">"x402"</span>, <span class="y">"mpp"</span>]
+  }
+}</pre>
+
+    <table>
+      <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+      <tr><td><code>realm</code></td><td>string</td><td>Service domain — <code>"cost-governance"</code></td></tr>
+      <tr><td><code>categories</code></td><td>string[]</td><td>Tags for agent discovery / search</td></tr>
+      <tr><td><code>supportedIntents</code></td><td>string[]</td><td>What actions the API supports</td></tr>
+      <tr><td><code>protocols</code></td><td>string[]</td><td>Payment protocols supported (<a href="https://www.x402.org/">x402</a>, <a href="https://mpp.dev">MPP</a>)</td></tr>
+    </table>
 
   </main>
 </div>
