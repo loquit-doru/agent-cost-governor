@@ -24,6 +24,7 @@ export const checkSchema = z.object({
       input_tokens: z.number().int().min(0).max(10_000_000).optional(),
       output_tokens: z.number().int().min(0).max(10_000_000).optional(),
       cost_estimate: z.number().min(0).max(10_000).optional(),
+      session_id: z.string().max(200).optional(),
     })
     .strict(),
   idempotency_key: z.string().max(200).optional(),
