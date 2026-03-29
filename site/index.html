@@ -566,7 +566,7 @@
     </a>
     <div class="hero-label">
       <span class="status-dot"></span>
-      Open beta &nbsp;·&nbsp; 2,000 free checks
+      Open beta &nbsp;·&nbsp; 5,000 free checks / month
     </div>
 
     <h1>A circuit breaker<br/>for <em>AI agents</em></h1>
@@ -1706,7 +1706,7 @@
           </svg>
         </div>
         <h3>Signed proceed tokens</h3>
-        <p>Every allowed action returns a JWT signed ES256 (P-256). 45s TTL. Verify downstream at <span class="mono">/.well-known/jwks</span>. Cryptographic proof the action was governed.</p>
+        <p>Every allowed action returns a JWT signed ES256 (P-256). 45s TTL. Verify downstream at <span class="mono">/.well-known/jwks.json</span>. Cryptographic proof the action was governed.</p>
       </div>
 
       <div class="feat">
@@ -1736,18 +1736,9 @@
           </svg>
         </div>
         <h3>MPP payments</h3>
-        <p>Machine Payments Protocol (Stripe + Tempo). Agents pay per-check via HTTP&nbsp;402 with TIP-20 tokens. All payments recorded in a <span class="mono">CostLedger</span> Durable Object, queryable via <span class="mono">GET /costs/:agentId</span>.</p>
+        <p>Machine Payments Protocol (x402 / Tempo). Agents pay per-check via HTTP&nbsp;402 with USDC on BSC. All payments recorded in a <span class="mono">CostLedger</span> Durable Object, queryable via <span class="mono">GET /costs/:agentId</span>.</p>
       </div>
 
-      <div class="feat">
-        <div class="feat-icon">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-          </svg>
-        </div>
-        <h3>Webhook alerts</h3>
-        <p>POST to Slack or Discord when a loop is blocked or credits fall below threshold. Configure per workspace. No polling required to know when something went wrong.</p>
-      </div>
     </div>
   </div>
 </section>
@@ -2179,10 +2170,10 @@ result = crew.kickoff(inputs={<span class="cs">"topic"</span>: <span class="cs">
       <div class="plan">
         <div class="plan-name">Free</div>
         <div class="plan-price">$0</div>
-        <div class="plan-period">2,000 checks &middot; 14-day trial</div>
+        <div class="plan-period">no card required</div>
         <hr/>
         <ul>
-          <li>2,000 checks included</li>
+          <li>5,000 checks / month</li>
           <li>1 workspace</li>
           <li>Loop detection</li>
           <li>Proceed tokens</li>
