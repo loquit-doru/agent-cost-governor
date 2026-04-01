@@ -1725,8 +1725,8 @@
             <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
           </svg>
         </div>
-        <h3>Agent reputation</h3>
-        <p>Each workspace accumulates a trust score 0–100. Trusted agents get looser thresholds. Untrusted agents face tighter gates. Updates automatically from behavior.</p>
+        <h3>Agent identity &amp; reputation</h3>
+        <p>Each agent (<span class="mono">actor.id</span>) accumulates its own trust score 0–100 and behavioral profile — first seen, workspaces operated, wallet address. Trusted agents get looser thresholds; untrusted agents face tighter gates. Query via <span class="mono">GET /v1/agents/:id</span>.</p>
       </div>
 
       <div class="feat">
