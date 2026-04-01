@@ -1749,6 +1749,7 @@
     <p class="label">Payments</p>
     <h2>Agents pay. No human needed.</h2>
     <p class="sub">When an action requires friction, ProceedGate returns HTTP&nbsp;402 with a payment challenge. The agent settles onchain — autonomously, in seconds.</p>
+    <p class="sub" style="margin-top:-8px;font-size:0.85rem;color:var(--tx-2)">Pay on <strong style="color:var(--fg)">BSC</strong> (USDC, &lt;$0.01 gas) or <strong style="color:var(--yellow)">opBNB</strong> (USDT, &lt;$0.0001 gas — ideal for high-volume agents).</p>
 
     <!-- Flow diagram -->
     <div class="pay-flow">
@@ -1807,15 +1808,27 @@
 
     <!-- Chain badge + stats -->
     <div class="pay-stats">
-      <div class="pay-chain">
-        <div class="pay-chain-dot"></div>
-        <span>BSC Mainnet</span>
-        <span class="pay-chain-sep">·</span>
-        <span>USDC</span>
-        <span class="pay-chain-sep">·</span>
-        <span>~3s settlement</span>
-        <span class="pay-chain-sep">·</span>
-        <span>&lt;$0.01 gas</span>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:4px">
+        <div class="pay-chain">
+          <div class="pay-chain-dot"></div>
+          <span>BSC Mainnet</span>
+          <span class="pay-chain-sep">·</span>
+          <span>USDC</span>
+          <span class="pay-chain-sep">·</span>
+          <span>~3s settlement</span>
+          <span class="pay-chain-sep">·</span>
+          <span>&lt;$0.01 gas</span>
+        </div>
+        <div class="pay-chain" style="border-color:rgba(251,191,36,.3);color:var(--yellow)">
+          <div class="pay-chain-dot" style="background:var(--yellow)"></div>
+          <span>opBNB Mainnet</span>
+          <span class="pay-chain-sep">·</span>
+          <span>USDT</span>
+          <span class="pay-chain-sep">·</span>
+          <span>~1s settlement</span>
+          <span class="pay-chain-sep">·</span>
+          <span>&lt;$0.0001 gas</span>
+        </div>
       </div>
       <div class="pay-stat-grid">
         <div class="pay-stat">
@@ -1859,7 +1872,7 @@
         <ul>
           <li>Agent wallet pays automatically</li>
           <li>Agent receives proceed_token, continues</li>
-          <li>USDC on BSC — HTTP 402 native</li>
+          <li>USDC on BSC or USDT on opBNB — HTTP 402 native</li>
           <li>Every payment on-chain, public, verifiable</li>
         </ul>
       </div>
