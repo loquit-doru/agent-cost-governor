@@ -148,7 +148,8 @@ function getTokenAddressForChain(env: Env, chain: 'base' | 'bsc' | 'opbnb'): str
     return normalizeAddress(env.BSC_USDC_ADDRESS ?? fallback) || fallback;
   }
 
-  const fallback = '0x9f05f8a0f7abe74e6b8f39f19ec47ff4f64f38f6';
+  // USDT (Tether) bridged from BSC — #1 token by liquidity on opBNB
+  const fallback = '0x9e5aac1ba1a2e6aed6b32689dfcf62a509ca96f3';
   return normalizeAddress(env.OPBNB_USDC_ADDRESS ?? fallback) || fallback;
 }
 

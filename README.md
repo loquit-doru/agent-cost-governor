@@ -10,9 +10,10 @@ ProceedGate sits **outside** the agent loop and blocks costly steps unless the a
 
 | Resource | Link |
 |---|---|
-| Live endpoint | `https://agent-cost-governor-hackathon.apiworkersdev.workers.dev` |
+| Live endpoint | `https://governor.proceedgate.dev` |
 | Proof tx (BSC) | [`0xd97039...b548`](https://bscscan.com/tx/0xd97039268c048cafd45c0f3b870111b1dcd22f3fdfd62a47e75ae843eb13b548) |
-| Contract (BSC Testnet, Sourcify ✓) | [`0x2054Cc...Ffd5`](https://testnet.bscscan.com/address/0x2054Cc6Fa82e7c64b8226913c3b087CA8F18Ffd5) |
+| Contract (BSC Mainnet, BscScan ✓) | [`0x161D74...C97`](https://bscscan.com/address/0x161D749892a23AC8792eE7fD37f0F423E0b69C97) |
+| Contract (opBNB Mainnet, opBNBScan ✓) | [`0xAd8Da0...8dA`](https://opbnbscan.com/address/0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA) |
 | Address index | [`bsc.address`](bsc.address) |
 | Demo video | [YouTube](https://youtu.be/3oCwey4RXG8) |
 | Full setup guide | [`docs/TECHNICAL.md`](docs/TECHNICAL.md) |
@@ -145,9 +146,47 @@ AI agents auto-discover ProceedGate capabilities via `GET /openapi.json` with ma
 
 ## Payments
 
-All payments on **BNB Smart Chain (BSC)** using USDC. Protocol: x402 (HTTP-native payment settlement).
-- USDC contract: `0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d`
-- Chain ID: 56
+ProceedGate suportă plăți x402 pe două rețele BNB Chain. Agenții pot alege rețeaua — opBNB are taxe de gas de ~$0.0001, ideal pentru agenți cu volum mare de request-uri.
+
+### BNB Smart Chain (BSC) — recomandat pentru compatibilitate maximă
+- **Token**: USDC (`0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d`, 18 decimale)
+- **Chain ID**: 56
+- **Contract guvernanță**: [`0x161D749892a23AC8792eE7fD37f0F423E0b69C97`](https://bscscan.com/address/0x161D749892a23AC8792eE7fD37f0F423E0b69C97) ✓ verificat
+- **Gas fee mediu**: ~$0.05–0.20 per tranzacție
+
+### opBNB Mainnet — recomandat pentru agenți cu volum mare
+- **Token**: USDT (`0x9e5AAC1Ba1a2e6aEd6b32689DFcF62A509Ca96f3`, 18 decimale)
+- **Chain ID**: 204
+- **Contract guvernanță**: [`0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA`](https://opbnbscan.com/address/0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA) ✓ verificat
+- **Gas fee mediu**: ~$0.0001 per tranzacție (de ~1000× mai ieftin decât BSC)
+
+### Cum funcționează plata (protocol x402)
+
+```
+1. Agent → POST /v1/governor/check → 402 Payment Required
+                                       + x402-price: 0.004 USDC
+                                       + x402-chain: BSC  (sau opBNB)
+                                       + x402-recipient: 0x607F...
+                                       + x402-decision-id: dec_...
+
+2. Agent trimite USDT/USDC on-chain către recipientul din header
+
+3. Agent → POST /v1/governor/redeem
+           + x402-tx-hash: 0xabc...
+           + x402-decision-id: dec_...
+
+4. Worker verifică tx on-chain (RPC call: eth_getTransactionReceipt)
+   → confirmă Transfer(from, recipient, amount) în logs
+
+5. Worker returnează → proceed_token (JWT, TTL 45s)
+
+6. Agent atașează proceed_token la request-ul protejat → executat
+```
+
+Pentru a selecta rețeaua opBNB în loc de BSC, setează în `wrangler.toml` (sau ca variabilă de mediu):
+```toml
+X402_CHAIN = "opBNB"
+```
 
 ## What’s in this repo
 

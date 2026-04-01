@@ -65,6 +65,9 @@ BASE_RPC_URL = "https://mainnet.base.org"
 BSC_RPC_URL = "https://bsc-dataseed.binance.org"
 BSC_USDC_ADDRESS = "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
 OPBNB_RPC_URL = "https://opbnb-mainnet-rpc.bnbchain.org"
+# USDT (Tether) bridged from BSC — primary payment token on opBNB (18 decimals)
+# Contract verified: https://opbnbscan.com/address/0x9e5AAC1Ba1a2e6aEd6b32689DFcF62A509Ca96f3
+OPBNB_USDC_ADDRESS = "0x9e5aac1ba1a2e6aed6b32689dfcf62a509ca96f3"
 
 # Never allow stub tx hashes in production.
 ALLOW_STUB_TX = "false"

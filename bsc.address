@@ -1,0 +1,74 @@
+# BNB Chain deployment references (judge-friendly)
+
+## Project: ProceedGate (Agent Cost Governor)
+
+### Governor proof tx (BSC)
+- tx_hash: 0xd97039268c048cafd45c0f3b870111b1dcd22f3fdfd62a47e75ae843eb13b548
+- explorer: https://bscscan.com/tx/0xd97039268c048cafd45c0f3b870111b1dcd22f3fdfd62a47e75ae843eb13b548
+
+### Contract deployment (BSC Testnet) — Sourcify VERIFIED ✓
+- contract_name: AICostGovernor
+- contract_address: 0x2054Cc6Fa82e7c64b8226913c3b087CA8F18Ffd5
+- deploy_tx_hash: 0x262ed0540a4518e2472eda194eede4b2a1872aaa0373647faa2b4e4203c9d845
+- solc_version: 0.8.33
+- sourcify: https://sourcify.dev/#/lookup/0x2054Cc6Fa82e7c64b8226913c3b087CA8F18Ffd5
+- explorer_contract: https://testnet.bscscan.com/address/0x2054Cc6Fa82e7c64b8226913c3b087CA8F18Ffd5
+- explorer_tx: https://testnet.bscscan.com/tx/0x262ed0540a4518e2472eda194eede4b2a1872aaa0373647faa2b4e4203c9d845
+
+### Previous contract deployment (BSC Testnet) — not verified
+- contract_address: 0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA
+- deploy_tx_hash: 0x0c695608865e5cad89d9b86d0041c3ca1caf142da77cbcb08febc682567c91a7
+
+### On-chain governance decision proofs (BSC Testnet)
+Deployer: 0x399CD539643A0fe939F426Ae533780C7510EaD6b
+
+| # | Type | TX Hash | Block |
+|---|------|---------|-------|
+| 1 | Activity proof | 0x8059d81c84ec9cd91f268bc62ab1faee4523413748813cea9dd6129cf48d07f2 | 90852021 |
+| 2 | Activity proof | 0x10fdcdc9872c34ab043351ab1692fb34034df0c42fc7ea5c08c3b29d4d968f8a | 90852030 |
+| 3 | Activity proof | 0xb3bc01eca38d66d010be98033df8afbce21df82cf87976675e0bbc7139333049 | 90852047 |
+| 4 | Activity proof | 0x7612d2595bb7a142157ebd19244430e7ff450bbf0ef65ef9204bf40d642ea2bf | 90852391 |
+| 5 | Activity proof | 0x1b4351b4757212620b6f9b7231c98225e1cb750c7a2384da52debd5b57b0b2c4 | 90852408 |
+| 6 | Activity proof | 0x8be643a9ed539c527b1f3a6b5f70c4d6d04b93a5247f9403a212c3fb0486b397 | 90852416 |
+| 7 | Gov: allowed | 0xbc9795e9e5a75ae702871ef67ab2a89e3ac9879b49e9c2366fd140f94c78685c | 90852424 |
+| 8 | Gov: blocked | 0x44e946a95f0ca9393199761d27b3098b4c6512a7f7586c9004596fc3751c3d1f | 90852432 |
+| 9 | Gov: friction_402 | 0x5912b6a0493be7455d78091db8c472814649bffb079cfa30777ac5b7e23bf9e9 | 90852440 |
+| 10 | Gov: allowed | 0xa00f2b4803e7c7b1c22847dc1436bc00432ab4df64ee5b17a412c92368ee95b3 | 90852449 |
+| 11 | Gov: blocked_storm | 0xc2487cf0866287ac9e539f1e07cec8878464d94004d002c8c623f19ff2b252d9 | 90852466 |
+
+Explorer (all tx): https://testnet.bscscan.com/address/0x399CD539643A0fe939F426Ae533780C7510EaD6b
+
+## Notes
+- Competition mode uses non-stub flow (`ALLOW_STUB_TX=false`) in hackathon environment.
+- Current contract deployment is on BSC Testnet; mainnet migration is planned post-hackathon.
+- Total on-chain transactions: 13 (deploy + mainnet proof + 11 testnet proofs)
+
+### Contract deployment (BSC Mainnet)
+- contract_address: 0x161D749892a23AC8792eE7fD37f0F423E0b69C97
+- tx_hash: 0xd9772121184ebee445a6eb2a5e2c194314197e491261040db01c31e6e32c762a
+- explorer_contract: https://bscscan.com/address/0x161D749892a23AC8792eE7fD37f0F423E0b69C97
+- deployer: 0x607Fc9D41858Aa23065275043698a9262F8f9bf9
+- verified: https://bscscan.com/address/0x161D749892a23AC8792eE7fD37f0F423E0b69C97#code
+
+### Contract deployment (opBNB Mainnet)
+- contract_name: AICostGovernor
+- contract_address: 0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA
+- deploy_tx_hash: 0xfde0a2ce12506aa51746788dac69049f03b24656fb8852962569c2595e3a0a2c
+- block: 127783751
+- chain_id: 204
+- token: USDT (0x9e5AAC1Ba1a2e6aEd6b32689DFcF62A509Ca96f3, 18 decimals)
+- min_stake: 1000000000000000000 (1 USDT)
+- deployer: 0x399CD539643A0fe939F426Ae533780C7510EaD6b
+- verified: https://opbnbscan.com/address/0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA#code
+- explorer: https://opbnbscan.com/address/0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA
+- usdc_token: 0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d
+- min_stake_units: 1000000000000000000
+
+### Contract deployment (opBNB Mainnet)
+- contract_address: 0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA
+- tx_hash: 0xfde0a2ce12506aa51746788dac69049f03b24656fb8852962569c2595e3a0a2c
+- explorer_contract: https://opbnbscan.com/address/0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA
+- explorer_tx: https://opbnbscan.com/tx/0xfde0a2ce12506aa51746788dac69049f03b24656fb8852962569c2595e3a0a2c
+- deployer: 0x399CD539643A0fe939F426Ae533780C7510EaD6b
+- usdt_token: 0x9e5AAC1Ba1a2e6aEd6b32689DFcF62A509Ca96f3
+- min_stake_units: 1000000000000000000
