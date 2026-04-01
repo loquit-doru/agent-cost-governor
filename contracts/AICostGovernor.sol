@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity 0.8.28;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-contract AICostGovernor is Ownable {
+contract AICostGovernor is Ownable, ReentrancyGuard {
     IERC20 public immutable usdc;
     uint256 public minStake;
 
@@ -22,15 +23,15 @@ contract AICostGovernor is Ownable {
         minStake = initialMinStake;
     }
 
-    function stakeForAction(uint256 amount) external {
+    function stakeForAction(uint256 amount) external nonReentrant {
         require(amount > 0, "invalid_amount");
-        require(usdc.transferFrom(msg.sender, address(this), amount), "transfer_failed");
 
         stakes[msg.sender] += amount;
         emit StakeAdded(msg.sender, amount, stakes[msg.sender]);
+        require(usdc.transferFrom(msg.sender, address(this), amount), "transfer_failed");
     }
 
-    function withdraw(uint256 amount) external {
+    function withdraw(uint256 amount) external nonReentrant {
         require(amount > 0, "invalid_amount");
         require(stakes[msg.sender] >= amount, "insufficient_stake");
 
