@@ -278,6 +278,17 @@
     .key-or { color: var(--tx-3); font-size: 12px; margin: 16px 0; }
     .key-demo-link { color: var(--teal); font-size: 13px; cursor: pointer; }
     .key-demo-link:hover { text-decoration: underline; }
+    .magic-section {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 18px 20px; margin-bottom: 20px; text-align: left;
+    }
+    .magic-section-title {
+      font-size: 13px; font-weight: 600; color: var(--tx); margin-bottom: 4px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .magic-section-sub { font-size: 12px; color: var(--tx-2); margin-bottom: 12px; }
+    .magic-sent { font-size: 13px; color: var(--green); padding: 8px 0; min-height: 38px; display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .magic-err  { font-size: 12px; color: var(--red); margin-top: 6px; min-height: 16px; }
   </style>
 </head>
 <body>
@@ -312,7 +323,21 @@
     <svg width="22" height="22" viewBox="0 0 20 20" fill="none"><rect width="20" height="20" rx="5" fill="#2dd4bf"/><path d="M6 10l3 3 5-6" stroke="#09090b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
   </div>
   <h2>Your Dashboard</h2>
-  <p>Enter your API key to see your workspace data.<br>Don't have one? <a href="pay.html" style="color:var(--teal)">Get a free API key →</a></p>
+  <p>Sign in with your email or enter your API key.<br>Don't have one? <a href="pay.html" style="color:var(--teal)">Get a free API key →</a></p>
+
+  <!-- Email magic link section -->
+  <div class="magic-section">
+    <div class="magic-section-title">📧 Login link</div>
+    <div class="magic-section-sub">Enter your email and we'll send a one-click login link.</div>
+    <div id="magicInputRow" class="key-input-row">
+      <input class="key-input" id="magicEmailInput" type="email" placeholder="your@email.com" autocomplete="email" style="font-family:inherit" />
+      <button class="key-submit" id="magicSendBtn" onclick="sendMagicLink()">Send link →</button>
+    </div>
+    <div id="magicSent" class="magic-sent" style="display:none">✓ Check your inbox — link expires in 15 minutes</div>
+    <div class="magic-err" id="magicErr"></div>
+  </div>
+
+  <div class="key-or">— or enter API key directly —</div>
   <div class="key-input-row">
     <input class="key-input" id="keyInput" type="password" placeholder="pg_ws_..." autocomplete="off" />
     <button class="key-submit" onclick="submitApiKey()">Open →</button>
@@ -511,6 +536,37 @@
     checkApiStatus();
     setInterval(checkApiStatus, 30000);
 
+    // ── Handle ?magic= token (email login link) ──────────────────────────
+    const magicToken = new URLSearchParams(location.search).get('magic');
+    if (magicToken) {
+      // Show gate with a loading message while we verify
+      showKeyGate();
+      const errEl = document.getElementById('magicErr');
+      errEl.textContent = 'Verifying login link…';
+      errEl.style.color = 'var(--tx-2)';
+      try {
+        const res = await fetch(API_BASE + '/v1/auth/magic-link?token=' + encodeURIComponent(magicToken), {
+          signal: AbortSignal.timeout(8000),
+        });
+        const data = await res.json();
+        if (res.ok && data.ok && data.api_key) {
+          _apiKey = data.api_key;
+          localStorage.setItem('pg_api_key', data.api_key);
+          // Clean URL
+          history.replaceState({}, '', location.pathname);
+          const ok = await resolveWorkspace(data.api_key);
+          if (ok) { showDashboard(true); return; }
+        }
+        // Invalid / expired
+        errEl.textContent = '⚠ Login link expired or already used. Enter your email to get a new one.';
+        errEl.style.color = 'var(--red)';
+      } catch {
+        errEl.textContent = '⚠ Could not verify login link. Please try again.';
+        errEl.style.color = 'var(--red)';
+      }
+      return; // stay on gate
+    }
+
     if (_apiKey) {
       // Validate key, resolve workspace
       const ok = await resolveWorkspace(_apiKey);
@@ -599,9 +655,50 @@
     }
   }
 
+  // ─── Magic link: send email ───────────────────────────────────────────────
+  async function sendMagicLink() {
+    const emailInput = document.getElementById('magicEmailInput');
+    const errEl      = document.getElementById('magicErr');
+    const sentEl     = document.getElementById('magicSent');
+    const rowEl      = document.getElementById('magicInputRow');
+    const btn        = document.getElementById('magicSendBtn');
+    const email      = emailInput.value.trim();
+    errEl.textContent = '';
+    sentEl.style.display = 'none';
+
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errEl.textContent = 'Enter a valid email address.';
+      return;
+    }
+
+    btn.textContent = 'Sending…';
+    btn.disabled    = true;
+
+    try {
+      const res = await fetch(API_BASE + '/v1/auth/magic-link', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email }),
+        signal: AbortSignal.timeout(8000),
+      });
+      // Always show success — don't reveal if email is registered
+      rowEl.style.display = 'none';
+      sentEl.style.display = '';
+    } catch {
+      errEl.textContent = 'Could not send. Please try again.';
+      btn.textContent = 'Send link →';
+      btn.disabled    = false;
+    }
+  }
+
   document.addEventListener('keydown', function(e) {
     if (e.key === 'Enter' && document.getElementById('keyGate').style.display !== 'none') {
-      submitApiKey();
+      // If focus is in email input, send magic link; else submit API key
+      if (document.activeElement === document.getElementById('magicEmailInput')) {
+        sendMagicLink();
+      } else {
+        submitApiKey();
+      }
     }
   });
 

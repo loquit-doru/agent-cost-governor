@@ -1,6 +1,20 @@
 # Changelog
 
-## [1.1.0] — 2026-03-28
+## [1.2.0] — 2026-04-01
+
+### Added — Agent Identity & Per-Agent Reputation
+**Files**: `worker/src/billingStoreDO.ts`, `worker/src/routes/agents.ts`, `worker/src/routes/check.ts`, `worker/src/lib/schemas.ts`, `worker/src/index.ts`
+**Motiv**: `actor.id` era un simplu string de logging — fără profil persistent, fără reputație proprie. Un agent rău nu era penalizat separat de workspace.
+**Adăugat**:
+- `AgentProfile` type + storage keys `agent:{id}:profile` și `agent:{id}:rep` în `BillingStoreDO`
+- DO endpoints: `GET/POST /agents/:id/profile`, `GET/POST /agents/:id/reputation`, `GET /agents` (list paginat)
+- `check.ts`: fire-and-forget agent profile upsert + reputation recording la toate cele 3 puncte (storm block, gray block, success)
+- `actor.wallet` câmp opțional în schema (ERC-8004 pregătit pentru viitor)
+- HTTP routes `GET /v1/agents` și `GET /v1/agents/:id` (autentificate cu admin key)
+- `requests.http`: 4 exemple noi pentru Agent Identity endpoints
+- `README.md`: secțiune nouă "Agent Identity & Reputation" cu exemple complete
+
+
 
 ### Added — Session-based Budget Tracking
 - `POST /v1/governor/session` — Open a session with budget cap

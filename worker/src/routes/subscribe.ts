@@ -27,7 +27,7 @@ const PLANS = {
   free: {
     name: 'Free',
     priceMonthly: 0,
-    checks: 2000,
+    checks: 5000,
     projects: 1,
     logRetentionDays: 3,
     customPolicies: 0,
@@ -1810,6 +1810,7 @@ subscribeRoutes.post('/v1/billing/free', async (c) => {
       plan: plan,
       credits: PLANS[plan].checks,
       expires_at_ms: Date.now() + 30 * 24 * 60 * 60 * 1000, // 30 days for free tier
+      email: email,
       features: {
         projects: PLANS[plan].projects,
         logRetentionDays: PLANS[plan].logRetentionDays,
@@ -1825,6 +1826,10 @@ subscribeRoutes.post('/v1/billing/free', async (c) => {
   });
 
   if (!createRes.ok) {
+    const createBody = await createRes.json().catch(() => null) as { error?: string } | null;
+    if (createRes.status === 409 && createBody?.error === 'email_exists') {
+      return c.json({ ok: false, error: 'email_already_registered', message: 'This email already has a free account. Check your inbox for your API key.' }, 409);
+    }
     logEvent({
       event: 'free_signup_workspace_create_fail',
       email,
@@ -2118,6 +2123,86 @@ subscribeRoutes.get('/v1/me/stats', async (c) => {
     storm_chart: storm.buckets,
     data_source: 'real-time workspace data',
   });
+});
+
+// ── Magic Link Auth ──────────────────────────────────────────────────────────
+
+// POST /v1/auth/magic-link { email } — request a login link
+subscribeRoutes.post('/v1/auth/magic-link', async (c) => {
+  const body = await c.req.json().catch(() => null) as { email?: string } | null;
+  const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : null;
+
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return c.json({ ok: false, error: 'invalid_email' }, 400);
+  }
+
+  // Always return ok=true — don't reveal if email is registered
+  const stub = getBillingStub(c.env);
+  const idxRes = await stub.fetch(doUrl('/email-index/lookup'), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+
+  if (idxRes.ok) {
+    const idxData = await idxRes.json() as { workspace_id?: string };
+    const workspaceId = idxData.workspace_id;
+
+    if (workspaceId) {
+      const token = crypto.randomUUID().replace(/-/g, '');
+      const expiresAtMs = Date.now() + 15 * 60 * 1000;
+
+      await stub.fetch(doUrl('/magic-tokens'), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ token, workspace_id: workspaceId, expires_at_ms: expiresAtMs }),
+      });
+
+      const magicUrl = `https://proceedgate.dev/dashboard.html?magic=${token}`;
+      const { sendMagicLinkEmail } = await import('../services/email.js');
+      await sendMagicLinkEmail(c.env, { to: email, magicUrl }).catch(err =>
+        console.error('Magic link email failed:', err)
+      );
+    }
+  }
+
+  return c.json({ ok: true, message: 'If this email is registered, a login link has been sent.' });
+});
+
+// GET /v1/auth/magic-link?token=TOKEN — verify token and return new api_key
+subscribeRoutes.get('/v1/auth/magic-link', async (c) => {
+  const token = c.req.query('token');
+  if (!token) return c.json({ ok: false, error: 'missing_token' }, 400);
+
+  const stub = getBillingStub(c.env);
+
+  // One-time use: read and delete token
+  const tokenRes = await stub.fetch(doUrl(`/magic-tokens/${encodeURIComponent(token)}`));
+  if (!tokenRes.ok) {
+    return c.json({ ok: false, error: 'invalid_or_expired' }, 401);
+  }
+  const tokenData = await tokenRes.json() as { workspace_id: string };
+  const workspaceId = tokenData.workspace_id;
+
+  // Generate new API key for the workspace
+  const newApiKey = makeApiKey();
+  const newApiKeyHash = await hashApiKey(newApiKey);
+
+  // Update workspace auth with new key
+  await stub.fetch(doUrl(`/workspaces/${encodeURIComponent(workspaceId)}/key`), {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ api_key_hash: newApiKeyHash }),
+  });
+
+  // Update keyidx
+  await stub.fetch(doUrl('/keys/index'), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ api_key_hash: newApiKeyHash, workspace_id: workspaceId }),
+  });
+
+  return c.json({ ok: true, workspace_id: workspaceId, api_key: newApiKey });
 });
 
 export { subscribeRoutes };

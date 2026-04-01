@@ -40,6 +40,8 @@
     "demo:multi-agent": "npm run build && node scripts/demo-multi-agent.mjs",
     "demo:video": "npm run build && node scripts/demo-video.mjs",
     "smoke": "npm run build && node scripts/run-storm-demo.mjs smoke",
+    "deploy:contract:mainnet": "node scripts/deploy-cost-governor-mainnet.mjs",
+    "deploy:contract:opbnb": "node scripts/deploy-cost-governor-opbnb.mjs",
     "deploy:worker": "npm --workspace worker run deploy",
     "tail:worker": "cd worker && npx wrangler tail",
     "tail:prod": "cd worker && npx wrangler tail --env prod"

@@ -10,6 +10,8 @@ interface SendEmailParams {
   subject: string;
   html: string;
   text?: string;
+  /** transactional = true removes List-Unsubscribe and uses noreply@ from address */
+  transactional?: boolean;
 }
 
 interface SubscriptionConfirmationParams {
@@ -72,8 +74,8 @@ async function sendEmail(env: Env, params: SendEmailParams): Promise<{ ok: boole
         html: params.html,
         text: params.text,
         headers: {
-          'X-Entity-Ref-ID': crypto.randomUUID(), // Unique ID to prevent threading issues
-          'List-Unsubscribe': '<mailto:unsubscribe@proceedgate.dev>',
+          'X-Entity-Ref-ID': crypto.randomUUID(),
+          ...(params.transactional ? {} : { 'List-Unsubscribe': '<mailto:unsubscribe@proceedgate.dev>' }),
         },
       }),
     });
@@ -317,6 +319,11 @@ export async function sendFreeWelcomeEmail(
   env: Env,
   params: { to: string; workspaceId: string; apiKey: string }
 ): Promise<{ ok: boolean; error?: string }> {
+  // Mask API key: show first 10 and last 4 chars only
+  const maskedKey = params.apiKey.length > 14
+    ? `${params.apiKey.slice(0, 10)}...${params.apiKey.slice(-4)}`
+    : params.apiKey;
+
   const html = `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -324,31 +331,23 @@ export async function sendFreeWelcomeEmail(
 <div style="max-width:560px;margin:0 auto;padding:40px 20px;">
   <div style="text-align:center;margin-bottom:32px;">
     <div style="display:inline-flex;align-items:center;justify-content:center;width:48px;height:48px;background:#2dd4bf;border-radius:10px;font-size:22px;margin-bottom:16px;">✓</div>
-    <h1 style="color:#fafafa;margin:0 0 8px;font-size:24px;letter-spacing:-.02em;">You're in — ProceedGate Free</h1>
-    <p style="color:#a1a1aa;margin:0;font-size:14px;">2,000 free checks/month. No credit card.</p>
+    <h1 style="color:#fafafa;margin:0 0 8px;font-size:24px;letter-spacing:-.02em;">Welcome to ProceedGate</h1>
+    <p style="color:#a1a1aa;margin:0;font-size:14px;">5,000 free checks/month. No credit card.</p>
   </div>
 
   <div style="background:rgba(45,212,191,.07);border:1px solid rgba(45,212,191,.25);border-radius:12px;padding:24px;margin-bottom:24px;">
-    <p style="color:#a1a1aa;font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin:0 0 16px;">Your credentials</p>
+    <p style="color:#a1a1aa;font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin:0 0 16px;">Your account details</p>
     <div style="margin-bottom:12px;">
       <div style="color:#71717a;font-size:11px;margin-bottom:4px;">Workspace ID</div>
       <div style="color:#fafafa;font-family:monospace;font-size:13px;background:rgba(0,0,0,.4);padding:10px 12px;border-radius:6px;word-break:break-all;">${params.workspaceId}</div>
     </div>
     <div style="margin-bottom:16px;">
-      <div style="color:#71717a;font-size:11px;margin-bottom:4px;">API Key</div>
-      <div style="color:#fafafa;font-family:monospace;font-size:13px;background:rgba(0,0,0,.4);padding:10px 12px;border-radius:6px;word-break:break-all;">${params.apiKey}</div>
+      <div style="color:#71717a;font-size:11px;margin-bottom:4px;">Access token (partial)</div>
+      <div style="color:#fafafa;font-family:monospace;font-size:13px;background:rgba(0,0,0,.4);padding:10px 12px;border-radius:6px;word-break:break-all;">${maskedKey}</div>
     </div>
     <div style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.25);border-radius:6px;padding:10px 12px;font-size:12px;color:#fbbf24;">
-      Save your API key — it won't be shown again.
+      Your full token was shown on the signup page. Copy it from there — it won't be shown again.
     </div>
-  </div>
-
-  <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:20px;margin-bottom:24px;">
-    <p style="color:#a1a1aa;font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin:0 0 12px;">First check call</p>
-    <pre style="margin:0;font-family:monospace;font-size:12px;color:#4ade80;white-space:pre-wrap;overflow-x:auto;">curl -X POST https://governor.proceedgate.dev/v1/check \\
-  -H "Authorization: Bearer ${params.apiKey}" \\
-  -H "Content-Type: application/json" \\
-  -d '{"agent_id":"my-agent","task_hash":"sha256-of-task","action":"tool_call"}'</pre>
   </div>
 
   <div style="text-align:center;padding:8px 0 32px;">
@@ -356,7 +355,7 @@ export async function sendFreeWelcomeEmail(
   </div>
 
   <p style="color:#52525b;font-size:12px;text-align:center;margin:0;">
-    Questions? Reply to this email or check <a href="https://proceedgate.dev/docs.html" style="color:#2dd4bf;">docs.proceedgate.dev</a>
+    Questions? Reply to this email or check <a href="https://proceedgate.dev/docs.html" style="color:#2dd4bf;">proceedgate.dev/docs</a>
   </p>
 </div>
 </body>
@@ -364,9 +363,10 @@ export async function sendFreeWelcomeEmail(
 
   return sendEmail(env, {
     to: params.to,
-    subject: 'Your ProceedGate API key',
+    subject: 'Welcome to ProceedGate',
     html,
-    text: `Welcome to ProceedGate Free!\n\nWorkspace ID: ${params.workspaceId}\nAPI Key: ${params.apiKey}\n\nFirst check:\ncurl -X POST https://governor.proceedgate.dev/v1/check -H "Authorization: Bearer ${params.apiKey}" -H "Content-Type: application/json" -d '{"agent_id":"my-agent","task_hash":"sha256-of-task","action":"tool_call"}'\n\nDashboard: https://proceedgate.dev/dashboard.html\n`,
+    text: `Welcome to ProceedGate!\n\nWorkspace ID: ${params.workspaceId}\nAccess token: ${maskedKey} (partial — copy the full token from the signup page)\n\nDashboard: https://proceedgate.dev/dashboard.html\nDocs: https://proceedgate.dev/docs.html\n`,
+    transactional: true,
   });
 }
 
@@ -436,5 +436,42 @@ export async function sendWeeklySavingsReport(
     to: params.to,
     subject: `💰 ProceedGate: You saved $${params.costSavedUsd.toFixed(2)} this week`,
     html,
+  });
+}
+
+// Send magic link login email
+export async function sendMagicLinkEmail(
+  env: Env,
+  params: { to: string; magicUrl: string }
+): Promise<{ ok: boolean; error?: string }> {
+  const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#09090b;">
+<div style="max-width:480px;margin:0 auto;padding:48px 24px;">
+  <div style="text-align:center;margin-bottom:32px;">
+    <div style="display:inline-flex;align-items:center;justify-content:center;width:48px;height:48px;background:#2dd4bf;border-radius:10px;font-size:22px;margin-bottom:16px;">→</div>
+    <h1 style="color:#fafafa;margin:0 0 8px;font-size:22px;letter-spacing:-.02em;">Open your dashboard</h1>
+    <p style="color:#a1a1aa;margin:0;font-size:14px;">Click the button below to sign in to ProceedGate.</p>
+  </div>
+  <div style="text-align:center;margin-bottom:32px;">
+    <a href="${params.magicUrl}" style="display:inline-block;background:#2dd4bf;color:#09090b;font-weight:600;font-size:15px;padding:14px 36px;border-radius:8px;text-decoration:none;">Open Dashboard →</a>
+  </div>
+  <p style="color:#52525b;font-size:12px;text-align:center;margin:0 0 8px;">
+    This link expires in 15 minutes and can only be used once.
+  </p>
+  <p style="color:#3f3f46;font-size:12px;text-align:center;margin:0;">
+    If you didn't request this, ignore this email.
+  </p>
+</div>
+</body>
+</html>`;
+
+  return sendEmail(env, {
+    to: params.to,
+    subject: 'Sign in to ProceedGate',
+    html,
+    text: `Open your ProceedGate dashboard:\n${params.magicUrl}\n\nThis link expires in 15 minutes and can only be used once.\n\nIf you didn't request this, ignore this email.`,
+    transactional: true,
   });
 }

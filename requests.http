@@ -103,3 +103,38 @@ content-type: application/json
     "context_hash": "c1"
   }
 }
+
+
+### ──────────────────────────────────────────────────────────────────────────
+### Agent Identity (requires admin key)
+### ──────────────────────────────────────────────────────────────────────────
+
+### List all known agents (paginated, 20/page)
+GET {{baseUrl}}/v1/agents
+Authorization: Bearer {{adminKey}}
+
+### List agents — next page
+GET {{baseUrl}}/v1/agents?cursor=my-scraper-v2
+Authorization: Bearer {{adminKey}}
+
+### Get agent profile + reputation by agent_id
+GET {{baseUrl}}/v1/agents/my-scraper-v2
+Authorization: Bearer {{adminKey}}
+
+### Governor check with actor.wallet (ERC-8004 optional field)
+POST {{baseUrl}}/v1/governor/check
+content-type: application/json
+Authorization: Bearer {{apiKey}}
+
+{
+  "policy_id": "scraping_v1",
+  "action": "fetch_url",
+  "actor": {
+    "id": "my-scraper-v2",
+    "project": "{{workspaceId}}",
+    "wallet": "0xYourAgentWalletAddress"
+  },
+  "context": {
+    "attempt_in_window": 1
+  }
+}

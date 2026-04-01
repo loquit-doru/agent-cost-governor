@@ -7,6 +7,7 @@ export const checkSchema = z.object({
   actor: z.object({
     id: z.string().min(1).max(200),
     project: z.string().min(0).max(200).optional(),
+    wallet: z.string().max(100).optional(), // ERC-8004 agent wallet address (optional)
   }),
   context: z
     .object({

@@ -174,7 +174,7 @@
                 <span style="font-size:20px;">🚀</span>
                 <div>
                   <div style="font-weight:700; font-size:15px;">Start Free — No Card Required</div>
-                  <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">2,000 checks &nbsp;·&nbsp; 14 days &nbsp;·&nbsp; Full API access</div>
+                  <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">5,000 checks &nbsp;·&nbsp; Full API access</div>
                 </div>
               </div>
               <div style="display:flex; gap:10px;">
@@ -832,8 +832,28 @@
           </div>
           <div class="wallet-item-arrow">→</div>
         `;
-        wcItem.addEventListener('click', function() {
-          alert('WalletConnect coming soon! Use browser wallet or manual payment.');
+        wcItem.addEventListener('click', async function() {
+          if (!window.__wcConnect) {
+            alert('WalletConnect se încarcă, încearcă din nou în câteva secunde.');
+            return;
+          }
+          closeWalletModal();
+          $('paymentOptions').style.display = 'none';
+          $('walletPayment').style.display = 'block';
+          $('walletStatus').textContent = 'Connecting via WalletConnect…';
+          $('walletDesc').textContent = 'Scan the QR code with your mobile wallet';
+          try {
+            const provider = await window.__wcConnect();
+            await connectWallet('WalletConnect', provider);
+          } catch(e) {
+            const msg = e?.message || '';
+            if (!msg.includes('reset') && !msg.includes('closed')) {
+              $('walletStatus').textContent = 'WalletConnect error';
+              $('walletDesc').textContent = msg || 'Connection cancelled';
+            }
+            $('walletPayment').style.display = 'none';
+            $('paymentOptions').style.display = 'block';
+          }
         });
         list.appendChild(wcItem);
         
@@ -1140,7 +1160,7 @@
             <div style="text-align:center;">
               <div class="success-check">✓</div>
               <div class="status-title">You're in!</div>
-              <div class="status-desc" style="margin-bottom:24px;">Free account created. 2,000 checks included.</div>
+              <div class="status-desc" style="margin-bottom:24px;">Free account created. 5,000 checks included.</div>
 
               <div style="background:rgba(0,0,0,.4); border:1px solid rgba(45,212,191,.3); border-radius:12px; padding:20px; text-align:left; margin-bottom:12px;">
                 <div style="font-size:12px; color:var(--text-muted); margin-bottom:6px;">API key <span style="color:#ef4444;">— keep this secret</span></div>
@@ -1188,6 +1208,31 @@
 
       // Expose globally (called from inline onclick)
       window.startFreeTrial = startFreeTrial;
+    </script>
+
+    <!-- WalletConnect v2 — get your free Project ID at https://cloud.reown.com -->
+    <script type="module">
+      import { EthereumProvider } from 'https://esm.sh/@walletconnect/ethereum-provider@2.17.0';
+
+      const WC_PROJECT_ID = '66c043a2b3adcbba6a1bc7d1e5dd7793';
+
+      window.__wcConnect = async function() {
+        const provider = await EthereumProvider.init({
+          projectId: WC_PROJECT_ID,
+          chains: [56],                    // BSC mainnet
+          optionalChains: [1, 137, 8453],  // ETH, Polygon, Base
+          showQrModal: true,
+          qrModalOptions: { themeMode: 'dark' },
+          metadata: {
+            name: 'ProceedGate',
+            description: 'AI Agent Cost Governor — block retry storms before they drain your budget',
+            url: 'https://proceedgate.dev',
+            icons: ['https://proceedgate.dev/favicon.jpg'],
+          },
+        });
+        await provider.enable();
+        return provider;
+      };
     </script>
 
     <footer class="footer" style="margin-top: 48px;">

@@ -220,6 +220,21 @@ checkRoutes.post('/v1/governor/check', async (c) => {
           body: JSON.stringify({ blocked: true, reason: 'storm', zone: 'storm', backoff_detected: loopData.backoff_detected }),
         }).catch(() => {})
       );
+      // Agent identity: record storm block
+      c.executionCtx.waitUntil(
+        stub.fetch(doUrl(`/agents/${agentId}/reputation`), {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ blocked: true, reason: 'storm', zone: 'storm', backoff_detected: loopData.backoff_detected }),
+        }).catch(() => {})
+      );
+      c.executionCtx.waitUntil(
+        stub.fetch(doUrl(`/agents/${agentId}/profile`), {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ last_seen_ms: Date.now(), workspace_id: workspaceId, wallet_address: parsed.data.actor.wallet }),
+        }).catch(() => {})
+      );
 
       const stormBody = {
         allowed: false as boolean,
@@ -319,6 +334,21 @@ checkRoutes.post('/v1/governor/check', async (c) => {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({ blocked: true, reason: 'gray_blocked', zone: 'gray', backoff_detected: loopData.backoff_detected }),
+          }).catch(() => {})
+        );
+        // Agent identity: record gray block
+        c.executionCtx.waitUntil(
+          stub.fetch(doUrl(`/agents/${agentId}/reputation`), {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ blocked: true, reason: 'gray_blocked', zone: 'gray', backoff_detected: loopData.backoff_detected }),
+          }).catch(() => {})
+        );
+        c.executionCtx.waitUntil(
+          stub.fetch(doUrl(`/agents/${agentId}/profile`), {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ last_seen_ms: Date.now(), workspace_id: workspaceId, wallet_address: parsed.data.actor.wallet }),
           }).catch(() => {})
         );
 
@@ -565,6 +595,26 @@ checkRoutes.post('/v1/governor/check', async (c) => {
       if (governanceMode === 'log_only') {
         return c.json({ ...creditsBlockBody, allowed: true, enforced: false, would_block: true, would_block_status: 402 }, 200);
       }
+
+      // Free tier pass-through: when free plan exhausts checks, allow the action
+      // instead of blocking — agent keeps working, governance goes silent.
+      // Paid plans get a hard 402 (they're paying for the hard cap).
+      try {
+        const subRes = await stub.fetch(doUrl(`/workspaces/${workspaceId}/subscription`));
+        if (subRes.ok) {
+          const subData = await subRes.json() as { plan?: string };
+          if (subData.plan === 'free') {
+            return c.json({
+              allowed: true,
+              credits_exhausted: true,
+              workspace_id: workspaceId,
+              message: 'Free tier limit reached. Governance is paused — upgrade to restore protection.',
+              upgrade_url: 'https://proceedgate.dev/#pricing',
+            }, 200);
+          }
+        }
+      } catch { /* subscription fetch failed — fall through to hard block */ }
+
       return c.json(creditsBlockBody, 402);
     }
 
@@ -617,6 +667,21 @@ checkRoutes.post('/v1/governor/check', async (c) => {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ blocked: false, zone: loopData.zone ?? 'safe', backoff_detected: loopData.backoff_detected }),
+      }).catch(() => {})
+    );
+    // Agent identity: record successful check + upsert profile
+    c.executionCtx.waitUntil(
+      stub.fetch(doUrl(`/agents/${agentId}/reputation`), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ blocked: false, zone: loopData.zone ?? 'safe', backoff_detected: loopData.backoff_detected }),
+      }).catch(() => {})
+    );
+    c.executionCtx.waitUntil(
+      stub.fetch(doUrl(`/agents/${agentId}/profile`), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ last_seen_ms: Date.now(), workspace_id: workspaceId, wallet_address: parsed.data.actor.wallet }),
       }).catch(() => {})
     );
   }
@@ -797,7 +862,7 @@ checkRoutes.post('/v1/governor/check', async (c) => {
   await putDecisionRecord(c.env, {
     decisionId,
     createdAtMs: nowMs,
-    expiresAtMs: nowMs + 10 * 60 * 1000, // 10 minutes for human to pay
+    expiresAtMs: nowMs + 20 * 60 * 1000, // 20 minutes for agent/human to pay
     actorId: parsed.data.actor.id,
     policyId: parsed.data.policy_id,
     action: parsed.data.action,

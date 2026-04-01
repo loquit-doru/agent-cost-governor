@@ -138,6 +138,61 @@ Pass `session_id` in check context for cumulative tracking:
 { "context": { "session_id": "ses_...", "tool": "web_scrape" } }
 ```
 
+## Agent Identity & Reputation
+
+Every `actor.id` in a check request is treated as a first-class identity — each agent accumulates its own trust profile independently of the workspace.
+
+**What's tracked per agent:**
+- First/last seen timestamps
+- Workspaces where the agent has operated (up to 50, most recent)
+- Reputation score: same 5-component model as workspace reputation (compliance rate, pattern regularity, backoff cooperation, etc.)
+- Optional ERC-8004 wallet address via `actor.wallet`
+
+**How it works**: on every `/v1/governor/check` call the system fire-and-forgets two background updates — a profile upsert and a reputation event — with zero latency impact on the primary response.
+
+```json
+{
+  "policy_id": "scraping_v1",
+  "action": "fetch_url",
+  "actor": {
+    "id": "my-scraper-v2",
+    "project": "my-workspace",
+    "wallet": "0xOptionalERC8004AgentWallet"
+  },
+  "context": { "attempt_in_window": 1 }
+}
+```
+
+**Query agent identity** (admin key required):
+
+```bash
+# Get profile + reputation
+curl https://governor.proceedgate.dev/v1/agents/my-scraper-v2 \
+  -H "Authorization: Bearer $PG_ADMIN_KEY"
+
+# List all agents (paginated)
+curl https://governor.proceedgate.dev/v1/agents \
+  -H "Authorization: Bearer $PG_ADMIN_KEY"
+```
+
+Response example:
+```json
+{
+  "profile": {
+    "agent_id": "my-scraper-v2",
+    "first_seen_ms": 1743500000000,
+    "last_seen_ms": 1743550000000,
+    "workspace_ids": ["my-workspace", "other-project"],
+    "payment_count": 0
+  },
+  "reputation": {
+    "score": 82,
+    "tier": "trusted",
+    "thresholds": { "loop_max_count_multiplier": 1.2, "gray_zone_offset": 1 }
+  }
+}
+```
+
 ## OpenAPI discovery
 
 AI agents auto-discover ProceedGate capabilities via `GET /openapi.json` with machine-readable extensions:

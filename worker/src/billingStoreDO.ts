@@ -56,6 +56,16 @@ type WorkspaceBalance = {
   updatedAtMs: number;
 };
 
+type AgentProfile = {
+  agent_id: string;
+  first_seen_ms: number;
+  last_seen_ms: number;
+  total_payments_usdc: number;
+  payment_count: number;
+  workspace_ids: string[];
+  wallet_address?: string;
+};
+
 type WorkspaceAuth = {
   workspaceId: string;
   apiKeyHash: string;
@@ -858,6 +868,37 @@ export class BillingStoreDO {
       }
     }
 
+    // POST /magic-tokens { token, workspace_id, expires_at_ms } - store magic link token
+    if (parts[0] === 'magic-tokens' && request.method === 'POST') {
+      const body = (await request.json().catch(() => null)) as { token?: string; workspace_id?: string; expires_at_ms?: number } | null;
+      if (!body?.token || !body?.workspace_id || !body?.expires_at_ms) {
+        return new Response('invalid_request', { status: 400 });
+      }
+      await this.state.storage.put(`magic:${body.token}`, { workspace_id: body.workspace_id, expires_at_ms: body.expires_at_ms });
+      return Response.json({ ok: true }, { status: 200 });
+    }
+
+    // GET /magic-tokens/:token - one-time use: read and delete
+    if (parts[0] === 'magic-tokens' && parts.length === 2 && request.method === 'GET') {
+      const token = parts[1]!;
+      const data = await this.state.storage.get<{ workspace_id: string; expires_at_ms: number }>(`magic:${token}`);
+      await this.state.storage.delete(`magic:${token}`); // always delete, even if expired
+      if (!data || data.expires_at_ms < Date.now()) {
+        return Response.json({ ok: false, error: 'invalid_or_expired' }, { status: 404 });
+      }
+      return Response.json({ ok: true, workspace_id: data.workspace_id }, { status: 200 });
+    }
+
+    // POST /email-index { email, workspace_id } - manually register email index
+    if (parts[0] === 'email-index' && parts.length === 1 && request.method === 'POST') {
+      const body = (await request.json().catch(() => null)) as { email?: string; workspace_id?: string } | null;
+      if (!body?.email || !body?.workspace_id) {
+        return new Response('invalid_request', { status: 400 });
+      }
+      await this.state.storage.put(`emailidx:${body.email.toLowerCase()}`, body.workspace_id);
+      return Response.json({ ok: true }, { status: 200 });
+    }
+
     if (parts.length < 2) return new Response('not_found', { status: 404 });
 
     // POST /keys/lookup { api_key_hash } - Find workspace by API key hash
@@ -871,6 +912,26 @@ export class BillingStoreDO {
         return Response.json({ ok: false, error: 'not_found' }, { status: 404 });
       }
 
+      return Response.json({ ok: true, workspace_id: workspaceId }, { status: 200 });
+    }
+
+    // POST /keys/index { api_key_hash, workspace_id } — add/update keyidx entry
+    if (parts[0] === 'keys' && parts[1] === 'index' && request.method === 'POST') {
+      const body = (await request.json().catch(() => null)) as { api_key_hash?: string; workspace_id?: string } | null;
+      const h = normalizeKeyHash(body?.api_key_hash || '');
+      if (!h || !body?.workspace_id) return new Response('invalid_request', { status: 400 });
+      await this.state.storage.put(`keyidx:${h}`, body.workspace_id);
+      return Response.json({ ok: true }, { status: 200 });
+    }
+
+    // POST /email-index/lookup { email } — look up workspace_id by email
+    if (parts[0] === 'email-index' && parts[1] === 'lookup' && request.method === 'POST') {
+      const body = (await request.json().catch(() => null)) as { email?: string } | null;
+      if (!body?.email) return new Response('invalid_request', { status: 400 });
+      const workspaceId = await this.state.storage.get<string>(`emailidx:${body.email.toLowerCase()}`);
+      if (!workspaceId) {
+        return Response.json({ ok: false, error: 'not_found' }, { status: 404 });
+      }
       return Response.json({ ok: true, workspace_id: workspaceId }, { status: 200 });
     }
 
@@ -956,6 +1017,14 @@ export class BillingStoreDO {
         return Response.json({ ok: false, error: 'workspace_exists' }, { status: 409 });
       }
 
+      // Check if email already has a free workspace (dedup)
+      if (body.email) {
+        const existingWsId = await this.state.storage.get<string>(`emailidx:${body.email.toLowerCase()}`);
+        if (existingWsId) {
+          return Response.json({ ok: false, error: 'email_exists' }, { status: 409 });
+        }
+      }
+
       // Create workspace with credits
       const bal: WorkspaceBalance = {
         workspaceId: body.workspace_id,
@@ -970,6 +1039,11 @@ export class BillingStoreDO {
       // Store API key hash -> workspace ID index for lookups
       await this.state.storage.put(`keyidx:${body.api_key_hash}`, body.workspace_id);
 
+      // Store email -> workspace ID index for dedup
+      if (body.email) {
+        await this.state.storage.put(`emailidx:${body.email.toLowerCase()}`, body.workspace_id);
+      }
+
       // Store subscription metadata with features
       await this.state.storage.put(`sub:${body.workspace_id}`, {
         plan: body.plan,
@@ -981,8 +1055,8 @@ export class BillingStoreDO {
         email: body.email || null,
       });
 
-      return Response.json({ 
-        ok: true, 
+      return Response.json({
+        ok: true,
         workspace_id: body.workspace_id,
         credits: body.credits,
       }, { status: 200 });
@@ -1080,6 +1154,12 @@ export class BillingStoreDO {
         const body = (await request.json().catch(() => null)) as SetKeyBody | null;
         const h = normalizeKeyHash(body?.api_key_hash || '');
         if (!h) return new Response('invalid_request', { status: 400 });
+
+        // Remove old keyidx entry before updating auth
+        const oldAuth = await this.getAuth(workspaceId);
+        if (oldAuth?.apiKeyHash && oldAuth.apiKeyHash !== h) {
+          await this.state.storage.delete(`keyidx:${oldAuth.apiKeyHash}`);
+        }
 
         await this.setAuth(workspaceId, h);
         return new Response('ok', { status: 200 });
@@ -2022,6 +2102,154 @@ export class BillingStoreDO {
       }
 
       return new Response('method_not_allowed', { status: 405 });
+    }
+
+    // ========================================================================
+    // Agent Identity & Per-Agent Reputation
+    // ========================================================================
+    if (parts[0] === 'agents') {
+      // GET /agents - List agents sorted by last_seen (paginated, 20/page)
+      if (parts.length === 1 && request.method === 'GET') {
+        const url = new URL(request.url);
+        const cursor = url.searchParams.get('cursor') ?? '';
+
+        const allEntries = await this.state.storage.list<AgentProfile>({ prefix: 'agent:' });
+        const profiles: AgentProfile[] = [];
+        for (const [k, v] of allEntries) {
+          if (k.endsWith(':profile')) profiles.push(v);
+        }
+        profiles.sort((a, b) => b.last_seen_ms - a.last_seen_ms);
+
+        const PAGE_SIZE = 20;
+        const startIdx = cursor ? profiles.findIndex(p => p.agent_id === cursor) + 1 : 0;
+        const page = profiles.slice(startIdx, startIdx + PAGE_SIZE);
+
+        const {
+          createReputationState,
+          deserializeReputationState,
+          computeScore,
+        } = await import('./lib/reputationScoring.js');
+
+        const agents = await Promise.all(page.map(async (profile) => {
+          const raw = await this.state.storage.get<string>(`agent:${profile.agent_id}:rep`);
+          const state = raw ? deserializeReputationState(raw) : createReputationState();
+          const score = computeScore(state);
+          return {
+            agent_id: profile.agent_id,
+            tier: score.tier,
+            score: score.score,
+            last_seen_ms: profile.last_seen_ms,
+            workspace_count: profile.workspace_ids.length,
+          };
+        }));
+
+        return Response.json({
+          ok: true,
+          agents,
+          total: profiles.length,
+          has_more: startIdx + PAGE_SIZE < profiles.length,
+          next_cursor: page.length === PAGE_SIZE ? page[page.length - 1]!.agent_id : null,
+        }, { status: 200 });
+      }
+
+      if (parts.length === 3 && parts[2] === 'profile') {
+        const agentId = parts[1]!;
+
+        // GET /agents/:id/profile
+        if (request.method === 'GET') {
+          const profile = await this.state.storage.get<AgentProfile>(`agent:${agentId}:profile`);
+          if (!profile) return Response.json({ ok: false, error: 'agent_not_found' }, { status: 404 });
+          return Response.json({ ok: true, profile }, { status: 200 });
+        }
+
+        // POST /agents/:id/profile - upsert (called fire-and-forget from check.ts)
+        if (request.method === 'POST') {
+          const body = await request.json().catch(() => null) as {
+            last_seen_ms?: number;
+            workspace_id?: string;
+            wallet_address?: string;
+          } | null;
+          if (!body) return new Response('invalid_request', { status: 400 });
+
+          const existing = await this.state.storage.get<AgentProfile>(`agent:${agentId}:profile`);
+          const now = body.last_seen_ms ?? Date.now();
+
+          let workspace_ids: string[] = existing?.workspace_ids ?? [];
+          if (body.workspace_id && !workspace_ids.includes(body.workspace_id)) {
+            workspace_ids = [body.workspace_id, ...workspace_ids].slice(0, 50);
+          }
+
+          const updated: AgentProfile = {
+            agent_id: agentId,
+            first_seen_ms: existing?.first_seen_ms ?? now,
+            last_seen_ms: now,
+            total_payments_usdc: existing?.total_payments_usdc ?? 0,
+            payment_count: existing?.payment_count ?? 0,
+            workspace_ids,
+            wallet_address: body.wallet_address ?? existing?.wallet_address,
+          };
+
+          await this.state.storage.put(`agent:${agentId}:profile`, updated);
+          return Response.json({ ok: true }, { status: 200 });
+        }
+
+        return new Response('method_not_allowed', { status: 405 });
+      }
+
+      if (parts.length === 3 && parts[2] === 'reputation') {
+        const agentId = parts[1]!;
+
+        const {
+          createReputationState,
+          deserializeReputationState,
+          serializeReputationState,
+          recordOutcome,
+          recordBudgetEvent,
+          computeScore,
+        } = await import('./lib/reputationScoring.js');
+
+        // GET /agents/:id/reputation
+        if (request.method === 'GET') {
+          const raw = await this.state.storage.get<string>(`agent:${agentId}:rep`);
+          const state = raw ? deserializeReputationState(raw) : createReputationState();
+          const score = computeScore(state);
+          return Response.json({ ok: true, reputation: score }, { status: 200 });
+        }
+
+        // POST /agents/:id/reputation - record outcome
+        if (request.method === 'POST') {
+          const body = await request.json().catch(() => null) as {
+            blocked?: boolean;
+            reason?: 'storm' | 'gray_blocked' | 'policy' | 'credits';
+            backoff_detected?: boolean;
+            zone?: 'safe' | 'gray' | 'storm';
+            budget_overshoot?: boolean;
+          } | null;
+          if (!body) return new Response('invalid_request', { status: 400 });
+
+          const raw = await this.state.storage.get<string>(`agent:${agentId}:rep`);
+          const state = raw ? deserializeReputationState(raw) : createReputationState();
+
+          recordOutcome(state, {
+            blocked: body.blocked ?? false,
+            reason: body.reason,
+            backoff_detected: body.backoff_detected,
+            zone: body.zone,
+          });
+
+          if (body.budget_overshoot !== undefined) {
+            recordBudgetEvent(state, body.budget_overshoot);
+          }
+
+          await this.state.storage.put(`agent:${agentId}:rep`, serializeReputationState(state));
+          const score = computeScore(state);
+          return Response.json({ ok: true, reputation: score }, { status: 200 });
+        }
+
+        return new Response('method_not_allowed', { status: 405 });
+      }
+
+      return new Response('not_found', { status: 404 });
     }
 
     // ========================================================================

@@ -114,4 +114,64 @@ adminRoutes.get('/v1/admin/anomalies', requireAdminAuth, async (c) => {
   return c.json(data, res.status as 200 | 501);
 });
 
+// Register email index manually (for backfilling old signups)
+adminRoutes.post('/v1/admin/email-index', async (c) => {
+  const authErr = await requireAdminAuth(c);
+  if (authErr) return authErr;
+  const body = await c.req.json().catch(() => null) as { email?: string; workspace_id?: string } | null;
+  if (!body?.email || !body?.workspace_id) {
+    return c.json({ ok: false, error: 'missing email or workspace_id' }, 400);
+  }
+  const stub = getBillingStub(c.env);
+  const res = await stub.fetch(doUrl('/email-index'), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: body.email, workspace_id: body.workspace_id }),
+  });
+  return c.json({ ok: res.ok }, res.ok ? 200 : 502);
+});
+
+// Look up email index (debugging)
+adminRoutes.get('/v1/admin/email-index', async (c) => {
+  const authErr = await requireAdminAuth(c);
+  if (authErr) return authErr;
+  const email = c.req.query('email');
+  if (!email) return c.json({ ok: false, error: 'missing email' }, 400);
+  const stub = getBillingStub(c.env);
+  const res = await stub.fetch(doUrl('/email-index/lookup'), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: email.toLowerCase() }),
+  });
+  const data = await res.json() as Record<string, unknown>;
+  return c.json({ ok: res.ok, ...data }, res.ok ? 200 : 404);
+});
+
+// Test email sending — returns raw Resend response for debugging
+adminRoutes.post('/v1/admin/test-email', async (c) => {
+  const authErr = await requireAdminAuth(c);
+  if (authErr) return authErr;
+  const body = await c.req.json().catch(() => null) as { to?: string } | null;
+  if (!body?.to) return c.json({ ok: false, error: 'missing to' }, 400);
+
+  const env = c.env as Env & { RESEND_API_KEY?: string };
+  const apiKey = env.RESEND_API_KEY;
+  if (!apiKey) return c.json({ ok: false, error: 'RESEND_API_KEY not set' }, 500);
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      from: 'ProceedGate <billing@proceedgate.dev>',
+      to: [body.to],
+      subject: 'ProceedGate test email',
+      text: 'If you received this, Resend is working correctly.',
+      html: '<p>If you received this, Resend is working correctly.</p>',
+    }),
+  });
+
+  const data = await res.text();
+  return c.json({ ok: res.ok, status: res.status, resend_response: data });
+});
+
 export { adminRoutes };
