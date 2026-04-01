@@ -899,7 +899,7 @@ export class BillingStoreDO {
       return Response.json({ ok: true }, { status: 200 });
     }
 
-    if (parts.length < 2) return new Response('not_found', { status: 404 });
+    if (parts.length < 2 && parts[0] !== 'agents') return new Response('not_found', { status: 404 });
 
     // POST /keys/lookup { api_key_hash } - Find workspace by API key hash
     if (parts[0] === 'keys' && parts[1] === 'lookup' && request.method === 'POST') {

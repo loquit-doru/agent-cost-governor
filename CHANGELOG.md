@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1] — 2026-04-01
+
+### Fixed — GET /v1/agents list endpoint (502)
+**Fișiere**: `worker/src/billingStoreDO.ts`, `worker/src/routes/agents.ts`
+**Motiv**: `GET /v1/agents` returna 502 — un guard `if (parts.length < 2) return not_found` plasat înainte de blocul `agents` intercepta request-ul (un singur segment de path).
+**Fix**: Guard excepted pentru `agents` → `if (parts.length < 2 && parts[0] !== 'agents')`. Curățat și debug console.error din routes/agents.ts.
+
 ## [1.2.0] — 2026-04-01
 
 ### Added — Agent Identity & Per-Agent Reputation
