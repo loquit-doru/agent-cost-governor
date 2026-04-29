@@ -1,48 +1,24 @@
 # ProceedGate — Gate Any Expensive AI Agent Action, Onchain
 
-> **Good Vibes Only: OpenClaw Edition** | Track: **Agent** (AI Agent × Onchain Actions)
-
 ProceedGate gates **any expensive AI agent action** — LLM calls, paid APIs, browser automation, scraping, onchain transactions — with hard enforcement.
 
-ProceedGate sits **outside** the agent loop and blocks costly steps unless the agent has a valid short-lived `proceed_token`. If an agent enters a retry storm, ProceedGate automatically gates it with escalating micropayments verified on BSC.
+ProceedGate sits **outside** the agent loop and blocks costly steps unless the agent has a valid short-lived `proceed_token`. If an agent enters a retry storm, ProceedGate blocks it before it burns budget.
 
-## Hackathon Quick Links
+## Quick Links
 
 | Resource | Link |
 |---|---|
 | Live endpoint | `https://governor.proceedgate.dev` |
-| Proof tx (BSC) | [`0xd97039...b548`](https://bscscan.com/tx/0xd97039268c048cafd45c0f3b870111b1dcd22f3fdfd62a47e75ae843eb13b548) |
 | Contract (BSC Mainnet, BscScan ✓) | [`0x161D74...C97`](https://bscscan.com/address/0x161D749892a23AC8792eE7fD37f0F423E0b69C97) |
 | Contract (opBNB Mainnet, opBNBScan ✓) | [`0xAd8Da0...8dA`](https://opbnbscan.com/address/0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA) |
-| Address index | [`bsc.address`](bsc.address) |
-| Demo video | [YouTube](https://youtu.be/3oCwey4RXG8) |
-| Full setup guide | [`docs/TECHNICAL.md`](docs/TECHNICAL.md) |
-| Project overview | [`docs/PROJECT.md`](docs/PROJECT.md) |
-| AI build log | [`AI_BUILD_LOG.md`](AI_BUILD_LOG.md) |
-| OpenClaw setup | [`OPENCLAW_SETUP.md`](OPENCLAW_SETUP.md) |
-| Competition runbook | [`HACKATHON.md`](HACKATHON.md) |
 
-### Reproduce in 3 commands
+### Get started in 3 commands
 
 ```bash
 npm install
 npm --workspaces run check   # typecheck all packages
-npm run smoke                # full local flow: check → 402 → redeem → proceed
+npm run smoke                # local smoke tests (API + SDKs)
 ```
-
-### Run the AI agent demos
-
-```bash
-npm run demo:guardian        # 🛡️ TreasuryGuardian — onchain AI agent
-                             #    14 BSC transfers · LLM decisions · storm detection
-npm run demo:agent           # 🤖 CryptoScraper — scraping agent gated by ProceedGate
-```
-
-**TreasuryGuardian** plans 14 treasury micro-transfers on BSC Testnet, gated by ProceedGate. The first 3 are approved, attempts 4–10 require friction (agent pays onchain), and at attempt 11 ProceedGate detects a storm and the LLM autonomously decides to halt. 10 real BSC transactions total.
-
-**CryptoScraper** scrapes crypto prices from 5 exchanges. When one exchange is down, the agent retries — ProceedGate detects the loop, applies escalating friction, and the agent’s LLM decides to stop.
-
-See [`docs/TECHNICAL.md`](docs/TECHNICAL.md) for the complete step-by-step guide (8 validation commands).
 
 ---
 
@@ -50,32 +26,13 @@ See [`docs/TECHNICAL.md`](docs/TECHNICAL.md) for the complete step-by-step guide
 
 The quickest path is to adopt ProceedGate as a **runner/middleware gate**:
 
-1. Before each step (tool call / retry / browser action / paid API call), call `POST /v1/governor/check`.
+1. Before each step (tool call / retry / browser action / paid API call), call `POST /v1/check`.
 2. If you get `200`, proceed.
-3. If you get `402`, your system must resolve friction (payment is one option) then call `POST /v1/governor/redeem` and proceed.
+3. If you get `429`, stop — it’s a detected loop (retry storm).
+4. If you get `402`, you’re out of credits — top up checks (credit packs) and continue.
 
 This repo includes a reference runner to demonstrate *hard enforcement*.
-## 🦞 OpenClaw Integration
 
-ProceedGate ships as a native [OpenClaw skill](https://docs.openclaw.ai/tools/skills). Install it and your AI assistant autonomously gates expensive actions through onchain verification on BNB Chain.
-
-```bash
-npm install -g openclaw@latest
-openclaw onboard --install-daemon
-cp openclaw/openclaw.json.example ~/.openclaw/openclaw.json
-openclaw agent --message "Gate my next API call"
-```
-
-Key files:
-
-| File | Purpose |
-|------|---------|
-| `skills/onchain-cost-governor/SKILL.md` | AgentSkills-compatible skill definition |
-| `openclaw/SOUL.md` | Agent identity and safety policies |
-| `openclaw/AGENTS.md` | Multi-agent coordination (Governor ↔ Coordinator ↔ Executor) |
-| `openclaw/openclaw.json.example` | Configuration template |
-
-See [`OPENCLAW_SETUP.md`](OPENCLAW_SETUP.md) for the full integration guide.
 ## What “costly steps” means (canonical v1 examples)
 
 - LLM retries / regeneration loops
@@ -84,14 +41,15 @@ See [`OPENCLAW_SETUP.md`](OPENCLAW_SETUP.md) for the full integration guide.
 - Onchain transactions and smart contract calls
 - Any tool invocation with a cost attached
 
-> ProceedGate doesn't care *what* the action is — it gates anything you declare as expensive. The `action` field in `/v1/governor/check` is a free string.
+> ProceedGate doesn't care *what* the action is — it gates anything you declare as expensive. The `action` field in `/v1/check` is a string (use a consistent enum in your app/SDK).
 
 ## How it works (two outcomes)
 
 Every decision check returns only:
 
 - `200` (allowed) + `proceed_token`, or
-- `402` (friction required) + `x402-*` pricing headers + `decision_id`
+- `429` (blocked) when a loop is detected (retry storm), or
+- `402` when your workspace is out of credits (top up packs and continue)
 
 Friction is a mechanism to make enforcement real.
 
@@ -103,8 +61,8 @@ ProceedGate doesn't just count requests — it analyzes agent behavior with 7 si
 
 | Signal | What it detects |
 |--------|----------------|
-| **3-zone model** | safe (≤5) → gray (6-10, AI decides) → storm (>10, hard block) |
-| **AI decision zone** | In gray zone, Llama 3.1 8B DECIDES allow/block based on behavioral signals |
+| **3-zone model** | safe (≤5) → gray (6–10, flagged) → storm (≥11, hard block) |
+| **Gray-zone handling** | Gray zone is surfaced to the agent (telemetry + headers). Policies may apply friction/controls, but the default UX is "allowed, flagged". |
 | **Interval CV** | Coefficient of variation — bot-like regularity (CV<0.15) vs human-like irregularity (CV>0.4) |
 | **Backoff detection** | Intervals growing? Agent is backing off responsibly → more lenient threshold |
 | **Cost accumulation** | Tracks USD spent per window — higher cost = more reason to protect |
@@ -142,13 +100,16 @@ Pass `session_id` in check context for cumulative tracking:
 
 Every `actor.id` in a check request is treated as a first-class identity — each agent accumulates its own trust profile independently of the workspace.
 
+> **ERC-8004 compatible** — `actor.wallet` accepts any [ERC-8004](https://eips.ethereum.org/EIPS/eip-8004) agent wallet address, linking on-chain identity to governance decisions.
+
 **What's tracked per agent:**
 - First/last seen timestamps
 - Workspaces where the agent has operated (up to 50, most recent)
 - Reputation score: same 5-component model as workspace reputation (compliance rate, pattern regularity, backoff cooperation, etc.)
 - Optional ERC-8004 wallet address via `actor.wallet`
+- On-chain audit trail: every governance decision queued to `ProceedGateLogger.sol` on BSC Mainnet [`0xA2Fc77c4...`](https://bscscan.com/address/0xA2Fc77c4Db687cea2B30156f769167A10F02C83A) (see [contracts/](contracts/))
 
-**How it works**: on every `/v1/governor/check` call the system fire-and-forgets two background updates — a profile upsert and a reputation event — with zero latency impact on the primary response.
+**How it works**: on every `/v1/check` call the system fire-and-forgets two background updates — a profile upsert and a reputation event — with zero latency impact on the primary response.
 
 ```json
 {
@@ -201,44 +162,47 @@ AI agents auto-discover ProceedGate capabilities via `GET /openapi.json` with ma
 
 ## Payments
 
-ProceedGate suportă plăți x402 pe două rețele BNB Chain. Agenții pot alege rețeaua — opBNB are taxe de gas de ~$0.0001, ideal pentru agenți cu volum mare de request-uri.
+ProceedGate is **credits-based by default** (top up packs → spend checks offchain).
+The x402/MPP flow below is supported as an optional payment mechanism for specific policies / legacy friction flows.
 
-### BNB Smart Chain (BSC) — recomandat pentru compatibilitate maximă
-- **Token**: USDC (`0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d`, 18 decimale)
+ProceedGate supports x402 payments on two BNB Chain networks. Agents can choose the network — opBNB has gas fees of ~$0.0001, ideal for high-volume agents.
+
+### BNB Smart Chain (BSC) — recommended for maximum compatibility
+- **Token**: USDC (`0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d`, 18 decimals)
 - **Chain ID**: 56
-- **Contract guvernanță**: [`0x161D749892a23AC8792eE7fD37f0F423E0b69C97`](https://bscscan.com/address/0x161D749892a23AC8792eE7fD37f0F423E0b69C97) ✓ verificat
-- **Gas fee mediu**: ~$0.05–0.20 per tranzacție
+- **Governance contract**: [`0x161D749892a23AC8792eE7fD37f0F423E0b69C97`](https://bscscan.com/address/0x161D749892a23AC8792eE7fD37f0F423E0b69C97) ✓ verified
+- **Average gas fee**: ~$0.05–0.20 per transaction
 
-### opBNB Mainnet — recomandat pentru agenți cu volum mare
-- **Token**: USDT (`0x9e5AAC1Ba1a2e6aEd6b32689DFcF62A509Ca96f3`, 18 decimale)
+### opBNB Mainnet — recommended for high-volume agents
+- **Token**: USDT (`0x9e5AAC1Ba1a2e6aEd6b32689DFcF62A509Ca96f3`, 18 decimals)
 - **Chain ID**: 204
-- **Contract guvernanță**: [`0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA`](https://opbnbscan.com/address/0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA) ✓ verificat
-- **Gas fee mediu**: ~$0.0001 per tranzacție (de ~1000× mai ieftin decât BSC)
+- **Governance contract**: [`0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA`](https://opbnbscan.com/address/0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA) ✓ verified
+- **Average gas fee**: ~$0.0001 per transaction (~1000× cheaper than BSC)
 
-### Cum funcționează plata (protocol x402)
+### How payment works (x402 protocol)
 
 ```
 1. Agent → POST /v1/governor/check → 402 Payment Required
                                        + x402-price: 0.004 USDC
-                                       + x402-chain: BSC  (sau opBNB)
+                                       + x402-chain: BSC  (or opBNB)
                                        + x402-recipient: 0x607F...
                                        + x402-decision-id: dec_...
 
-2. Agent trimite USDT/USDC on-chain către recipientul din header
+2. Agent sends USDT/USDC on-chain to the recipient in the header
 
 3. Agent → POST /v1/governor/redeem
            + x402-tx-hash: 0xabc...
            + x402-decision-id: dec_...
 
-4. Worker verifică tx on-chain (RPC call: eth_getTransactionReceipt)
-   → confirmă Transfer(from, recipient, amount) în logs
+4. Worker verifies tx on-chain (RPC call: eth_getTransactionReceipt)
+   → confirms Transfer(from, recipient, amount) in logs
 
-5. Worker returnează → proceed_token (JWT, TTL 45s)
+5. Worker returns → proceed_token (JWT, TTL 45s)
 
-6. Agent atașează proceed_token la request-ul protejat → executat
+6. Agent attaches proceed_token to the protected request → executed
 ```
 
-Pentru a selecta rețeaua opBNB în loc de BSC, setează în `wrangler.toml` (sau ca variabilă de mediu):
+To select opBNB instead of BSC, set in `wrangler.toml` (or as environment variable):
 ```toml
 X402_CHAIN = "opBNB"
 ```
@@ -278,11 +242,11 @@ npm run smoke
 npm run dev:worker
 ```
 
-### Run runner demo
+### Run runner locally
 
 ```bash
 npm run build
-node runner/dist/cli.js run examples/demo-task.json --governor http://127.0.0.1:8787 --tx-hash 0xstub
+node runner/dist/cli.js run --governor http://127.0.0.1:8787 --tx-hash 0xstub
 ```
 
 ## Deploy
@@ -322,7 +286,7 @@ npx wrangler secret put API_ADMIN_KEY
 Notes:
 
 - Production is configured for `API_AUTH_MODE=workspace` in `worker/wrangler.toml`.
-- All billing endpoints and credit-based `/v1/governor/check` require `Authorization: Bearer <workspace_api_key>`.
+- All billing endpoints and credit-based `/v1/check` require `Authorization: Bearer <workspace_api_key>`.
 - Create workspace keys via `POST /v1/workspaces/create` with header `x-admin-key: <API_ADMIN_KEY>`.
 
 Example (create a workspace key):
@@ -392,45 +356,5 @@ Note: There is also an optional manual-only GitHub Pages workflow for previewing
 - Observability (logs/headers/metrics): `OBSERVABILITY.md`
 - Operations (tail + metrics queries): `OPERATIONS.md`
 - Buyer-friendly technical summary: `ONE_PAGER.md`
-- Competition runbook: `HACKATHON.md`
-- Submission checklist: `HACKATHON_SUBMISSION_CHECKLIST.md`
-- AI usage log: `AI_BUILD_LOG.md`
-- OpenClaw setup: `OPENCLAW_SETUP.md`
-- Judge package (starter-kit style):
-  - `docs/PROJECT.md`
-  - `docs/TECHNICAL.md`
-  - `docs/EXTRAS.md`
-  - `bsc.address`
 
-## OpenClaw Competition Mode
 
-ProceedGate is adapted for OpenClaw as an **Onchain Cost Governor Agent**.
-
-- Primary track: `Agent`
-- Non-stub proof flow: `npm run demo:hackathon:proof`
-- OpenClaw assets: `openclaw/`
-- OpenClaw skill package: `skills/onchain-cost-governor/`
-- Onchain contract package: `contracts/`
-
-Required env for proof command:
-
-- `HACKATHON_API_ADMIN_KEY`
-- Optional overrides: `HACKATHON_BASE_URL`, `HACKATHON_TX_HASH`, `HACKATHON_WORKSPACE_ID`
-
-## Licensing
-
-This repository is intentionally **split-licensed**:
-
-- SDK, runner, and examples are Apache-2.0:
-  - `sdk-node/`
-  - `runner/`
-  - `examples/`
-  (see each directory's `LICENSE` file)
-- The Governor server implementation is proprietary / closed source:
-  - `worker/` (see `worker/LICENSE`)
-
-See the repository-level `LICENSE` for the summary.
-
-## Hosted Service Terms
-
-For the hosted ProceedGate service, see `TERMS_OF_SERVICE.md`.

@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/jpeg" href="favicon.jpg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="ProceedGate — Top up checks" />
+    <meta name="theme-color" content="#0f172a" />
+    <title>ProceedGate — Top up checks</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <style>
+      .topup-container { max-width: 720px; margin: 0 auto; }
+      .card { background: rgba(12,18,32,.95); border: 1px solid rgba(255,255,255,.1); border-radius: 16px; padding: 28px; }
+      .row { display:flex; gap:12px; flex-wrap: wrap; }
+      .field { flex: 1; min-width: 240px; }
+      .label { display:block; font-size: 13px; color: var(--text-muted); margin-bottom: 8px; }
+      .input {
+        width: 100%;
+        padding: 12px 14px;
+        background: rgba(0,0,0,.3);
+        border: 1px solid rgba(255,255,255,.15);
+        border-radius: 10px;
+        color: white;
+        font-size: 14px;
+        outline: none;
+      }
+      .packs { display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+      .pack { border: 2px solid rgba(255,255,255,.1); border-radius: 12px; padding: 14px; cursor:pointer; transition: all .15s; background: rgba(255,255,255,.03); }
+      .pack:hover { border-color: rgba(45,212,191,.4); background: rgba(45,212,191,.05); }
+      .pack.selected { border-color: var(--color-teal); background: rgba(45,212,191,.1); }
+      .pack-usd { font-size: 18px; font-weight: 900; color: var(--color-teal); }
+      .pack-checks { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+      .btn { width: 100%; padding: 14px; font-size: 15px; font-weight: 800; border-radius: 10px; cursor: pointer; transition: all 0.15s; }
+      .btn.primary { background: var(--color-teal); color: #0b1020; border: none; }
+      .btn.primary:hover { background: #5eead4; transform: translateY(-1px); }
+      .btn.secondary { background: transparent; color: white; border: 1px solid rgba(255,255,255,.2); }
+      .btn.secondary:hover { border-color: rgba(255,255,255,.4); }
+      .btn:disabled { opacity: .5; cursor: not-allowed; transform:none; }
+      .muted { color: var(--text-muted); }
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+      .box { background: rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.1); border-radius: 12px; padding: 16px; margin-top: 14px; }
+      .kv { display:flex; justify-content: space-between; gap: 12px; padding: 6px 0; }
+      .kv:not(:last-child) { border-bottom: 1px solid rgba(255,255,255,.06); }
+      .err { color: #ef4444; font-size: 13px; margin-top: 10px; }
+      @media (max-width: 720px) { .packs { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar">
+      <div class="container navbar__inner">
+        <a href="./index.html" class="navbar__brand"><span class="navbar__mark" aria-hidden="true"></span>ProceedGate</a>
+        <div class="navbar__links">
+          <a href="./pay.html">Subscribe</a>
+          <a href="./docs.html">Docs</a>
+        </div>
+      </div>
+    </nav>
+
+    <main id="main" style="padding: 40px 20px;">
+      <div class="topup-container">
+        <div class="card">
+          <h1 style="margin: 0 0 8px; font-size: 22px;">Top up checks</h1>
+          <p class="muted" style="margin: 0 0 18px;">
+            Buy a pack once, then spend checks offchain — no tiny on-chain payments per retry.
+          </p>
+
+          <div class="row">
+            <div class="field">
+              <label class="label">Workspace ID</label>
+              <input class="input mono" id="workspaceId" placeholder="starter-..." autocomplete="off" />
+            </div>
+            <div class="field">
+              <label class="label">API key</label>
+              <input class="input mono" id="apiKey" placeholder="pg_ws_..." autocomplete="off" />
+              <div class="muted" style="font-size:12px; margin-top:6px;">We use this only to create/redeem the quote for your workspace.</div>
+            </div>
+          </div>
+
+          <div class="box">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+              <div>
+                <div style="font-weight:800;">Choose a pack</div>
+                <div class="muted" style="font-size:12px; margin-top:4px;">$5 / $10 / $15 (computed from server config)</div>
+              </div>
+              <button class="btn secondary" id="btnRefresh" style="max-width: 200px;">Refresh packs</button>
+            </div>
+            <div class="packs" id="packs"></div>
+          </div>
+
+          <div class="box" id="quoteBox" style="display:none;">
+            <div style="font-weight:800; margin-bottom: 8px;">Payment details</div>
+            <div class="kv"><div class="muted">Amount</div><div id="qAmount" class="mono"></div></div>
+            <div class="kv"><div class="muted">Chain</div><div id="qChain" class="mono"></div></div>
+            <div class="kv"><div class="muted">Recipient</div><div id="qRecipient" class="mono"></div></div>
+            <div class="kv"><div class="muted">Quote ID</div><div id="qId" class="mono"></div></div>
+
+            <div style="margin-top: 14px;">
+              <label class="label">Tx hash (after you pay)</label>
+              <input class="input mono" id="txHash" placeholder="0x..." autocomplete="off" />
+            </div>
+
+            <div class="row" style="margin-top: 12px;">
+              <button class="btn primary" id="btnRedeem">Redeem & add checks</button>
+              <button class="btn secondary" id="btnNewQuote">New quote</button>
+            </div>
+          </div>
+
+          <div class="box" id="balanceBox" style="display:none;">
+            <div style="font-weight:800; margin-bottom: 8px;">Balance</div>
+            <div class="kv"><div class="muted">Credits (checks)</div><div id="balCredits" class="mono"></div></div>
+          </div>
+
+          <div class="err" id="err" style="display:none;"></div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="footer" style="margin-top: 48px;">
+      <div class="container">
+        <div class="footer__bottom">
+          <span class="text-muted">© 2024-2026 ProceedGate. All rights reserved.</span>
+          <div class="text-muted" style="font-size: 0.9rem;">
+            Support: <a href="mailto:support@proceedgate.dev" style="color: inherit; text-decoration: underline;">support@proceedgate.dev</a>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <span class="badge">Checks packs</span>
+            <span class="badge">USDC</span>
+          </div>
+        </div>
+      </div>
+    </footer>
+
+    <script type="module">
+      const API_BASE = 'https://governor.proceedgate.dev';
+      const $ = (id) => document.getElementById(id);
+
+      const state = {
+        packs: [],
+        selected: null,
+        quote: null,
+      };
+
+      function setErr(msg) {
+        const el = $('err');
+        if (!msg) { el.style.display = 'none'; el.textContent = ''; return; }
+        el.style.display = 'block';
+        el.textContent = msg;
+      }
+
+      function getAuth() {
+        const apiKey = $('apiKey').value.trim();
+        const workspaceId = $('workspaceId').value.trim();
+        if (!workspaceId) throw new Error('Workspace ID is required.');
+        if (!apiKey) throw new Error('API key is required.');
+        return { apiKey, workspaceId };
+      }
+
+      function renderPacks() {
+        const host = $('packs');
+        host.innerHTML = '';
+
+        for (const p of state.packs) {
+          const el = document.createElement('div');
+          el.className = 'pack' + (state.selected?.usd === p.usd ? ' selected' : '');
+          el.innerHTML = `
+            <div class="pack-usd">$${p.usd}</div>
+            <div class="pack-checks">${p.credits.toLocaleString()} checks</div>
+          `;
+          el.addEventListener('click', () => {
+            state.selected = p;
+            renderPacks();
+          });
+          host.appendChild(el);
+        }
+      }
+
+      async function loadPacks() {
+        setErr('');
+        const res = await fetch(`${API_BASE}/v1/billing/packs`);
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data?.error || 'Failed to load packs');
+        state.packs = data.packs ?? [];
+        state.selected = state.packs[1] ?? state.packs[0] ?? null; // default $10
+        renderPacks();
+      }
+
+      async function fetchBalance() {
+        const { apiKey, workspaceId } = getAuth();
+        const res = await fetch(`${API_BASE}/v1/billing/balance?workspace_id=${encodeURIComponent(workspaceId)}`, {
+          headers: { Authorization: `Bearer ${apiKey}` },
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data?.error || 'Failed to load balance');
+        $('balanceBox').style.display = 'block';
+        $('balCredits').textContent = String(data.credits ?? 0);
+      }
+
+      async function createQuote() {
+        setErr('');
+        const { apiKey, workspaceId } = getAuth();
+        if (!state.selected) throw new Error('Select a pack.');
+
+        const res = await fetch(`${API_BASE}/v1/billing/quote`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ workspace_id: workspaceId, credits: state.selected.credits }),
+        });
+
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data?.error || 'Failed to create quote');
+
+        state.quote = data;
+        $('quoteBox').style.display = 'block';
+        $('qAmount').textContent = data.required_price;
+        $('qChain').textContent = data.required_chain;
+        $('qRecipient').textContent = data.required_recipient;
+        $('qId').textContent = data.quote_id;
+        $('txHash').value = '';
+      }
+
+      async function redeem() {
+        setErr('');
+        const { apiKey } = getAuth();
+        const txHash = $('txHash').value.trim();
+        if (!state.quote?.quote_id) throw new Error('Create a quote first.');
+        if (!txHash) throw new Error('Tx hash is required.');
+
+        const res = await fetch(`${API_BASE}/v1/billing/redeem`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ quote_id: state.quote.quote_id, tx_hash: txHash }),
+        });
+
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data?.error || 'Redeem failed');
+
+        await fetchBalance();
+        $('quoteBox').style.display = 'none';
+        state.quote = null;
+      }
+
+      function hydrateFromStorageOrQuery() {
+        const params = new URLSearchParams(window.location.search);
+        const ws = params.get('workspace') || localStorage.getItem('pg_workspace_id') || '';
+        const key = params.get('key') || localStorage.getItem('pg_api_key') || '';
+        if (ws) $('workspaceId').value = ws;
+        if (key) $('apiKey').value = key;
+      }
+
+      $('btnRefresh').addEventListener('click', () => loadPacks().catch((e) => setErr(e.message)));
+      $('btnRedeem').addEventListener('click', () => redeem().catch((e) => setErr(e.message)));
+      $('btnNewQuote').addEventListener('click', () => {
+        $('quoteBox').style.display = 'none';
+        state.quote = null;
+        setErr('');
+      });
+
+      // Auto: create quote when pack selected & creds present
+      $('packs').addEventListener('dblclick', () => createQuote().catch((e) => setErr(e.message)));
+      // Primary action: create quote when a pack is selected
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !$('quoteBox').style.display) return;
+      });
+
+      // Add a clear CTA button by reusing the secondary button slot
+      const cta = document.createElement('button');
+      cta.className = 'btn primary';
+      cta.id = 'btnQuote';
+      cta.textContent = 'Create payment quote';
+      cta.style.marginTop = '14px';
+      cta.addEventListener('click', () => createQuote().catch((e) => setErr(e.message)));
+      $('packs').parentElement.appendChild(cta);
+
+      hydrateFromStorageOrQuery();
+      loadPacks()
+        .then(() => {
+          // Try to show balance if creds are already present
+          try { return fetchBalance(); } catch { /* ignore */ }
+        })
+        .catch((e) => setErr(e.message));
+    </script>
+  </body>
+</html>
+

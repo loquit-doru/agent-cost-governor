@@ -108,6 +108,7 @@
     <a href="scraping.html">Scraping</a>
     <a href="use-cases.html">Use Cases</a>
     <a href="docs.html" class="active">Docs</a>
+    <a href="mailto:support@proceedgate.dev">Support</a>
     <a href="pay.html" style="background:var(--teal-dim);color:var(--teal);padding:6px 12px;border-radius:6px;border:1px solid rgba(45,212,191,.25);">Get API Key</a>
   </div>
 </nav>
@@ -166,10 +167,13 @@
 
     <!-- Quickstart -->
     <h2 id="quickstart">Quickstart</h2>
-    <p>Get a free API key at <a href="pay.html">proceedgate.dev/pay.html</a> — 2,000 checks/month, no credit card.</p>
+    <p>Get a free API key at <a href="pay.html">proceedgate.dev/pay.html</a> — 5,000 checks/month, no credit card.</p>
+    <div class="alert info">
+      Need more checks? <a href="topup.html">Top up packs ($5 / $10 / $15)</a> add checks to your workspace in one transaction.
+    </div>
 
     <h3>1. Make your first check</h3>
-<pre>curl -X POST https://governor.proceedgate.dev/v1/governor/check \
+<pre>curl -X POST https://governor.proceedgate.dev/v1/check \
   -H <span class="y">"Authorization: Bearer $PG_KEY"</span> \
   -H <span class="y">"Content-Type: application/json"</span> \
   -d <span class="g">'{
@@ -200,7 +204,7 @@
     <h3>3. Drop it into your agent loop</h3>
 <pre><span class="d">// Node.js</span>
 <span class="t">async function</span> <span class="g">pgCheck</span>(agentId, taskHash) {
-  const res = await fetch(<span class="y">'https://governor.proceedgate.dev/v1/governor/check'</span>, {
+  const res = await fetch(<span class="y">'https://governor.proceedgate.dev/v1/check'</span>, {
     method: <span class="y">'POST'</span>,
     headers: { <span class="y">'Authorization'</span>: `Bearer ${process.env.PG_KEY}`, <span class="y">'Content-Type'</span>: <span class="y">'application/json'</span> },
     body: JSON.stringify({ agent_id: agentId, task_hash: taskHash, action: <span class="y">'tool_call'</span> }),
@@ -297,7 +301,7 @@ for (const url of urls) {
 }</pre>
 
     <h3>Response (402 friction required)</h3>
-    <p>Returned when the agent exceeds free attempts. Includes x402 payment headers:</p>
+    <p>Returned when your workspace is out of checks (credits). Top up packs are available at <a href="topup.html">/topup.html</a>.</p>
 <pre>x402-price: 0.004 USDC
 x402-recipient: 0x607Fc9D41858Aa...
 x402-chain: BSC</pre>

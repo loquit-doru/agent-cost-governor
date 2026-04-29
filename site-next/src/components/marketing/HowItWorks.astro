@@ -1,0 +1,47 @@
+---
+import Section from "@/components/ui/Section.astro";
+import Card from "@/components/ui/Card.astro";
+
+const steps = [
+  {
+    n: "01",
+    title: "Agent calls /check",
+    body: "Before every action — model call, HTTP request, tool use — send the action type and a hash of what the agent is about to do.",
+  },
+  {
+    n: "02",
+    title: "Pattern is evaluated",
+    body: "≤5 repeats → auto-allow. 6–10 repeats → gray zone (allowed, flagged). ≥11 repeats → hard block, 429.",
+  },
+  {
+    n: "03",
+    title: "Token or block",
+    body: "Allowed: a signed proceed_token (ES256, 45s TTL). Blocked: a loop_detected reason with retry-after and loop data.",
+  },
+];
+---
+
+<Section
+  id="how"
+  eyebrow="How it works"
+  title="Three zones. One decision."
+  subtitle="Every check is evaluated in under 50ms at the edge. Your agent gets a signed token or a hard block — decided before the API call is made."
+  width="lg"
+>
+  <div class="grid gap-4 md:grid-cols-3">
+    {steps.map((s) => (
+      <Card class="p-6">
+        <div class="flex items-center justify-between">
+          <div class="font-[family-name:var(--font-mono)] text-xs text-[var(--color-tx-3)]">
+            {s.n}
+          </div>
+          <div class="h-1.5 w-1.5 rounded-full bg-[color-mix(in_srgb,var(--color-teal)_70%,transparent)]"></div>
+        </div>
+        <h3 class="mt-4 text-lg font-semibold tracking-tight">{s.title}</h3>
+        <p class="mt-2 text-sm leading-relaxed text-[var(--color-tx-2)]">
+          {s.body}
+        </p>
+      </Card>
+    ))}
+  </div>
+</Section>

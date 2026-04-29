@@ -229,7 +229,7 @@
             <div class="period-grid" id="periodGrid">
               <div class="period-option" data-months="1">
                 <div class="period-label">Monthly</div>
-                <div class="period-price" id="price1m">$59/mo</div>
+                <div class="period-price" id="price1m">$49/mo</div>
               </div>
               <div class="period-option" data-months="3">
                 <div class="period-label">3 Months</div>
@@ -243,7 +243,7 @@
               </div>
               <div class="period-option" data-months="12">
                 <div class="period-label">Yearly</div>
-                <div class="period-price" id="price12m">$590</div>
+                <div class="period-price" id="price12m">$490</div>
                 <div class="period-save">Save $118 (17%)</div>
               </div>
             </div>
@@ -369,11 +369,11 @@
               <div class="invoice-box" style="text-align: left;">
                 <div class="invoice-row">
                   <span class="invoice-label">Workspace ID</span>
-                  <span class="invoice-value" id="resultWorkspace">—</span>
+                  <span class="invoice-value" id="resultWorkspace" translate="no">—</span>
                 </div>
                 <div class="invoice-row">
                   <span class="invoice-label">API Key</span>
-                  <span class="invoice-value" style="font-family: monospace; font-size: 12px;" id="resultApiKey">—</span>
+                  <span class="invoice-value" style="font-family: monospace; font-size: 12px;" id="resultApiKey" translate="no">—</span>
                 </div>
                 <div class="invoice-row">
                   <span class="invoice-label">Plan</span>
@@ -931,7 +931,10 @@
           
           const usdc = usdcAddresses[state.chainId];
           const totalAmount = getTotal();
-          const amount = BigInt(totalAmount) * 1000000n; // USDC has 6 decimals
+          // BSC USDC (0x8AC76a...) has 18 decimals; Polygon/Base USDC has 6
+          const usdcDecimals = { 56: 18n };
+          const decimals = usdcDecimals[state.chainId] ?? 6n;
+          const amount = BigInt(totalAmount) * (10n ** decimals);
           const amountHex = amount.toString(16).padStart(64, '0'); // NO 0x prefix here
           const toHex = state.paymentAddress.toLowerCase().slice(2).padStart(64, '0');
           const transferData = '0xa9059cbb' + toHex + amountHex;
@@ -1193,6 +1196,14 @@
   }'</pre>
               </div>
 
+              <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px;">
+                <a href="./topup.html?workspace=${encodeURIComponent(data.workspace_id)}&key=${encodeURIComponent(data.api_key)}"
+                   class="pay-btn secondary"
+                   style="flex:1; min-width: 220px; display:block; text-decoration:none; text-align:center;">
+                  Top up checks ($5 / $10 / $15) →
+                </a>
+              </div>
+
               <a href="./dashboard.html?workspace=${data.workspace_id}" class="pay-btn primary" style="display:block; text-align:center; text-decoration:none;">
                 Open Dashboard →
               </a>
@@ -1239,6 +1250,9 @@
       <div class="container">
         <div class="footer__bottom">
           <span class="text-muted">© 2024-2026 ProceedGate. All rights reserved.</span>
+          <div class="text-muted" style="font-size: 0.9rem;">
+            Support: <a href="mailto:support@proceedgate.dev" style="color: inherit; text-decoration: underline;">support@proceedgate.dev</a>
+          </div>
           <div style="display: flex; gap: 8px;">
             <span class="badge">🔐 USDC only</span>
             <span class="badge">BNB Chain</span>
