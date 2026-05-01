@@ -1140,6 +1140,7 @@
   }
 
   /* ── Payments flow ──────────────────────────────────────────────── */
+  .pay-flow-scroll { /* wrapper for horizontal scroll on mobile */ }
   .pay-flow {
     margin-top: 56px;
     display: grid; grid-template-columns: repeat(4, 1fr) auto;
@@ -1367,11 +1368,19 @@
     .ia-grid { grid-template-columns: 1fr; }
     .ia-arrow { transform: rotate(90deg); padding: 8px 0; }
     .ce-panel { grid-template-columns: 1fr; padding: 28px; }
-    .pay-flow { grid-template-columns: 1fr; }
-    .pay-link { transform: rotate(90deg); padding: 12px 0; }
+    /* pay-flow: scroll orizontal — nu se stivuiește */
+    .pay-flow-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -24px; padding: 4px 24px 12px; }
+    .pay-flow { grid-template-columns: 1fr 24px 1fr 24px 1fr 24px 1fr; min-width: 560px; }
+    .pay-link { transform: none; padding: 0; }
+    .pay-node { padding: 16px 12px; min-width: 110px; }
     .pay-stats { grid-template-columns: repeat(2, 1fr); }
     .pay-compare { grid-template-columns: 1fr; }
     .int-grid { grid-template-columns: 1fr; }
+    /* Animație fundal hero: ascunde coloanele agenți/outcomes pe mobil */
+    .flow-demo.bg .flow-agents,
+    .flow-demo.bg .flow-outcomes { display: none; }
+    .flow-demo.bg .flow-grid { grid-template-columns: 1fr; }
+    .flow-demo.bg { padding: 20px; }
 
     /* Footer: stack on tablet/mobile */
     footer { flex-direction: column; gap: 20px; text-align: center; padding: 32px 24px; }
@@ -1412,11 +1421,11 @@
     /* Callout: single column */
     .callout-grid { grid-template-columns: 1fr; }
 
-    /* Payments */
+    /* Payments — pay-flow rămâne scroll orizontal, ajustăm wrapper-ul */
+    .pay-flow-scroll { margin: 0 -16px; padding: 4px 16px 12px; }
     .pay-stats { grid-template-columns: 1fr 1fr; gap: 8px; }
     .pay-stat { padding: 16px 12px; }
     .pay-stat-num { font-size: 20px; }
-    .pay-node { padding: 16px 12px; }
     .pay-compare-card { padding: 18px; }
 
     /* Integration code */
@@ -2652,6 +2661,7 @@ function Payments() {
           Packs are available at <a href="/topup.html" style={{color:"#2dd4bf"}}>topup.html</a>.
         </p>
 
+        <div className="pay-flow-scroll">
         <div className="pay-flow">
           <div className="pay-node">
             <div className="pay-icon"><Icon d={<><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></>} /></div>
@@ -2691,6 +2701,7 @@ function Payments() {
             <div className="pay-node-title">proceed_token</div>
             <div className="pay-node-sub">ES256 · 45s TTL</div>
           </div>
+        </div>
         </div>
 
         <div className="pay-chains">
