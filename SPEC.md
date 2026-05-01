@@ -375,3 +375,76 @@ Free endpoints (billing, balance) have `"creditCost": 0`.
 
 - `GET /costs/:agentId` — aggregate cost summary for an agent
 - `GET /costs/:agentId/history` — paginated cost entries with timestamps
+
+---
+
+## Agent Identity (v1.2)
+
+Every `actor.id` is a first-class identity. Profiles and reputation scores are persisted independently of the workspace.
+
+### `GET /v1/agents`
+
+Requires `x-admin-key` header.
+
+Response `200`:
+
+```json
+{
+  "ok": true,
+  "agents": [
+    {
+      "id": "my-scraper-v2",
+      "first_seen": "2026-03-01T10:00:00.000Z",
+      "last_seen": "2026-04-01T09:30:00.000Z",
+      "workspaces": ["ws_abc", "ws_xyz"],
+      "reputation_score": 0.87
+    }
+  ],
+  "cursor": null
+}
+```
+
+### `GET /v1/agents/:agentId`
+
+Requires `x-admin-key` header.
+
+Response `200`:
+
+```json
+{
+  "ok": true,
+  "id": "my-scraper-v2",
+  "first_seen": "2026-03-01T10:00:00.000Z",
+  "last_seen": "2026-04-01T09:30:00.000Z",
+  "workspaces": ["ws_abc", "ws_xyz"],
+  "reputation_score": 0.87,
+  "wallet": "0x..."
+}
+```
+
+Optional `actor.wallet` in check request (ERC-8004 compatible):
+
+```json
+{
+  "actor": {
+    "id": "my-scraper-v2",
+    "project": "ws_abc",
+    "wallet": "0x..."
+  }
+}
+```
+
+---
+
+## Supported payment chains
+
+| Chain | Chain ID | Payment token | Notes |
+|-------|----------|---------------|-------|
+| **BSC** (BNB Smart Chain) | 56 | USDC (`0x8AC76a51...`) | Default |
+| **opBNB** | 204 | USDT bridged from BSC (`0x9e5AAC1B...`) | Low-fee alternative |
+| Any EVM | — | Configurable | Via `X402_CHAIN=Any EVM` env var |
+
+Contract addresses:
+- BSC Mainnet: [`0x161D749892a23AC8792eE7fD37f0F423E0b69C97`](https://bscscan.com/address/0x161D749892a23AC8792eE7fD37f0F423E0b69C97)
+- opBNB Mainnet: [`0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA`](https://opbnbscan.com/address/0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA)
+- On-chain audit trail (ProceedGateLogger, BSC): [`0xA2Fc77c4Db687cea2B30156f769167A10F02C83A`](https://bscscan.com/address/0xA2Fc77c4Db687cea2B30156f769167A10F02C83A)

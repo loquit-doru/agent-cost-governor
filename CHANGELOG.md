@@ -48,6 +48,18 @@
 - DO session routing: extracted to dedicated `handleSession()` method for reliable routing
 - Session route workspace fallback when `API_AUTH_MODE=off`
 
+### Added — opBNB Payment Support
+- Deployed `AICostGovernor` contract on **opBNB Mainnet** [`0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA`](https://opbnbscan.com/address/0xAd8Da0Af368804e47bcdA8217b4e24F4cEb058dA)
+- Added `OPBNB_RPC_URL` + `OPBNB_USDC_ADDRESS` to `wrangler.toml` prod env
+- Payment verification (`paymentVerify.ts`) now supports opBNB chain
+- Homepage + pay.html updated with opBNB network selection
+
+### Security — Slither Audit & ReentrancyGuard
+- Added `slither-report.json` (full static analysis of `AICostGovernor.sol`)
+- Pinned Solidity compiler to `0.8.28` for reproducibility
+- Added OpenZeppelin `ReentrancyGuard` to `AICostGovernor.sol`
+- `contracts/SECURITY_AUDIT.md` added with findings + mitigations
+
 ### Docs
 - Added session endpoint documentation to docs.html
 - Added OpenAPI discovery section to docs.html
@@ -55,7 +67,7 @@
 - Added DELETE method CSS styling to docs
 - Updated SPEC.md with sessions, discovery, and BSC references
 
-## [Unreleased] — 2026-03-26
+## [1.1.0] — 2026-03-26
 
 ### Added — MPP (Machine Payments Protocol) Integration
 
@@ -91,3 +103,17 @@
 - `TREASURY_WALLET_ADDRESS` — recipient wallet (set via `wrangler secret`)
 - `TEMPO_TESTNET` — `"true"` for testnet (default), `"false"` for mainnet
 - `MPP_SECRET_KEY` — optional signing key (set via `wrangler secret`)
+
+## [1.3.0] — 2026-04-01
+
+### Added — On-Chain Audit Trail (ProceedGateLogger)
+**Purpose:** Every governance decision is queued to a verifiable on-chain log on BSC Mainnet.
+
+- Deployed `ProceedGateLogger.sol` on **BSC Mainnet** [`0xA2Fc77c4Db687cea2B30156f769167A10F02C83A`](https://bscscan.com/address/0xA2Fc77c4Db687cea2B30156f769167A10F02C83A)
+- On every `/v1/check` call the worker fire-and-forgets a log entry to the contract (zero latency impact)
+- Provides immutable, auditable history of all governance decisions per workspace
+- Contract source tracked in `contracts/` folder
+
+### Added — Credits Flow Documentation
+- `docs/`: comprehensive credits lifecycle docs
+- README: updated Quick Links with BSC + opBNB contract addresses
