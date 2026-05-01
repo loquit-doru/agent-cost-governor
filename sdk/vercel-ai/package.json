@@ -1,6 +1,6 @@
 {
   "name": "@proceedgate/vercel-ai",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Vercel AI SDK integration for ProceedGate cost governance",
   "type": "module",
   "main": "dist/index.js",
@@ -29,7 +29,16 @@
     "middleware"
   ],
   "author": "ProceedGate",
-  "license": "Apache-2.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/proceedgate/agent-cost-governor",
+    "directory": "sdk/vercel-ai"
+  },
+  "homepage": "https://proceedgate.dev/docs.html#sdk-vercel",
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {},
   "peerDependencies": {
     "ai": ">=3.0.0"

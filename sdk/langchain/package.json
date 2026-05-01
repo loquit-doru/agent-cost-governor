@@ -1,6 +1,6 @@
 {
   "name": "@proceedgate/langchain",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "LangChain integration for ProceedGate cost governance",
   "type": "module",
   "main": "dist/index.js",
@@ -23,6 +23,15 @@
   ],
   "author": "ProceedGate",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/proceedgate/agent-cost-governor",
+    "directory": "sdk/langchain"
+  },
+  "homepage": "https://proceedgate.dev/docs.html#sdk-langchain",
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {},
   "peerDependencies": {
     "@langchain/core": ">=0.2.0"

@@ -1,6 +1,6 @@
 [project]
 name = "proceedgate-crewai"
-version = "1.0.0"
+version = "1.1.0"
 description = "CrewAI integration for ProceedGate cost governance"
 readme = "README.md"
 license = { text = "MIT" }
@@ -10,6 +10,11 @@ dependencies = [
     "httpx>=0.25.0",
     "pydantic>=2.0.0",
 ]
+
+[project.urls]
+Homepage = "https://proceedgate.dev/docs.html#sdk-crewai"
+Repository = "https://github.com/proceedgate/agent-cost-governor"
+Documentation = "https://proceedgate.dev/docs.html#sdk-crewai"
 
 [project.optional-dependencies]
 crewai = ["crewai>=0.30.0"]
