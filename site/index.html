@@ -1356,7 +1356,7 @@
     .section-pad { padding: 80px 0; }
     .container { padding: 0 24px; }
     .final-cta { padding: 60px 32px; margin: 0 20px 60px; }
-    nav { left: 20px; right: 20px; transform: none; padding: 6px 6px 6px 16px; flex-wrap: wrap; }
+    nav { left: 12px; right: 12px; transform: none; padding: 6px 6px 6px 16px; flex-wrap: wrap; }
     nav .nav-link { display: none; }
     nav .nav-link:nth-child(2), nav .nav-link:nth-child(3) { display: block; }
     .flow-demo { margin: 0 20px; padding: 20px; }
@@ -1372,6 +1372,79 @@
     .pay-stats { grid-template-columns: repeat(2, 1fr); }
     .pay-compare { grid-template-columns: 1fr; }
     .int-grid { grid-template-columns: 1fr; }
+
+    /* Footer: stack on tablet/mobile */
+    footer { flex-direction: column; gap: 20px; text-align: center; padding: 32px 24px; }
+    .foot-links { flex-wrap: wrap; justify-content: center; gap: 16px; }
+
+    /* Hero CTA: wrap neatly */
+    .hero-cta { flex-direction: column; align-items: center; }
+    .btn-primary, .btn-secondary { width: 100%; max-width: 320px; justify-content: center; }
+
+    /* Code blocks: scroll hint */
+    .int-code, .ce-code, .hiw-snippet { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  }
+
+  /* ── Small phones (≤ 480px) ──────────────────────────────────────── */
+  @media (max-width: 480px) {
+    .container { padding: 0 16px; }
+    .section-pad { padding: 60px 0; }
+
+    /* Nav: compact — only logo + CTA */
+    nav { left: 8px; right: 8px; padding: 5px 5px 5px 14px; border-radius: 14px; }
+    nav .nav-link { display: none !important; }
+    .nav-logo { padding-right: 12px; margin-right: 8px; font-size: 14px; }
+    .nav-cta { font-size: 13px; padding: 8px 16px; }
+
+    /* Hero: tighten up */
+    .hero { padding: 100px 16px 60px; }
+    .hero h1 { font-size: clamp(36px, 10vw, 56px); letter-spacing: -0.03em; }
+    .hero p { font-size: 15px; margin-top: 20px; }
+    .hero-cta { margin-top: 32px; }
+    .hero-pill { font-size: 11px; }
+
+    /* Section titles */
+    .section-title { font-size: clamp(28px, 8vw, 44px); }
+
+    /* Features */
+    .feat-card { padding: 24px 20px; }
+
+    /* Callout: single column */
+    .callout-grid { grid-template-columns: 1fr; }
+
+    /* Payments */
+    .pay-stats { grid-template-columns: 1fr 1fr; gap: 8px; }
+    .pay-stat { padding: 16px 12px; }
+    .pay-stat-num { font-size: 20px; }
+    .pay-node { padding: 16px 12px; }
+    .pay-compare-card { padding: 18px; }
+
+    /* Integration code */
+    .int-code { font-size: 11px; }
+    .int-item { padding: 12px 14px; }
+
+    /* How it works */
+    .hiw-card { padding: 28px 20px; }
+
+    /* Check endpoint */
+    .ce-panel { padding: 20px; }
+    .ce-code { font-size: 11px; padding: 16px; }
+
+    /* Final CTA */
+    .final-cta { padding: 48px 20px; margin: 0 8px 48px; border-radius: 20px; }
+    .final-cta h2 { font-size: clamp(28px, 8vw, 44px); }
+    .final-cta p { font-size: 15px; }
+
+    /* Pricing */
+    .price-grid { gap: 12px; }
+
+    /* Footer */
+    footer { padding: 28px 16px; }
+    .foot-links { gap: 12px; }
+
+    /* Flow demo */
+    .flow-demo { margin: 0 8px; padding: 16px; }
+    .flow-outcome-num { font-size: 24px; }
   }
 </style>
 </head>
