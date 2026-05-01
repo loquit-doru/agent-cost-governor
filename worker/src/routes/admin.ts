@@ -1,7 +1,8 @@
 import { Hono } from 'hono';
 import type { Env, Vars } from '../types.js';
 import { workspaceCreateSchema, workspaceAdminSchema } from '../lib/schemas.js';
-import { makeDecisionId, randomApiKey, sha256Hex } from '../lib/utils.js';
+import { makeDecisionId } from '../lib/utils.js';
+import { hashApiKey } from '../lib/crypto.js';
 import { requireAdminAuth } from '../middleware/auth.js';
 import {
   setWorkspaceApiKey,
@@ -11,6 +12,12 @@ import {
 import { getBillingStub, doUrl } from '../lib/do.js';
 
 const adminRoutes = new Hono<{ Bindings: Env; Variables: Vars }>();
+
+function makeApiKey(): string {
+  const bytes = new Uint8Array(24);
+  crypto.getRandomValues(bytes);
+  return 'pg_ws_' + Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+}
 
 // Create workspace
 adminRoutes.post('/v1/workspaces/create', async (c) => {
@@ -25,8 +32,8 @@ adminRoutes.post('/v1/workspaces/create', async (c) => {
   }
 
   const workspaceId = parsed.data.workspace_id?.trim() || makeDecisionId().replace(/^dec_/, 'ws_');
-  const apiKey = randomApiKey(32);
-  const apiKeyHash = await sha256Hex(apiKey);
+  const apiKey = makeApiKey();
+  const apiKeyHash = await hashApiKey(apiKey);
 
   const ok = await setWorkspaceApiKey(c.env, workspaceId, apiKeyHash);
   if (!ok) {
@@ -49,8 +56,8 @@ adminRoutes.post('/v1/workspaces/rotate_key', async (c) => {
   }
 
   const workspaceId = parsed.data.workspace_id.trim();
-  const apiKey = randomApiKey(32);
-  const apiKeyHash = await sha256Hex(apiKey);
+  const apiKey = makeApiKey();
+  const apiKeyHash = await hashApiKey(apiKey);
 
   const ok = await setWorkspaceApiKey(c.env, workspaceId, apiKeyHash);
   if (!ok) {

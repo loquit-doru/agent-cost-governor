@@ -184,12 +184,11 @@ export class BillingStoreDO {
       ? env.ANALYTICS_D1 as D1Database
       : null;
     this.jtiBlacklist = new JtiBlacklist(state.storage);
-    // Load JTI blacklist from storage (non-blocking, completes before first request via blockConcurrencyWhile)
+    // Load JTI blacklist + schedule alarms before first request.
     state.blockConcurrencyWhile(async () => {
       await this.jtiBlacklist.load();
+      await this.ensureAlarmScheduled();
     });
-    // Schedule daily cleanup alarm if not already set
-    this.ensureAlarmScheduled();
   }
 
   private async ensureAlarmScheduled(): Promise<void> {
@@ -887,6 +886,45 @@ export class BillingStoreDO {
         return Response.json({ ok: false, error: 'invalid_or_expired' }, { status: 404 });
       }
       return Response.json({ ok: true, workspace_id: data.workspace_id }, { status: 200 });
+    }
+
+    // POST /rate-limit/check { key, limit, window_ms } - distributed-ish rate limiting (single DO instance)
+    if (parts[0] === 'rate-limit' && parts[1] === 'check' && request.method === 'POST') {
+      const body = (await request.json().catch(() => null)) as { key?: string; limit?: number; window_ms?: number } | null;
+      const key = String(body?.key ?? '').trim();
+      const limit = Number(body?.limit ?? 0);
+      const windowMs = Number(body?.window_ms ?? 0);
+
+      if (!key || !Number.isFinite(limit) || limit <= 0 || !Number.isFinite(windowMs) || windowMs <= 0) {
+        return new Response('invalid_request', { status: 400 });
+      }
+
+      const now = Date.now();
+      const windowStart = Math.floor(now / windowMs) * windowMs;
+      const resetAtMs = windowStart + windowMs;
+      const storageKey = `rl:${key}:${windowStart}`;
+
+      const existing = (await this.state.storage.get<number>(storageKey)) ?? 0;
+      const nextCount = existing + 1;
+
+      // Durable Object storage put options vary by runtime; keep it simple and
+      // rely on daily cleanup alarm to avoid unbounded growth.
+      await this.state.storage.put(storageKey, nextCount);
+
+      const allowed = nextCount <= limit;
+      const remaining = Math.max(0, limit - nextCount);
+
+      return Response.json(
+        {
+          ok: true,
+          allowed,
+          count: nextCount,
+          limit,
+          remaining,
+          reset_at_ms: resetAtMs,
+        },
+        { status: allowed ? 200 : 429 },
+      );
     }
 
     // POST /email-index { email, workspace_id } - manually register email index
@@ -1671,6 +1709,29 @@ export class BillingStoreDO {
           blocked.lastBlockedAtMs = nowMs;
           blocked.updatedAtMs = nowMs;
           await this.state.storage.put(`blocked:${workspaceId}`, blocked);
+
+          // Emit storm.detected webhook if configured
+          const webhookData = await this.state.storage.get<{
+            webhookUrl?: string | null;
+            webhookSecret?: string | null;
+          }>(`webhook:${workspaceId}`);
+          if (webhookData?.webhookUrl) {
+            const { webhookStormDetected } = await import('./services/webhook.js');
+            webhookStormDetected(this.env as unknown as import('./types.js').Env, {
+              webhookUrl: webhookData.webhookUrl,
+              webhookSecret: webhookData.webhookSecret ?? undefined,
+              workspaceId,
+              requestHash: body.pattern_hash,
+              blockCount: blocked.blockedRequests,
+              totalBlockedMs: Math.round(existing.lastSeenMs - existing.firstSeenMs),
+              estimatedCostSavedUsd: blocked.estimatedCostSavedUsd,
+              fingerprint: fingerprint ? {
+                burst_index: fingerprint.burstIndex,
+                entropy: fingerprint.entropyProfile,
+                fanout_ratio: fingerprint.fanoutRatio,
+              } : undefined,
+            }).catch(err => console.error('Storm webhook failed:', err));
+          }
         }
         
         return Response.json({ 

@@ -6,6 +6,7 @@
  * - subscription.renewed
  * - credits.low
  * - subscription.expiring
+ * - storm.detected (real-time loop detection alerts)
  */
 
 import type { Env } from '../types.js';
@@ -274,6 +275,52 @@ export async function webhookBudgetExceeded(
   logEvent({
     event: 'webhook_sent',
     webhook_event: 'budget.exceeded',
+    workspace_id: data.workspaceId,
+    ok: result.ok,
+    status_code: result.statusCode,
+    error: result.error,
+  });
+}
+
+/**
+ * Send storm.detected webhook (real-time loop detection alert)
+ */
+export async function webhookStormDetected(
+  env: Env,
+  data: {
+    webhookUrl: string;
+    webhookSecret?: string;
+    workspaceId: string;
+    requestHash: string;
+    blockCount: number;
+    totalBlockedMs: number;
+    estimatedCostSavedUsd: number;
+    fingerprint?: {
+      burst_index: number;
+      entropy: number;
+      fanout_ratio: number;
+    };
+  }
+): Promise<void> {
+  const payload: WebhookPayload = {
+    event: 'storm.detected',
+    timestamp: new Date().toISOString(),
+    data: {
+      workspace_id: data.workspaceId,
+      request_hash: data.requestHash,
+      block_count: data.blockCount,
+      total_blocked_ms: data.totalBlockedMs,
+      estimated_cost_saved_usd: Math.round(data.estimatedCostSavedUsd * 100) / 100,
+      fingerprint: data.fingerprint,
+      alert_severity: data.blockCount > 20 ? 'critical' : data.blockCount > 10 ? 'high' : 'medium',
+    },
+  };
+
+  const result = await sendWebhook(data.webhookUrl, payload, data.webhookSecret);
+  
+  logEvent({
+    event: 'webhook_sent',
+    webhook_event: 'storm.detected',
     workspace_id: data.workspaceId,
     ok: result.ok,
     status_code: result.statusCode,

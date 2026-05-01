@@ -28,6 +28,7 @@ import { badgeRoutes } from './routes/badge.js';
 import { costsRoutes } from './routes/costs.js';
 import { sessionRoutes } from './routes/session.js';
 import { agentsRoutes } from './routes/agents.js';
+import { healthRoutes } from './routes/health.js';
 
 // Durable Objects (re-export)
 export { DecisionStoreDO } from './decisionStoreDO.js';
@@ -77,6 +78,7 @@ app.route('/', badgeRoutes);
 app.route('/', costsRoutes);
 app.route('/', sessionRoutes);
 app.route('/', agentsRoutes);
+app.route('/', healthRoutes);
 
 // 404 fallback
 app.notFound((c) => {

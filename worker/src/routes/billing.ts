@@ -27,6 +27,33 @@ import type { BillingQuoteRecord } from '../billingStoreDO.js';
 
 const billingRoutes = new Hono<{ Bindings: Env; Variables: Vars }>();
 
+// Suggested credit packs (for topups)
+billingRoutes.get('/v1/billing/packs', async (c) => {
+  if (getBillingMode(c.env) !== 'credits') {
+    return c.json({ ok: false, error: 'billing_not_enabled' }, 501);
+  }
+
+  const micro = getBillingCreditCostMicroUsdc(c.env);
+  const microNum = Number.parseInt(String(micro), 10);
+  if (!Number.isFinite(microNum) || microNum <= 0) {
+    return c.json({ ok: false, error: 'invalid_billing_config' }, 500);
+  }
+
+  const mk = (usd: number) => {
+    const credits = Math.floor((usd * 1_000_000) / microNum);
+    return { usd, credits, label: `$${usd} → ${credits.toLocaleString()} checks` };
+  };
+
+  return c.json(
+    {
+      ok: true,
+      micro_usdc_per_credit: microNum,
+      packs: [mk(5), mk(10), mk(15)],
+    },
+    200,
+  );
+});
+
 // Create billing quote
 billingRoutes.post('/v1/billing/quote', async (c) => {
   const startMs = Date.now();

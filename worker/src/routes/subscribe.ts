@@ -19,6 +19,8 @@ import { webhookSubscriptionCreated, webhookSubscriptionRenewed, sendWebhook } f
 import { getBillingStub, doUrl } from '../lib/do.js';
 import { hashApiKey } from '../lib/crypto.js';
 import { CREDITS, API_KEY_PREFIXES } from '../lib/constants.js';
+import { requireAdminAuth } from '../middleware/auth.js';
+import { facilitatorVerifyPayment } from '../facilitator.js';
 
 const subscribeRoutes = new Hono<{ Bindings: Env; Variables: Vars }>();
 
@@ -44,10 +46,10 @@ const PLANS = {
     priceMonthly: 19,
     checks: 25000,
     projects: 3,
-    logRetentionDays: 14,
+    logRetentionDays: 30,
     customPolicies: 0,
-    webhooks: false,
-    alerts: false,
+    webhooks: true,
+    alerts: true,
     analytics: true, // Basic analytics
     teamKeys: 1,
     ipAllowlist: false,
@@ -56,17 +58,17 @@ const PLANS = {
   },
   pro: {
     name: 'Pro',
-    priceMonthly: 59,
+    priceMonthly: 49,
     checks: 1000000,
     projects: 5,
-    logRetentionDays: 30,
+    logRetentionDays: 90,
     customPolicies: 10,
     webhooks: true,
     alerts: true,
     analytics: true,
     teamKeys: 1,        // Number of API keys per workspace
     ipAllowlist: false,
-    auditLogs: false,
+    auditLogs: true,
     support: 'priority',
   },
   scale: {
@@ -102,7 +104,7 @@ type PeriodMonths = keyof typeof PERIODS;
 const subscribeSchema = z.object({
   plan: z.enum(['starter', 'pro', 'scale']), // Free tier uses separate endpoint
   months: z.number().refine((n): n is PeriodMonths => n === 1 || n === 3 || n === 6 || n === 12),
-  chain: z.enum(['bsc', 'base', 'polygon']).optional().default('bsc'),
+  chain: z.enum(['bsc', 'base']).optional().default('bsc'),
   email: z.string().email().optional(),
 });
 
@@ -129,7 +131,7 @@ interface Invoice {
   status: 'pending' | 'confirming' | 'confirmed' | 'expired';
   txHash?: string;
   workspaceId?: string;
-  apiKey?: string;
+  apiKeyHint?: string;
   email?: string;
 }
 
@@ -197,13 +199,13 @@ function makeApiKey(): string {
 function calculateTotal(plan: PlanId, months: PeriodMonths): number {
   const basePrice = PLANS[plan].priceMonthly;
   const period = PERIODS[months];
-  const total = basePrice * period.months * (1 - period.discount);
-  return Math.round(total);
+  // Integer-percent arithmetic avoids floating point imprecision (e.g. 0.83 * 19 * 12)
+  const discountPercent = Math.round(period.discount * 100);
+  return Math.round(basePrice * period.months * (100 - discountPercent) / 100);
 }
 
 // Helper: Get chain ID
 function getChainId(chain: string): number {
-  if (chain === 'polygon') return 137;
   if (chain === 'base') return 8453;
   return 56; // BSC
 }
@@ -306,7 +308,7 @@ subscribeRoutes.get('/v1/billing/subscribe/:id', async (c) => {
     // Only include credentials if confirmed — redact api_key for unauthenticated polling
     ...(invoice.status === 'confirmed' && {
       workspace_id: invoice.workspaceId,
-      api_key_prefix: invoice.apiKey ? invoice.apiKey.slice(0, 12) + '...' : undefined,
+      api_key_hint: invoice.apiKeyHint ?? null,
     }),
   }, 200);
 });
@@ -364,7 +366,7 @@ subscribeRoutes.post('/v1/billing/subscribe/confirm', async (c) => {
       ok: true,
       status: 'confirmed',
       workspace_id: invoice.workspaceId,
-      api_key: invoice.apiKey,
+      api_key_hint: invoice.apiKeyHint ?? null,
       plan: PLANS[invoice.plan].name,
       months: invoice.months,
     }, 200);
@@ -382,11 +384,12 @@ subscribeRoutes.post('/v1/billing/subscribe/confirm', async (c) => {
   invoice.txHash = tx_hash;
   await storeInvoice(c.env, invoice);
 
-  const verified = await verifyUsdcTransfer(c.env, {
-    txHash: tx_hash,
-    chainId: invoice.chainId,
-    expectedRecipient: invoice.recipient,
-    expectedAmountUsdc: invoice.totalUsdc,
+  const verified = await facilitatorVerifyPayment(c.env, {
+    tx_hash,
+    required_chain: invoice.chain,
+    required_recipient: invoice.recipient,
+    required_price: `${invoice.totalUsdc} USDC`,
+    decision_id: invoice.id,
   });
 
   if (!verified.ok) {
@@ -402,7 +405,7 @@ subscribeRoutes.post('/v1/billing/subscribe/confirm', async (c) => {
       indexes: ['subscribe_confirm_fail', verified.error || 'unknown'],
       doubles: [1, Date.now() - startMs],
     });
-    return c.json({ ok: false, error: verified.error }, 402);
+    return c.json({ ok: false, error: verified.error }, verified.status);
   }
 
   // Payment verified! Create workspace
@@ -450,7 +453,7 @@ subscribeRoutes.post('/v1/billing/subscribe/confirm', async (c) => {
   // Mark invoice as confirmed
   invoice.status = 'confirmed';
   invoice.workspaceId = workspaceId;
-  invoice.apiKey = apiKey;
+  invoice.apiKeyHint = `${apiKey.slice(0, 8)}…${apiKey.slice(-6)}`;
   await storeInvoice(c.env, invoice);
 
   // Record payment in audit log
@@ -535,11 +538,11 @@ subscribeRoutes.post('/v1/billing/subscribe/confirm', async (c) => {
         curl: `curl https://governor.proceedgate.dev/v1/me -H "Authorization: Bearer ${apiKey}"`,
       },
       step_2: {
-        description: 'Make your first billing check',
-        curl: `curl -X POST https://governor.proceedgate.dev/v1/check/simple \\
+        description: 'Make your first governance check',
+        curl: `curl -X POST https://governor.proceedgate.dev/v1/governor/check \\
   -H "Authorization: Bearer ${apiKey}" \\
   -H "Content-Type: application/json" \\
-  -d '{"user_id": "your-user-id"}'`,
+  -d '{"policy_id":"default","action":"tool_call","actor":{"id":"agent-1"},"context":{"attempt_in_window":1}}'`,
       },
       step_3: {
         description: 'Configure webhooks for alerts',
@@ -553,107 +556,6 @@ subscribeRoutes.post('/v1/billing/subscribe/confirm', async (c) => {
     },
   }, 200);
 });
-
-// ============================================================================
-// Helper: Verify USDC transfer on-chain
-// ============================================================================
-interface VerifyResult {
-  ok: boolean;
-  error?: string;
-}
-
-async function verifyUsdcTransfer(
-  env: Env,
-  params: {
-    txHash: string;
-    chainId: number;
-    expectedRecipient: string;
-    expectedAmountUsdc: number;
-  }
-): Promise<VerifyResult> {
-  const { txHash, chainId, expectedRecipient, expectedAmountUsdc } = params;
-
-  // Get RPC URL based on chain
-  const rpcUrl = chainId === 137
-    ? 'https://polygon-rpc.com'
-    : (env.BASE_RPC_URL || 'https://mainnet.base.org');
-
-  // USDC contract addresses
-  const usdcAddress = chainId === 137
-    ? '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359'
-    : '0x833589fCD6eDb6E08f4c7C32D4f71b54bda02913';
-
-  try {
-    // Fetch transaction receipt
-    const receiptRes = await fetch(rpcUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'eth_getTransactionReceipt',
-        params: [txHash],
-      }),
-    });
-
-    const receiptData = await receiptRes.json() as {
-      result?: {
-        status: string;
-        logs: Array<{
-          address: string;
-          topics: string[];
-          data: string;
-        }>;
-      };
-    };
-
-    if (!receiptData.result) {
-      return { ok: false, error: 'tx_not_found' };
-    }
-
-    const receipt = receiptData.result;
-
-    // Check if transaction succeeded
-    if (receipt.status !== '0x1') {
-      return { ok: false, error: 'tx_failed' };
-    }
-
-    // Find USDC Transfer event
-    // Transfer(address from, address to, uint256 value)
-    // Topic0: 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
-    const transferTopic = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
-    
-    const transferLog = receipt.logs.find(log =>
-      log.address.toLowerCase() === usdcAddress.toLowerCase() &&
-      log.topics[0] === transferTopic
-    );
-
-    if (!transferLog) {
-      return { ok: false, error: 'no_usdc_transfer' };
-    }
-
-    // Parse recipient from topics[2] (indexed 'to' address)
-    const toAddress = '0x' + transferLog.topics[2].slice(26).toLowerCase();
-    if (toAddress !== expectedRecipient.toLowerCase()) {
-      return { ok: false, error: 'wrong_recipient' };
-    }
-
-    // Parse amount from data (USDC has 6 decimals)
-    const amountHex = transferLog.data;
-    const amountRaw = BigInt(amountHex);
-    const amountUsdc = Number(amountRaw) / 1_000_000;
-
-    if (amountUsdc < expectedAmountUsdc) {
-      return { ok: false, error: 'insufficient_amount' };
-    }
-
-    return { ok: true };
-
-  } catch (err) {
-    console.error('verifyUsdcTransfer error:', err);
-    return { ok: false, error: 'verification_failed' };
-  }
-}
 
 // ============================================================================
 // GET /v1/billing/workspace - Get workspace info for dashboard
@@ -750,7 +652,7 @@ subscribeRoutes.get('/v1/billing/workspace', async (c) => {
 const renewSchema = z.object({
   plan: z.enum(['starter', 'pro', 'scale']),
   months: z.number().refine((n): n is PeriodMonths => n === 1 || n === 3 || n === 6 || n === 12),
-  chain: z.enum(['bsc', 'base', 'polygon']).optional().default('bsc'),
+  chain: z.enum(['bsc', 'base']).optional().default('bsc'),
 });
 
 subscribeRoutes.post('/v1/billing/renew', async (c) => {
@@ -812,7 +714,6 @@ subscribeRoutes.post('/v1/billing/renew', async (c) => {
     expiresAtMs: nowMs + 30 * 60 * 1000,
     status: 'pending',
     workspaceId, // Link to existing workspace
-    apiKey,
   };
 
   // Store invoice in Durable Object for persistence
@@ -918,17 +819,18 @@ subscribeRoutes.post('/v1/billing/renew/confirm', async (c) => {
   invoice.txHash = tx_hash;
   await storeInvoice(c.env, invoice);
 
-  const verified = await verifyUsdcTransfer(c.env, {
-    txHash: tx_hash,
-    chainId: invoice.chainId,
-    expectedRecipient: invoice.recipient,
-    expectedAmountUsdc: invoice.totalUsdc,
+  const verified = await facilitatorVerifyPayment(c.env, {
+    tx_hash,
+    required_chain: invoice.chain,
+    required_recipient: invoice.recipient,
+    required_price: `${invoice.totalUsdc} USDC`,
+    decision_id: invoice.id,
   });
 
   if (!verified.ok) {
     invoice.status = 'pending';
     await storeInvoice(c.env, invoice);
-    return c.json({ ok: false, error: verified.error }, 402);
+    return c.json({ ok: false, error: verified.error }, verified.status);
   }
 
   // Payment verified! Update workspace subscription
@@ -1619,12 +1521,8 @@ subscribeRoutes.delete('/v1/policies/:id', async (c) => {
 
 // GET /v1/admin/payments - List all payments
 subscribeRoutes.get('/v1/admin/payments', async (c) => {
-  const adminSecret = c.req.header('X-Admin-Secret');
-  const expectedSecret = (c.env as Env & { ADMIN_SECRET?: string }).ADMIN_SECRET;
-  
-  if (!expectedSecret || adminSecret !== expectedSecret) {
-    return c.json({ ok: false, error: 'unauthorized' }, 401);
-  }
+  const authErr = await requireAdminAuth(c);
+  if (authErr) return authErr;
 
   const limit = parseInt(c.req.query('limit') || '50');
   const stub = getBillingStub(c.env);
@@ -1637,12 +1535,8 @@ subscribeRoutes.get('/v1/admin/payments', async (c) => {
 
 // GET /v1/admin/payments/stats - Payment statistics
 subscribeRoutes.get('/v1/admin/payments/stats', async (c) => {
-  const adminSecret = c.req.header('X-Admin-Secret');
-  const expectedSecret = (c.env as Env & { ADMIN_SECRET?: string }).ADMIN_SECRET;
-  
-  if (!expectedSecret || adminSecret !== expectedSecret) {
-    return c.json({ ok: false, error: 'unauthorized' }, 401);
-  }
+  const authErr = await requireAdminAuth(c);
+  if (authErr) return authErr;
 
   const stub = getBillingStub(c.env);
   const res = await stub.fetch(doUrl('/payments/stats'));
@@ -1653,12 +1547,8 @@ subscribeRoutes.get('/v1/admin/payments/stats', async (c) => {
 
 // GET /v1/admin/payments/by-tx/:txHash - Lookup payment by tx hash
 subscribeRoutes.get('/v1/admin/payments/by-tx/:txHash', async (c) => {
-  const adminSecret = c.req.header('X-Admin-Secret');
-  const expectedSecret = (c.env as Env & { ADMIN_SECRET?: string }).ADMIN_SECRET;
-  
-  if (!expectedSecret || adminSecret !== expectedSecret) {
-    return c.json({ ok: false, error: 'unauthorized' }, 401);
-  }
+  const authErr = await requireAdminAuth(c);
+  if (authErr) return authErr;
 
   const txHash = c.req.param('txHash');
   const stub = getBillingStub(c.env);
@@ -1670,12 +1560,8 @@ subscribeRoutes.get('/v1/admin/payments/by-tx/:txHash', async (c) => {
 
 // GET /v1/admin/workspaces - List all workspaces with plan, credits, expiry
 subscribeRoutes.get('/v1/admin/workspaces', async (c) => {
-  const adminSecret = c.req.header('X-Admin-Secret');
-  const expectedSecret = (c.env as Env & { ADMIN_SECRET?: string }).ADMIN_SECRET;
-
-  if (!expectedSecret || adminSecret !== expectedSecret) {
-    return c.json({ ok: false, error: 'unauthorized' }, 401);
-  }
+  const authErr = await requireAdminAuth(c);
+  if (authErr) return authErr;
 
   const plan = c.req.query('plan') || ''; // optional filter: free, starter, pro, scale
   const stub = getBillingStub(c.env);
@@ -1688,12 +1574,8 @@ subscribeRoutes.get('/v1/admin/workspaces', async (c) => {
 
 // POST /v1/admin/workspace - Manually create workspace (for missed payments)
 subscribeRoutes.post('/v1/admin/workspace', async (c) => {
-  const adminSecret = c.req.header('X-Admin-Secret');
-  const expectedSecret = (c.env as Env & { ADMIN_SECRET?: string }).ADMIN_SECRET;
-  
-  if (!expectedSecret || adminSecret !== expectedSecret) {
-    return c.json({ ok: false, error: 'unauthorized' }, 401);
-  }
+  const authErr = await requireAdminAuth(c);
+  if (authErr) return authErr;
 
   const body = await c.req.json().catch(() => null) as {
     plan?: string;
@@ -1882,11 +1764,11 @@ subscribeRoutes.post('/v1/billing/free', async (c) => {
         curl: `curl https://governor.proceedgate.dev/v1/me -H "Authorization: Bearer ${apiKey}"`,
       },
       step_2: {
-        description: 'Make your first billing check',
-        curl: `curl -X POST https://governor.proceedgate.dev/v1/check/simple \\
+        description: 'Make your first governance check',
+        curl: `curl -X POST https://governor.proceedgate.dev/v1/governor/check \\
   -H "Authorization: Bearer ${apiKey}" \\
   -H "Content-Type: application/json" \\
-  -d '{"user_id": "your-user-id"}'`,
+  -d '{"policy_id":"default","action":"tool_call","actor":{"id":"agent-1"},"context":{"attempt_in_window":1}}'`,
       },
       step_3: {
         description: 'Check your remaining credits',
@@ -1905,12 +1787,8 @@ subscribeRoutes.post('/v1/billing/free', async (c) => {
 
 // POST /v1/admin/credits - Add credits to existing workspace (admin only)
 subscribeRoutes.post('/v1/admin/credits', async (c) => {
-  const adminSecret = c.req.header('X-Admin-Secret');
-  const expectedSecret = (c.env as Env & { ADMIN_SECRET?: string }).ADMIN_SECRET;
-  
-  if (!expectedSecret || adminSecret !== expectedSecret) {
-    return c.json({ ok: false, error: 'unauthorized' }, 401);
-  }
+  const authErr = await requireAdminAuth(c);
+  if (authErr) return authErr;
 
   const body = await c.req.json().catch(() => null) as {
     workspace_id?: string;
@@ -2065,11 +1943,11 @@ subscribeRoutes.get('/v1/me', async (c) => {
       created_at: new Date(subscription.createdAtMs).toISOString(),
     } : null,
     quickstart: {
-      check_endpoint: 'POST /v1/check/simple',
-      example_curl: `curl -X POST https://governor.proceedgate.dev/v1/check/simple \\
+      check_endpoint: 'POST /v1/governor/check',
+      example_curl: `curl -X POST https://governor.proceedgate.dev/v1/governor/check \\
   -H "Authorization: Bearer ${apiKey.slice(0, 20)}..." \\
   -H "Content-Type: application/json" \\
-  -d '{"user_id": "your-user-id"}'`,
+  -d '{"policy_id":"default","action":"tool_call","actor":{"id":"agent-1"},"context":{"attempt_in_window":1}}'`,
       docs: 'https://docs.proceedgate.dev/quickstart',
     },
   }, 200);

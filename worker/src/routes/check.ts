@@ -179,13 +179,16 @@ checkRoutes.post('/v1/governor/check', async (c) => {
       c.header('X-Proceedgate-Zone', 'storm');
       if (loopData.fingerprint_hash) c.header('X-Proceedgate-Fingerprint', loopData.fingerprint_hash);
 
+      const costSavedUsd = Math.max(0.01, loopData.cost_window_usd ?? 0.05);
+      const costSavedStr = `$${costSavedUsd.toFixed(2)}`;
+
       const reasoning = generateReasoning({
         decision: 'blocked_storm',
         action: parsed.data.action,
         actor_id: parsed.data.actor.id,
         pattern_count: loopData.count,
         window_seconds: 60,
-        cost_saved_usd: 0.05,
+        cost_saved_usd: costSavedUsd,
         task_hash: parsed.data.context.task_hash,
         step_hash: parsed.data.context.step_hash,
       });
@@ -200,7 +203,7 @@ checkRoutes.post('/v1/governor/check', async (c) => {
         decision: 'blocked_storm',
         latency_ms: Date.now() - startMs,
         pattern_count: loopData.count,
-        cost_saved_usd: 0.05,
+        cost_saved_usd: costSavedUsd,
         ai_reasoning: reasoning.ai_reasoning,
         zone: 'storm',
       });
@@ -243,9 +246,9 @@ checkRoutes.post('/v1/governor/check', async (c) => {
         reason: 'Too many identical requests detected. Possible agent loop.',
         pattern_count: loopData.count,
         zone: 'storm',
-        cost_saved: '$0.05',
-        cost_saved_usd: 0.05,
-        message: `🚫 Blocked retry storm. You just saved $0.05`,
+        cost_saved: costSavedStr,
+        cost_saved_usd: costSavedUsd,
+        message: `🚫 Blocked retry storm. You just saved ${costSavedStr}`,
         hint: 'Add variation to task_hash or step_hash, or wait before retrying.',
         fingerprint_hash: loopData.fingerprint_hash ?? null,
         trust_score: trustScore,
@@ -306,6 +309,7 @@ checkRoutes.post('/v1/governor/check', async (c) => {
         c.header('cache-control', 'no-store');
         c.header('X-Proceedgate-Loop-Detected', 'true');
 
+        const grayCostSaved = Math.max(0.01, loopData.cost_window_usd ?? 0.05);
         const logBody = JSON.stringify({
           id: makeDecisionId(),
           timestamp: new Date().toISOString(),
@@ -315,7 +319,7 @@ checkRoutes.post('/v1/governor/check', async (c) => {
           decision: 'blocked_storm',
           latency_ms: Date.now() - startMs,
           pattern_count: loopData.count,
-          cost_saved_usd: 0.03,
+          cost_saved_usd: grayCostSaved,
           ai_reasoning: grayDecision.reasoning,
           zone: 'gray',
           ai_decided: grayDecision.ai_decided,
@@ -361,8 +365,8 @@ checkRoutes.post('/v1/governor/check', async (c) => {
           zone: 'gray',
           ai_decided: grayDecision.ai_decided,
           ai_model: grayDecision.model,
-          cost_saved: '$0.03',
-          cost_saved_usd: 0.03,
+          cost_saved: `$${grayCostSaved.toFixed(2)}`,
+          cost_saved_usd: grayCostSaved,
           message: `🤖 AI blocked suspicious pattern (${loopData.count} requests in gray zone)`,
           hint: 'AI analyzed timing patterns and decided to block. Vary your request timing or add variation to step_hash.',
           ai_reasoning: grayDecision.reasoning,
@@ -1005,6 +1009,9 @@ checkRoutes.post('/v1/demo/check', async (c) => {
       doubles: [1, latencyMs],
     });
 
+    const costSavedUsd = Math.max(0.01, loopData.cost_window_usd ?? 0.05);
+    const costSavedStr = `$${costSavedUsd.toFixed(2)}`;
+
     // Real AI reasoning (Workers AI) with template fallback
     const reasoning = await generateReasoningWithAI(c.env, {
       decision: 'blocked_storm',
@@ -1012,7 +1019,7 @@ checkRoutes.post('/v1/demo/check', async (c) => {
       actor_id: 'demo-user',
       pattern_count: loopData.count,
       window_seconds: 60,
-      cost_saved_usd: 0.05,
+      cost_saved_usd: costSavedUsd,
       task_hash,
       step_hash,
     });
@@ -1032,7 +1039,7 @@ checkRoutes.post('/v1/demo/check', async (c) => {
           decision: 'blocked_storm',
           latency_ms: latencyMs,
           pattern_count: loopData.count,
-          cost_saved_usd: 0.05,
+          cost_saved_usd: costSavedUsd,
           ai_reasoning: reasoning.ai_reasoning,
           zone: 'storm',
         }),
@@ -1048,8 +1055,8 @@ checkRoutes.post('/v1/demo/check', async (c) => {
         reason: 'Too many identical requests. ProceedGate caught the storm!',
         pattern_count: loopData.count,
         zone: 'storm',
-        cost_saved_usd: 0.05,
-        message: '🚫 Blocked retry storm. You just saved $0.05',
+        cost_saved_usd: costSavedUsd,
+        message: `🚫 Blocked retry storm. You just saved ${costSavedStr}`,
         hint: 'Change task_hash/step_hash to vary the pattern, or wait 60 s.',
         ...reasoning,
       },
