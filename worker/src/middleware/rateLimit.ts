@@ -1,48 +1,58 @@
 import type { MiddlewareHandler } from 'hono';
 import type { Env, Vars } from '../types.js';
 import { getRateLimitCheckPerMinute, getRateLimitBillingPerMinute } from '../lib/config.js';
+import { getBillingStub, doUrl } from '../lib/do.js';
 
 type RateLimitBucket = {
   count: number;
   resetAt: number;
 };
 
-// In-memory rate limit store (per isolate)
-// In production, consider using Durable Objects or external store for distributed rate limiting
-const rateLimitStore = new Map<string, RateLimitBucket>();
+const localRateLimitStore = new Map<string, RateLimitBucket>();
 
-// Cleanup old entries periodically
-let lastCleanup = Date.now();
-const CLEANUP_INTERVAL_MS = 60_000;
-
-function cleanupExpired(): void {
+function getLocalRateLimitBucket(key: string, windowMs: number): RateLimitBucket {
   const now = Date.now();
-  if (now - lastCleanup < CLEANUP_INTERVAL_MS) return;
-  lastCleanup = now;
+  const existing = localRateLimitStore.get(key);
 
-  for (const [key, bucket] of rateLimitStore) {
-    if (bucket.resetAt <= now) {
-      rateLimitStore.delete(key);
-    }
+  if (!existing || now >= existing.resetAt) {
+    const next: RateLimitBucket = {
+      count: 1,
+      resetAt: now + windowMs,
+    };
+    localRateLimitStore.set(key, next);
+    return next;
   }
+
+  const updated: RateLimitBucket = {
+    count: existing.count + 1,
+    resetAt: existing.resetAt,
+  };
+  localRateLimitStore.set(key, updated);
+  return updated;
 }
 
-function getRateLimitBucket(key: string, windowMs: number): RateLimitBucket {
-  cleanupExpired();
+async function getDistributedRateLimitBucket(
+  env: Env,
+  key: string,
+  limit: number,
+  windowMs: number,
+): Promise<RateLimitBucket | null> {
+  try {
+    const stub = getBillingStub(env);
+    const res = await stub.fetch(doUrl('/rate-limit/check'), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ key, limit, window_ms: windowMs }),
+    }).catch(() => null);
 
-  const now = Date.now();
-  const existing = rateLimitStore.get(key);
+    if (!res) return null;
 
-  if (existing && existing.resetAt > now) {
-    return existing;
+    const body = (await res.json().catch(() => null)) as { ok?: boolean; count?: number; reset_at_ms?: number } | null;
+    if (!body || body.ok !== true || typeof body.count !== 'number' || typeof body.reset_at_ms !== 'number') return null;
+    return { count: body.count, resetAt: body.reset_at_ms };
+  } catch {
+    return null;
   }
-
-  const bucket: RateLimitBucket = {
-    count: 0,
-    resetAt: now + windowMs,
-  };
-  rateLimitStore.set(key, bucket);
-  return bucket;
 }
 
 function getClientIdentifier(c: { req: { header: (name: string) => string | undefined } }): string {
@@ -83,9 +93,9 @@ export function createRateLimiter(config: RateLimitConfig): MiddlewareHandler<{ 
     }
 
     const key = `${config.keyPrefix}:${identifier}`;
-    const bucket = getRateLimitBucket(key, config.windowMs);
-
-    bucket.count++;
+    const bucket =
+      (await getDistributedRateLimitBucket(c.env, key, config.limit, config.windowMs)) ??
+      getLocalRateLimitBucket(key, config.windowMs);
 
     // Set rate limit headers
     const remaining = Math.max(0, config.limit - bucket.count);
@@ -144,5 +154,5 @@ export function billingRateLimiter(env: Env): MiddlewareHandler<{ Bindings: Env;
  * Clear rate limit store (useful for testing).
  */
 export function clearRateLimitStore(): void {
-  rateLimitStore.clear();
+  localRateLimitStore.clear();
 }
