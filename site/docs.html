@@ -132,7 +132,7 @@
       <a class="sidebar-link" href="#balance">GET /v1/billing/balance</a>
       <a class="sidebar-link" href="#usage">GET /v1/billing/usage</a>
       <a class="sidebar-link" href="#budget">PUT /v1/billing/budget</a>
-      <a class="sidebar-link" href="#webhook">PUT /v1/billing/webhook</a>
+      <a class="sidebar-link" href="#webhook">Webhooks (storm.detected)</a>
       <a class="sidebar-link" href="#session-create">POST /v1/governor/session</a>
       <a class="sidebar-link" href="#session-get">GET /v1/governor/session/:id</a>
       <a class="sidebar-link" href="#session-close">DELETE /v1/governor/session/:id</a>
@@ -412,12 +412,52 @@ x402-chain: BSC</pre>
 }</pre>
 
     <!-- PUT /v1/billing/webhook -->
-    <h2 id="webhook"><span class="method post">PUT</span>/v1/billing/webhook</h2>
-    <p>Register a webhook URL for real-time alerts (storm blocks, low credits, budget exceeded). Supports Slack, Discord, and custom HTTP endpoints.</p>
-<pre>curl -X PUT https://governor.proceedgate.dev/v1/billing/webhook \
+    <h2 id="webhook"><span class="method post">PUT</span>/v1/billing/:workspaceId/webhook</h2>
+    <p>Configure a webhook endpoint for real-time governance alerts. Webhooks are HMAC-SHA256 signed — verify the <code>X-ProceedGate-Signature</code> header to ensure authenticity.</p>
+<pre>curl -X PUT https://governor.proceedgate.dev/v1/billing/YOUR_WORKSPACE_ID/webhook \
   -H <span class="y">"Authorization: Bearer $PG_KEY"</span> \
   -H <span class="y">"Content-Type: application/json"</span> \
-  -d <span class="g">'{ "workspace_id": "free-abc123", "webhook_url": "https://hooks.slack.com/services/..." }'</span></pre>
+  -d <span class="g">'{ "webhook_url": "https://your-server.com/webhook", "webhook_secret": "whsec_...", "events": ["storm.detected", "credits.low"] }'</span></pre>
+
+    <h3>Supported events</h3>
+    <table>
+      <tr><th>Event</th><th>When fired</th></tr>
+      <tr><td><code>storm.detected</code></td><td>Loop enters storm zone (&gt;10 identical requests/min). Includes <code>block_count</code>, <code>estimated_cost_saved_usd</code>, and behavioral fingerprint.</td></tr>
+      <tr><td><code>credits.low</code></td><td>Credits fall below threshold</td></tr>
+      <tr><td><code>subscription.created</code></td><td>New subscription activated</td></tr>
+      <tr><td><code>subscription.renewed</code></td><td>Subscription extended</td></tr>
+      <tr><td><code>subscription.expiring</code></td><td>7 days before expiration</td></tr>
+      <tr><td><code>budget.exceeded</code></td><td>Daily/weekly/monthly budget limit hit</td></tr>
+    </table>
+
+    <h3>storm.detected payload</h3>
+<pre>{
+  <span class="t">"event"</span>: <span class="y">"storm.detected"</span>,
+  <span class="t">"timestamp"</span>: <span class="y">"2026-05-01T12:34:56.000Z"</span>,
+  <span class="t">"data"</span>: {
+    <span class="t">"workspace_id"</span>: <span class="y">"w1"</span>,
+    <span class="t">"request_hash"</span>: <span class="y">"sha256:abc123..."</span>,
+    <span class="t">"block_count"</span>: 47,
+    <span class="t">"total_blocked_ms"</span>: 5230,
+    <span class="t">"estimated_cost_saved_usd"</span>: 2.35,
+    <span class="t">"alert_severity"</span>: <span class="y">"high"</span>,
+    <span class="t">"fingerprint"</span>: { <span class="t">"burst_index"</span>: 0.87, <span class="t">"entropy"</span>: 0.341, <span class="t">"fanout_ratio"</span>: 2.1 }
+  }
+}</pre>
+
+    <h3>Signature verification (Node.js)</h3>
+<pre><span class="d">// Verify incoming webhook from ProceedGate</span>
+<span class="k">import</span> { createHmac, timingSafeEqual } <span class="k">from</span> <span class="y">'node:crypto'</span>;
+
+<span class="k">function</span> <span class="b">verifyWebhook</span>(rawBody, signatureHeader, secret) {
+  <span class="k">const</span> expected = createHmac(<span class="y">'sha256'</span>, secret).update(rawBody).digest(<span class="y">'hex'</span>);
+  <span class="k">const</span> a = Buffer.from(<span class="y">'sha256='</span> + expected);
+  <span class="k">const</span> b = Buffer.from(signatureHeader);
+  <span class="k">return</span> a.length === b.length &amp;&amp; timingSafeEqual(a, b);
+}
+<span class="d">// Usage: verifyWebhook(rawBody, req.headers['x-proceedgate-signature'], SECRET)</span></pre>
+
+    <p>See <a href="https://github.com/proceedgate/agent-cost-governor/blob/main/examples/storm-webhook-slack.mjs">examples/storm-webhook-slack.mjs</a> for a complete Slack integration with deduplication and severity-based routing.</p>
 
     <!-- Sessions -->
     <h2 id="session-create"><span class="method post">POST</span>/v1/governor/session</h2>

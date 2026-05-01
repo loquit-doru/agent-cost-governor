@@ -337,6 +337,201 @@ Session response headers on check:
 
 ---
 
+## Webhooks (v1.2)
+
+Configure webhooks to receive real-time notifications for governance events. Webhooks are HTTP POST requests signed with HMAC-SHA256.
+
+### `PUT /v1/billing/:workspaceId/webhook`
+
+Configure webhook endpoint and events.
+
+Request (JSON):
+
+```json
+{
+  "webhook_url": "https://example.com/webhooks/proceedgate",
+  "webhook_secret": "whsec_abc123xyz789",
+  "events": ["storm.detected", "credits.low", "subscription.expiring"]
+}
+```
+
+Response `200`:
+
+```json
+{
+  "ok": true
+}
+```
+
+### `GET /v1/billing/:workspaceId/webhook`
+
+Retrieve current webhook configuration.
+
+Response `200`:
+
+```json
+{
+  "ok": true,
+  "webhook_url": "https://example.com/webhooks/proceedgate",
+  "webhook_secret": "***configured***",
+  "events": ["storm.detected", "credits.low", "subscription.expiring"]
+}
+```
+
+### Webhook payload format
+
+All webhook payloads are JSON POST requests with these headers:
+
+```
+Content-Type: application/json
+User-Agent: ProceedGate-Webhook/1.0
+X-ProceedGate-Event: {event-type}
+X-ProceedGate-Timestamp: {iso-timestamp}
+X-ProceedGate-Signature: sha256={hmac-hex}
+```
+
+Signature verification:
+
+1. Compute: `hmac = HMAC-SHA256(webhook_secret, request_body)`
+2. Compare: `X-ProceedGate-Signature` header value matches `sha256={hex(hmac)}`
+
+### Webhook events
+
+#### `storm.detected`
+
+Emitted when loop detection enters the **storm zone** (>10 identical requests per minute).
+
+Payload:
+
+```json
+{
+  "event": "storm.detected",
+  "timestamp": "2026-03-29T12:34:56.000Z",
+  "data": {
+    "workspace_id": "w1",
+    "request_hash": "sha256:abc123...",
+    "block_count": 47,
+    "total_blocked_ms": 5230,
+    "estimated_cost_saved_usd": 2.35,
+    "alert_severity": "high",
+    "fingerprint": {
+      "burst_index": 0.87,
+      "entropy": 0.341,
+      "fanout_ratio": 2.1
+    }
+  }
+}
+```
+
+Use case: Forward to Slack, PagerDuty, or email for real-time storm alerts.
+
+#### `credits.low`
+
+Emitted when credits fall below a threshold.
+
+Payload:
+
+```json
+{
+  "event": "credits.low",
+  "timestamp": "2026-03-29T12:34:56.000Z",
+  "data": {
+    "workspace_id": "w1",
+    "credits_remaining": 50,
+    "threshold_percent": 20,
+    "max_credits": 1000,
+    "usage_percent": 95
+  }
+}
+```
+
+#### `subscription.created`
+
+Emitted when a new subscription is created.
+
+Payload:
+
+```json
+{
+  "event": "subscription.created",
+  "timestamp": "2026-03-29T12:34:56.000Z",
+  "data": {
+    "workspace_id": "w1",
+    "plan": "pro",
+    "months": 12,
+    "credits": 10000,
+    "expires_at": "2027-03-29T12:34:56.000Z",
+    "tx_hash": "0x..."
+  }
+}
+```
+
+#### `subscription.renewed`
+
+Emitted when a subscription is auto-renewed or manually extended.
+
+Payload:
+
+```json
+{
+  "event": "subscription.renewed",
+  "timestamp": "2026-03-29T12:34:56.000Z",
+  "data": {
+    "workspace_id": "w1",
+    "plan": "pro",
+    "months": 12,
+    "credits_added": 10000,
+    "new_expires_at": "2027-03-29T12:34:56.000Z",
+    "tx_hash": "0x..."
+  }
+}
+```
+
+#### `subscription.expiring`
+
+Emitted 7 days before subscription expiration.
+
+Payload:
+
+```json
+{
+  "event": "subscription.expiring",
+  "timestamp": "2026-03-29T12:34:56.000Z",
+  "data": {
+    "workspace_id": "w1",
+    "expires_at": "2026-04-05T12:34:56.000Z",
+    "days_remaining": 7
+  }
+}
+```
+
+#### `budget.exceeded`
+
+Emitted when budget limit is breached.
+
+Payload:
+
+```json
+{
+  "event": "budget.exceeded",
+  "timestamp": "2026-03-29T12:34:56.000Z",
+  "data": {
+    "workspace_id": "w1",
+    "limit_type": "daily",
+    "limit": 10,
+    "current_usage": 12
+  }
+}
+```
+
+### Webhook delivery guarantees
+
+- **At-least-once**: Webhooks may be delivered multiple times; implement idempotency.
+- **No retry**: If delivery fails, the webhook is not retried. Implement polling for critical workflows.
+- **Fire-and-forget**: Failed webhook deliveries do not block the governor response.
+
+---
+
 ## OpenAPI discovery (v1.1)
 
 `GET /openapi.json` returns a standard OpenAPI 3.1 spec with custom extensions for machine-readable discovery:

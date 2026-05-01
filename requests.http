@@ -138,3 +138,34 @@ Authorization: Bearer {{apiKey}}
     "attempt_in_window": 1
   }
 }
+
+### ──────────────────────────────────────────────────────────────────────────
+### Webhooks (v1.2)
+### ──────────────────────────────────────────────────────────────────────────
+
+### Configure webhook for real-time storm detection alerts
+### Use https://webhook.site/ for testing
+@webhookUrl = https://webhook.site/YOUR_UNIQUE_ID
+PUT {{baseUrl}}/v1/billing/{{workspaceId}}/webhook
+content-type: application/json
+
+{
+  "webhook_url": "{{webhookUrl}}",
+  "webhook_secret": "whsec_test_12345_abcdef",
+  "events": ["storm.detected", "credits.low", "subscription.expiring"]
+}
+
+### Get webhook configuration
+GET {{baseUrl}}/v1/billing/{{workspaceId}}/webhook
+
+### Trigger loop detection to test storm.detected webhook
+### First, set webhook_url above, then run this repeatedly to trigger storm zone
+POST {{baseUrl}}/v1/billing/{{workspaceId}}/check-loop
+content-type: application/json
+
+{
+  "pattern_hash": "sha256:test_pattern_abc",
+  "window_ms": 60000,
+  "max_count": 10,
+  "cost_usd": 0.10
+}

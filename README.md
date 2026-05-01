@@ -71,6 +71,68 @@ ProceedGate doesn't just count requests — it analyzes agent behavior with 7 si
 
 Response headers expose governance state: `X-Proceedgate-Zone`, `X-Proceedgate-AI-Decided`, `X-Proceedgate-AI-Model`.
 
+## Real-time webhooks (storm.detected)
+
+Subscribe to governance events to get instant alerts when a loop is detected, credits run low, or a subscription is expiring.
+
+### Configure a webhook endpoint
+
+```bash
+curl -X PUT https://governor.proceedgate.dev/v1/billing/YOUR_WORKSPACE_ID/webhook \
+  -H "Authorization: Bearer $PROCEEDGATE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "webhook_url": "https://your-server.com/webhook",
+    "webhook_secret": "whsec_yourSecret",
+    "events": ["storm.detected", "credits.low", "subscription.expiring"]
+  }'
+```
+
+### Events
+
+| Event | When |
+|-------|------|
+| `storm.detected` | Loop enters storm zone (>10 identical requests/min) — includes `block_count`, `estimated_cost_saved_usd`, behavioral fingerprint |
+| `credits.low` | Credits fall below threshold |
+| `subscription.created` | New subscription activated |
+| `subscription.renewed` | Subscription extended |
+| `subscription.expiring` | 7 days before expiration |
+| `budget.exceeded` | Daily/weekly/monthly budget limit hit |
+
+### storm.detected payload
+
+```json
+{
+  "event": "storm.detected",
+  "timestamp": "2026-05-01T12:34:56.000Z",
+  "data": {
+    "workspace_id": "w1",
+    "request_hash": "sha256:abc123...",
+    "block_count": 47,
+    "total_blocked_ms": 5230,
+    "estimated_cost_saved_usd": 2.35,
+    "alert_severity": "high",
+    "fingerprint": { "burst_index": 0.87, "entropy": 0.341, "fanout_ratio": 2.1 }
+  }
+}
+```
+
+All webhooks are HMAC-SHA256 signed via the `X-ProceedGate-Signature` header.
+
+### Slack integration example
+
+```bash
+SLACK_WEBHOOK_URL=https://hooks.slack.com/... \
+PROCEEDGATE_WEBHOOK_SECRET=whsec_yourSecret \
+node examples/storm-webhook-slack.mjs
+```
+
+See [`examples/storm-webhook-slack.mjs`](examples/storm-webhook-slack.mjs) for a complete server with signature verification, deduplication, and Slack message formatting.
+
+See [`SPEC.md`](SPEC.md) for the full webhook specification.
+
+---
+
 ## Session-based budget tracking
 
 Open a session with a budget cap → make checks → cumulative spend tracked → close session.
