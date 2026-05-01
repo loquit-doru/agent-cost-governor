@@ -77,8 +77,9 @@ API_AUTH_MODE = "workspace"
 
 # Production billing: prepaid credits.
 BILLING_MODE = "credits"
-# Price per check in microUSDC (1e-6 USDC). Default is 10 if unset.
-BILLING_CREDIT_COST_MICROUSDC = "10"
+# Price per check in microUSDC (1e-6 USDC).
+# Aligned with Starter: $19 / 25,000 checks = $0.00076 per check = 760 microUSDC.
+BILLING_CREDIT_COST_MICROUSDC = "760"
 
 # Billing recipient (credits top-ups)
 BILLING_RECIPIENT = "0x607Fc9D41858Aa23065275043698a9262F8f9bf9"

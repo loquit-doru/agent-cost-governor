@@ -4,20 +4,30 @@
  * Verifiable on-chain audit trail for MPP payment records.
  * Each CostLedger instance is keyed by agentId and stores per-operation
  * cost entries with tamper-evident storage keys.
+ *
+ * Retention: entries older than RETENTION_DAYS are purged by a daily alarm.
  */
 
 import { DurableObject } from 'cloudflare:workers';
 import type { CostEntry, CostSummary } from '../types.js';
+
+const RETENTION_DAYS = 90;
+const MS_PER_DAY = 86_400_000;
 
 export class CostLedger extends DurableObject {
   // -------------------------------------------------------------------------
   // Public API (called by the worker)
   // -------------------------------------------------------------------------
 
-  /** Persist a single cost entry. */
+  /** Persist a single cost entry. Schedules alarm on first write. */
   async record(entry: CostEntry): Promise<void> {
     const key = `cost:${entry.timestamp}:${entry.operationType}`;
     await this.ctx.storage.put(key, entry);
+    // Ensure daily cleanup alarm is scheduled
+    const existing = await this.ctx.storage.getAlarm();
+    if (existing === null) {
+      await this.ctx.storage.setAlarm(Date.now() + MS_PER_DAY);
+    }
   }
 
   /** Sum all recorded USD amounts. */
@@ -59,6 +69,28 @@ export class CostLedger extends DurableObject {
     return Array.from(all.values());
   }
 
+  /** Delete entries older than RETENTION_DAYS. Returns count deleted. */
+  async purgeOldEntries(): Promise<number> {
+    const cutoff = Date.now() - RETENTION_DAYS * MS_PER_DAY;
+    const all = await this.ctx.storage.list<CostEntry>({ prefix: 'cost:' });
+    const keysToDelete: string[] = [];
+    for (const [key, entry] of all) {
+      if (entry.timestamp < cutoff) {
+        keysToDelete.push(key);
+      }
+    }
+    if (keysToDelete.length > 0) {
+      await this.ctx.storage.delete(keysToDelete);
+    }
+    return keysToDelete.length;
+  }
+
+  /** Daily alarm: purge old entries and reschedule. */
+  override async alarm(): Promise<void> {
+    await this.purgeOldEntries();
+    await this.ctx.storage.setAlarm(Date.now() + MS_PER_DAY);
+  }
+
   // -------------------------------------------------------------------------
   // fetch() — internal HTTP interface used by worker routes
   // -------------------------------------------------------------------------
@@ -85,6 +117,12 @@ export class CostLedger extends DurableObject {
       const limit = parseInt(url.searchParams.get('limit') ?? '50', 10);
       const history = await this.getHistory(limit);
       return Response.json(history);
+    }
+
+    // POST /cleanup — manual trigger (admin use)
+    if (request.method === 'POST' && url.pathname === '/cleanup') {
+      const deleted = await this.purgeOldEntries();
+      return Response.json({ ok: true, deleted });
     }
 
     return new Response('not_found', { status: 404 });

@@ -89,11 +89,11 @@ export const PLAN_IDS = {
 
 export const CREDITS = {
   /** Free tier credits */
-  FREE_TIER: 2000,
+  FREE_TIER: 5000,
   /** Starter plan credits */
   STARTER: 25000,
   /** Pro plan credits */
-  PRO: 100000,
-  /** Enterprise plan credits */
-  ENTERPRISE: 500000,
+  PRO: 1000000,
+  /** Enterprise/Scale plan credits */
+  ENTERPRISE: 5_000_000,
 } as const;
