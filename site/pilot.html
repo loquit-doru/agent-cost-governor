@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/jpeg" href="favicon.jpg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ProceedGate — Scraping cost firewall pilot</title>
+  <meta name="description" content="ProceedGate pilot for scraping teams: block retry storms before paid API and proxy calls. Apply by email; no silent form submission." />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #09090b; --surface: #111113; --border: #1f1f23; --border-hi: #2a2a2f;
+      --tx: #fafafa; --tx-2: #a1a1aa; --tx-3: #52525b;
+      --teal: #2dd4bf; --teal-dim: rgba(45,212,191,0.10);
+      --red: #f87171; --green: #4ade80; --yellow: #fbbf24;
+      --r: 6px; --mono: 'SF Mono','Fira Code','Cascadia Code',Consolas,monospace;
+    }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--tx); font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif; font-size: 15px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+    a { color: inherit; text-decoration: none; }
+
+    nav { position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; min-height: 56px; border-bottom: 1px solid var(--border); background: rgba(9,9,11,0.85); backdrop-filter: blur(12px); flex-wrap: wrap; gap: 8px; row-gap: 10px; }
+    .nav-logo { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 15px; letter-spacing: -0.01em; }
+    .nav-links { display: flex; align-items: center; gap: 4px; list-style: none; flex-wrap: wrap; justify-content: flex-end; max-width: 100%; }
+    .nav-links a { padding: 6px 12px; border-radius: var(--r); font-size: 14px; color: var(--tx-2); transition: color 0.15s, background 0.15s; }
+    .nav-links a:hover { color: var(--tx); background: var(--surface); }
+    .nav-links a.active { color: var(--teal); }
+    .nav-right { display: flex; align-items: center; gap: 8px; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 7px 14px; border-radius: var(--r); font-size: 14px; font-weight: 500; cursor: pointer; border: none; transition: opacity 0.15s, background 0.15s, border-color 0.15s, color 0.15s; text-decoration: none; }
+    .btn-ghost { background: transparent; color: var(--tx-2); border: 1px solid var(--border); }
+    .btn-ghost:hover { color: var(--tx); border-color: var(--border-hi); }
+    .btn-primary { background: var(--teal); color: #09090b; font-weight: 600; }
+    .btn-primary:hover { opacity: 0.88; }
+    .btn-lg { padding: 10px 22px; font-size: 15px; }
+
+    .container { max-width: 920px; margin: 0 auto; padding: 0 24px; }
+    .container-wide { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+    section { padding: 56px 0; }
+    section + section { border-top: 1px solid var(--border); }
+
+    .label { font-size: 11.5px; font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.1em; color: var(--teal); margin-bottom: 12px; }
+    h1 { font-size: clamp(30px, 5vw, 46px); font-weight: 700; letter-spacing: -0.035em; line-height: 1.08; margin-bottom: 16px; }
+    h2 { font-size: clamp(20px, 3vw, 28px); font-weight: 700; letter-spacing: -0.025em; margin-bottom: 12px; }
+    h3 { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+    .sub { font-size: 16px; color: var(--tx-2); max-width: 640px; line-height: 1.62; }
+
+    .hero { padding: 48px 0 32px; text-align: center; position: relative; }
+    .hero::before { content: ''; position: absolute; top: -120px; left: 50%; transform: translateX(-50%); width: 520px; height: 480px; background: radial-gradient(circle, rgba(45,212,191,0.06) 0%, transparent 65%); pointer-events: none; }
+    .hero-inner { position: relative; z-index: 1; }
+    .badge { display: inline-block; padding: 6px 14px; border-radius: 99px; font-size: 12px; font-family: var(--mono); color: var(--teal); border: 1px solid rgba(45,212,191,0.35); background: var(--teal-dim); margin-bottom: 16px; }
+    .hero-cta { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 28px; }
+
+    .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+    .card p { font-size: 14px; color: var(--tx-2); line-height: 1.55; margin: 0; }
+
+    .stack-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .stack-pill { font-family: var(--mono); font-size: 12px; padding: 6px 12px; border-radius: 99px; border: 1px solid var(--border); color: var(--tx-2); }
+
+    .code-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-top: 16px; }
+    .code-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: 12px; font-family: var(--mono); color: var(--tx-3); }
+    .code-wrap pre { padding: 18px 20px; font-family: var(--mono); font-size: 12.5px; line-height: 1.78; overflow-x: auto; color: var(--tx-2); }
+    .ck { color: #c084fc; } .cf { color: #60a5fa; } .cs { color: #86efac; } .cc { color: #52525b; }
+
+    .form-note {
+      font-size: 13px; color: var(--tx-2); padding: 14px 16px; border: 1px solid var(--border); border-radius: 10px; background: #0c0c0e; margin-bottom: 20px; line-height: 1.55;
+    }
+    .form-note code { font-size: 12px; }
+    .field { margin-bottom: 16px; }
+    .field label { display: block; font-size: 13px; font-weight: 500; color: var(--tx-2); margin-bottom: 6px; }
+    .field input, .field textarea, .field select {
+      width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--bg); color: var(--tx); font-size: 15px; font-family: inherit;
+    }
+    .field textarea { min-height: 100px; resize: vertical; }
+
+    .cta-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 40px 32px; text-align: center; }
+    .cta-box p { color: var(--tx-2); margin-bottom: 20px; }
+
+    footer { border-top: 1px solid var(--border); padding: 32px 0; }
+    .foot { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+    .foot-links { display: flex; gap: 20px; list-style: none; flex-wrap: wrap; }
+    .foot-links a { font-size: 13px; color: var(--tx-3); text-decoration: underline; text-underline-offset: 3px; }
+    .foot-links a:hover { color: var(--tx-2); }
+    .foot-copy { font-size: 12.5px; color: var(--tx-3); }
+
+    ul.bullets { margin: 12px 0 0 20px; color: var(--tx-2); font-size: 14px; }
+    ul.bullets li { margin-bottom: 8px; }
+
+    .glance {
+      max-width: 920px; margin: 0 auto; padding: 0 24px 8px;
+    }
+    .glance-inner {
+      border: 1px solid var(--border); border-radius: 12px; background: var(--surface);
+      padding: 16px 18px; font-size: 14px; color: var(--tx-2); line-height: 1.55;
+    }
+    .glance-inner dl { margin: 0; display: grid; gap: 10px; }
+    .glance-inner dt { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--teal); margin: 0; }
+    .glance-inner dd { margin: 0 0 0 0; padding: 0 0 8px 0; border-bottom: 1px solid var(--border); color: var(--tx-2); }
+    .glance-inner dd:last-of-type { border-bottom: none; padding-bottom: 0; }
+
+    @media (max-width: 768px) {
+      .nav-links { width: 100%; justify-content: center; order: 3; padding-bottom: 6px; }
+      .nav-right { width: 100%; justify-content: center; order: 2; flex-wrap: wrap; }
+      .nav-logo { order: 1; }
+      .hero-cta { flex-direction: column; align-items: stretch; }
+      .hero-cta .btn { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-logo">
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+      <rect width="20" height="20" rx="5" fill="#2dd4bf"/>
+      <path d="M6 10l3 3 5-6" stroke="#09090b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    ProceedGate
+  </a>
+  <ul class="nav-links">
+    <li><a href="docs.html">Docs</a></li>
+    <li><a href="use-cases.html">Use cases</a></li>
+    <li><a href="scraping.html">Scraping</a></li>
+    <li><a href="pilot.html" class="active">Pilot</a></li>
+  </ul>
+  <div class="nav-right">
+    <a href="dashboard.html" class="btn btn-ghost">Dashboard</a>
+    <a href="pay.html" class="btn btn-primary">Get API key</a>
+  </div>
+</nav>
+
+<section class="glance" aria-label="At a glance">
+  <div class="glance-inner">
+    <dl>
+      <dt>Problem</dt>
+      <dd>Retry storms, 429 loops, and pagination bugs burn paid API, SERP, actor, and proxy quota.</dd>
+      <dt>Who it is for</dt>
+      <dd>Builders running Apify, SerpAPI, Firecrawl, Crawlee, Playwright, Puppeteer, or custom scrapers.</dd>
+      <dt>When you need it</dt>
+      <dd>Right before each expensive outbound call — especially when the same <code>task_key</code> retries.</dd>
+      <dt>When your scraper loops</dt>
+      <dd>Repeated identical patterns hit gray zone, then a hard block (429 / loop_detected) so the vendor call does not run.</dd>
+      <dt>How to join the pilot</dt>
+      <dd>Fill the form below and press the button: it opens an email to us (no server upload yet). Or email <a href="mailto:support@proceedgate.dev" style="color:var(--teal);text-decoration:underline;">support@proceedgate.dev</a> with the same fields.</dd>
+    </dl>
+  </div>
+</section>
+
+<section class="hero">
+  <div class="container hero-inner">
+    <div class="badge">Pilot — limited slots · email to apply</div>
+    <p class="label">Scraping cost firewall</p>
+    <h1>Stop runaway scraper costs before they drain your quota.</h1>
+    <p class="sub" style="margin:0 auto;">
+      ProceedGate adds one check before each expensive request. If your scraper retries the same URL, query, or task too many times, it blocks the loop with 429 before the paid call happens.
+    </p>
+    <div class="hero-cta">
+      <a href="#pilot-form" class="btn btn-primary btn-lg">Join the pilot</a>
+      <a href="retry-storm.html" class="btn btn-ghost btn-lg">Simulate a retry storm</a>
+    </div>
+  </div>
+</section>
+
+<section id="blocks">
+  <div class="container-wide">
+    <p class="label">What ProceedGate blocks</p>
+    <h2>Retry storms, pagination loops, and shared budget drain</h2>
+    <p class="sub" style="margin-bottom:28px;">Pain-first: catch the patterns that quietly burn SerpAPI credits, Apify CU, proxy GB, and Firecrawl pages.</p>
+    <div class="cards">
+      <div class="card">
+        <h3>Same URL retry storms</h3>
+        <p>403s, TLS errors, and flaky targets trigger exponential backoff that still slams the same URL until your actor gives up.</p>
+      </div>
+      <div class="card">
+        <h3>429 retry loops</h3>
+        <p>Rate limits plus aggressive retries create a quota firehose — especially when every “retry” is another billable search.</p>
+      </div>
+      <div class="card">
+        <h3>Pagination loops</h3>
+        <p>Broken “next” links and template bugs crawl “page 1” forever — each pass is another paid fetch.</p>
+      </div>
+      <div class="card">
+        <h3>Stuck AI agent tasks</h3>
+        <p>Tool-calling agents can hammer the same tool input; gate before the tool hits your external API.</p>
+      </div>
+      <div class="card">
+        <h3>Shared API / proxy budget drain</h3>
+        <p>One bad job should not empty the workspace key everyone else uses. Hard-stop the loop, keep the rest of the fleet moving.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="stack">
+  <div class="container">
+    <p class="label">Built for your stack</p>
+    <h2>Drop-in ahead of the vendors you already pay</h2>
+    <p class="sub">ProceedGate is HTTP-native — wrap the call site you control (runner, actor, gateway, or small proxy).</p>
+    <div class="stack-list">
+      <span class="stack-pill">Apify</span>
+      <span class="stack-pill">SerpAPI</span>
+      <span class="stack-pill">Firecrawl</span>
+      <span class="stack-pill">Crawlee</span>
+      <span class="stack-pill">Playwright</span>
+      <span class="stack-pill">Puppeteer</span>
+      <span class="stack-pill">Custom scrapers</span>
+    </div>
+  </div>
+</section>
+
+<section id="integration">
+  <div class="container">
+    <p class="label">Integration</p>
+    <h2>Three-line Node pattern</h2>
+    <p class="sub">Below matches the published <code>@proceedgate/node</code> API (<code>sdk-node/README.md</code> in this repo). Swap in your workspace key and policy id.</p>
+    <div class="code-wrap">
+      <div class="code-head"><span>Example · gate before paid tool call</span></div>
+      <pre><span class="ck">import</span> { createProceedGateClient, requireGateStepOk } <span class="ck">from</span> <span class="cs">'@proceedgate/node'</span>;
+
+<span class="ck">const</span> client = createProceedGateClient({
+  baseUrl: <span class="cs">'https://governor.proceedgate.dev'</span>,
+  actor: { id: <span class="cs">'scraper-1'</span>, project: <span class="cs">'your-workspace-id'</span> },
+  apiKey: process.env.PG_KEY,
+});
+
+<span class="cc">// Before SerpAPI / Apify / Firecrawl / proxy call:</span>
+<span class="ck">await</span> <span class="cf">requireGateStepOk</span>(client, {
+  policyId: <span class="cs">'retry_friction_v1'</span>,
+  action: <span class="cs">'tool_call'</span>,
+  context: {
+    attempt_in_window: attemptNo,
+    window_seconds: <span class="cs">60</span>,
+    tool: <span class="cs">'serp:keyword:page-1'</span>,
+  },
+});</pre>
+    </div>
+    <p style="margin-top:14px;font-size:13px;color:var(--tx-3);">
+      Raw HTTP checks against <code>https://governor.proceedgate.dev/v1/check</code> are documented on <a href="docs.html" style="color:var(--teal);text-decoration:underline;">Docs</a> and in <a href="use-cases.html" style="color:var(--teal);text-decoration:underline;">Use cases</a>.
+    </p>
+  </div>
+</section>
+
+<section id="offer">
+  <div class="container">
+    <p class="label">Pilot offer</p>
+    <h2>What you get</h2>
+    <ul class="bullets">
+      <li><strong style="color:var(--tx)">Workspace access</strong> — same signup flow as everyone else on <a href="pay.html" style="color:var(--teal);text-decoration:underline;">pay.html</a> (public free tier where applicable); we align on pilot scope in email.</li>
+      <li><strong style="color:var(--tx)">Integration help</strong> — time-boxed pairing on where to insert the gate (actor, gateway, or worker).</li>
+      <li><strong style="color:var(--tx)">Simple report</strong> — blocked checks and rough “paid calls not made” estimates using a methodology we agree in writing (not a finance guarantee).</li>
+      <li><strong style="color:var(--tx)">Optional public case study</strong> — only with your explicit approval; no logos or quotes without sign-off.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="pilot-form">
+  <div class="container">
+    <p class="label">Lead capture</p>
+    <h2>Tell us about your scraper</h2>
+
+    <div class="form-note">
+      <strong style="color:var(--tx)">This is not a hosted form.</strong> The button does not POST to ProceedGate. It only opens your mail app with a draft to <code>support@proceedgate.dev</code>. If nothing opens, copy your answers and email that address manually.
+      <!-- TODO(agent-cost-governor): POST pilot leads to a real endpoint when available (e.g. Worker + KV). Until then, keep this mailto fallback visible. -->
+    </div>
+    <p style="font-size:13px;color:var(--tx-3);margin:-8px 0 16px;">
+      Direct line: <a id="pilot-mailto-direct" href="mailto:support@proceedgate.dev?subject=ProceedGate%20pilot%20inquiry" style="color:var(--teal);text-decoration:underline;">support@proceedgate.dev</a>
+    </p>
+
+    <form id="pilot-lead-form" class="card" style="padding:24px;">
+      <div class="field">
+        <label for="f-name">Name</label>
+        <input id="f-name" name="name" type="text" autocomplete="name" required />
+      </div>
+      <div class="field">
+        <label for="f-email">Email</label>
+        <input id="f-email" name="email" type="email" autocomplete="email" required />
+      </div>
+      <div class="field">
+        <label for="f-company">Company / project</label>
+        <input id="f-company" name="company" type="text" autocomplete="organization" />
+      </div>
+      <div class="field">
+        <label for="f-stack">Scraping stack used</label>
+        <input id="f-stack" name="stack" type="text" placeholder="e.g. Apify + Crawlee, Firecrawl, custom Playwright" />
+      </div>
+      <div class="field">
+        <label for="f-spend">Approximate monthly API / proxy spend</label>
+        <select id="f-spend" name="spend">
+          <option value="">Select range</option>
+          <option>&lt; $100</option>
+          <option>$100 – $500</option>
+          <option>$500 – $2k</option>
+          <option>$2k – $10k</option>
+          <option>&gt; $10k</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="f-storms">Have you had retry storms or quota burn before?</label>
+        <select id="f-storms" name="storms">
+          <option value="">Select</option>
+          <option>Yes — recurring</option>
+          <option>Yes — once or twice</option>
+          <option>Not yet / unsure</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="f-notes">Notes</label>
+        <textarea id="f-notes" name="notes" placeholder="URLs redacted OK. What would you want ProceedGate to block first?"></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary btn-lg" style="width:100%;">Compose email in my mail app</button>
+      <p style="margin-top:14px;font-size:13px;color:var(--tx-3);text-align:center;">
+        Prefer another channel? Reply to the email thread after it sends, or CC the address your team already uses for vendor security reviews.
+      </p>
+    </form>
+  </div>
+</section>
+
+<p class="container" style="padding:20px 24px 32px;font-size:14px;color:var(--tx-3);text-align:center;border-top:1px solid var(--border);">
+  Try the <a href="retry-storm.html" style="color:var(--teal);text-decoration:underline;">labeled retry-storm simulator</a> (client-side only, clearly marked).
+</p>
+
+<footer>
+  <div class="container">
+    <div class="foot">
+      <span class="foot-copy">© 2026 ProceedGate</span>
+      <ul class="foot-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="docs.html">Docs</a></li>
+        <li><a href="use-cases.html">Use cases</a></li>
+        <li><a href="scraping.html">Scraping</a></li>
+        <li><a href="pay.html">Pricing / key</a></li>
+        <li><a href="topup.html">Top up</a></li>
+        <li><a href="mailto:support@proceedgate.dev">Support</a></li>
+        <li><a href="privacy.html">Privacy</a></li>
+        <li><a href="terms.html">Terms</a></li>
+      </ul>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var form = document.getElementById('pilot-lead-form');
+  form.addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var name = document.getElementById('f-name').value.trim();
+    var email = document.getElementById('f-email').value.trim();
+    var company = document.getElementById('f-company').value.trim();
+    var stack = document.getElementById('f-stack').value.trim();
+    var spend = document.getElementById('f-spend').value;
+    var storms = document.getElementById('f-storms').value;
+    var notes = document.getElementById('f-notes').value.trim();
+    var body = [
+      'ProceedGate pilot application (static site form)',
+      '',
+      'Name: ' + name,
+      'Email: ' + email,
+      'Company / project: ' + company,
+      'Scraping stack: ' + stack,
+      'Monthly API/proxy spend (range): ' + spend,
+      'Retry storms / quota burn before?: ' + storms,
+      '',
+      'Notes:',
+      notes || '(none)',
+    ].join('\n');
+    var subject = encodeURIComponent('ProceedGate pilot — ' + (company || name || 'application'));
+    window.location.href = 'mailto:support@proceedgate.dev?subject=' + subject + '&body=' + encodeURIComponent(body);
+  });
+})();
+</script>
+
+</body>
+</html>

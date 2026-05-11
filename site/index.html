@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>ProceedGate — A circuit breaker for AI agents</title>
+<title>ProceedGate — Scraping cost firewall</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -287,6 +287,18 @@
     font-size: clamp(16px, 1.4vw, 20px);
     color: #a1a1aa; line-height: 1.6;
     max-width: 600px; margin: 32px auto 0;
+  }
+  .hero-glance {
+    max-width: 720px; margin: 24px auto 0; padding: 16px 20px;
+    border-radius: 14px; border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(0,0,0,0.38); text-align: left;
+    font-size: 13.5px; color: #a1a1aa; line-height: 1.58;
+  }
+  .hero-glance strong { color: #e4e4e7; font-weight: 600; }
+  .hero-glance ul { margin: 0; padding-left: 18px; }
+  .hero-glance li { margin: 7px 0; }
+  @media (max-width: 600px) {
+    .hero-glance { font-size: 13px; padding: 14px 16px; }
   }
   .hero-cta {
     display: flex; gap: 12px; justify-content: center; margin-top: 48px; flex-wrap: wrap;
@@ -1359,7 +1371,7 @@
     .final-cta { padding: 60px 32px; margin: 0 20px 60px; }
     nav { left: 12px; right: 12px; transform: none; padding: 6px 6px 6px 16px; flex-wrap: wrap; }
     nav .nav-link { display: none; }
-    nav .nav-link:nth-child(2), nav .nav-link:nth-child(3) { display: block; }
+    nav .nav-link--mobile { display: block; }
     .flow-demo { margin: 0 20px; padding: 20px; }
     .flow-grid { grid-template-columns: 1fr; gap: 16px; min-height: auto; }
     .flow-canvas { min-height: 220px; }
@@ -1401,7 +1413,8 @@
 
     /* Nav: compact — only logo + CTA */
     nav { left: 8px; right: 8px; padding: 5px 5px 5px 14px; border-radius: 14px; }
-    nav .nav-link { display: none !important; }
+    nav .nav-link:not(.nav-link--mobile) { display: none !important; }
+    nav .nav-link--mobile { display: block !important; }
     .nav-logo { padding-right: 12px; margin-right: 8px; font-size: 14px; }
     .nav-cta { font-size: 13px; padding: 8px 16px; }
 
@@ -1868,13 +1881,16 @@ function Nav() {
         <span className="nav-logo-mark"></span>
         ProceedGate
       </span>
+      <a href="docs.html" className="nav-link nav-link--mobile">Docs</a>
+      <a href="use-cases.html" className="nav-link nav-link--mobile">Use cases</a>
+      <a href="scraping.html" className="nav-link nav-link--mobile">Scraping</a>
+      <a href="pilot.html" className="nav-link nav-link--mobile">Pilot</a>
       <a href="#how" className="nav-link">How it works</a>
       <a href="#features" className="nav-link">Features</a>
       <a href="#pricing" className="nav-link">Pricing</a>
-      <a href="/topup.html" className="nav-link">Top up</a>
-      <a href="/docs.html" className="nav-link">Docs</a>
-      <a href="/dashboard.html" className="nav-link">Dashboard</a>
-      <a href="/pay.html" className="nav-cta">Get API key →</a>
+      <a href="topup.html" className="nav-link">Top up</a>
+      <a href="dashboard.html" className="nav-link">Dashboard</a>
+      <a href="pay.html" className="nav-cta">Get API key →</a>
     </nav>
   );
 }
@@ -1885,26 +1901,35 @@ function Hero() {
       <FlowDemo background />
       <div className="hero-content">
         <div className="hero-pill">
-          <span className="hero-pill-badge">NEW</span>
-          BNBChain Hackathon Winner · Open Beta
+          <span className="hero-pill-badge">Pilot</span>
+          Limited slots · apply on pilot.html (email handoff)
         </div>
         <h1>
-          A circuit breaker<br/>
-          for <span className="accent">AI agents</span>
+          Stop runaway scraper costs<br/>
+          before they drain <span className="accent">your quota</span>
         </h1>
         <p>
-          One check before every action. ProceedGate detects loops, enforces budgets,
-          and returns a signed token as proof. Built on Cloudflare Workers.
+          One gate before each expensive request: same URL, query, or task retries get flagged in the gray zone,
+          then hard-stopped with 429 so Apify, SerpAPI, Firecrawl, and proxy spend do not spiral.
         </p>
+        <div className="hero-glance">
+          <ul>
+            <li><strong>Problem:</strong> Retry storms and loops burn API, SERP, actor, and proxy quota before your job notices.</li>
+            <li><strong>Who it is for:</strong> Teams shipping scrapers, automation, and agent runners on paid external APIs.</li>
+            <li><strong>When you need it:</strong> Before every call that costs money or credits — especially retries on the same task key.</li>
+            <li><strong>When it loops:</strong> Same pattern past safe/gray thresholds → block with 429 / loop_detected so the paid call never runs.</li>
+            <li><strong>Pilot:</strong> Apply on <a href="pilot.html" style={{color:"#2dd4bf",textDecoration:"underline"}}>pilot.html</a> (email handoff; no silent form).</li>
+          </ul>
+        </div>
         <div className="hero-cta">
-          <a href="/pay.html" className="btn-primary">
-            Start free
+          <a href="retry-storm.html" className="btn-primary">
+            Simulate a retry storm
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <path d="M5 12h14M13 5l7 7-7 7"/>
             </svg>
           </a>
-          <a href="#how" className="btn-secondary">
-            See how it works
+          <a href="pilot.html" className="btn-secondary">
+            Join pilot
           </a>
         </div>
       </div>
@@ -1934,8 +1959,8 @@ const AGENT_SLOTS = FLOW_AGENTS.map((_, i) => 36 + i * 64);
 
 function FlowDemo({ background = false }) {
   const [requests, setRequests] = useState([]);
-  const [allowed, setAllowed] = useState(1847);
-  const [blocked, setBlocked] = useState(23);
+  const [allowed, setAllowed] = useState(0);
+  const [blocked, setBlocked] = useState(0);
   const [activeAgents, setActiveAgents] = useState(new Set());
   const [pulses, setPulses] = useState([]);
   const reqId = useRef(0);
@@ -2047,10 +2072,10 @@ function FlowDemo({ background = false }) {
     <div className={`flow-demo${background ? ' bg' : ''}`}>
       <div className="flow-demo-header">
         <div className="flow-demo-title">
-          Live · Last 60 seconds
+          Illustration · not your workspace
         </div>
         <div className="flow-demo-live">
-          {(allowed + blocked).toLocaleString()} decisions
+          {(allowed + blocked).toLocaleString()} ticks (random routing)
         </div>
       </div>
       <div className="flow-grid">
@@ -2178,7 +2203,7 @@ function InAction() {
     { id: 0, label: "Loop Detection",  icon: <><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></> },
     { id: 1, label: "Budget Control",  icon: <><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M7 8h10M7 12h6"/></> },
     { id: 2, label: "Signed Proof",    icon: <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/> },
-    { id: 3, label: "5 Integrations",  icon: <><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></> },
+    { id: 3, label: "Integrations",  icon: <><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></> },
   ];
 
   // Auto-rotate tabs with progress bar
@@ -2372,7 +2397,7 @@ function IAPanelLoop() {
       </div>
       <div className="ia-foot">
         <div className="ia-foot-item"><span className="ia-dot" style={{background:"#4ade80",boxShadow:"0 0 6px #4ade80"}}></span>≤5 iterations — allowed immediately</div>
-        <div className="ia-foot-item"><span className="ia-dot" style={{background:"#fbbf24",boxShadow:"0 0 6px #fbbf24"}}></span>6–10 — gray zone (allowed, flagged)</div>
+        <div className="ia-foot-item"><span className="ia-dot" style={{background:"#fbbf24",boxShadow:"0 0 6px #fbbf24"}}></span>6–10 — gray zone (often still allowed; may be AI-blocked on live demo)</div>
         <div className="ia-foot-item"><span className="ia-dot" style={{background:"#f87171",boxShadow:"0 0 6px #f87171"}}></span>≥11 — hard block, 429 returned</div>
       </div>
     </>
@@ -2422,7 +2447,7 @@ function IAPanelBudget() {
     <>
       <div className="ia-pill" style={{background:"rgba(45,212,191,0.08)",borderColor:"rgba(45,212,191,0.25)",color:"#2dd4bf"}}>
         <span style={{position:"absolute"}}></span>
-        session · active
+        Simulated UI · not a real session
       </div>
       <div className="budget-demo">
         <div className="budget-agent-row">
@@ -2431,7 +2456,7 @@ function IAPanelBudget() {
           </div>
           <div>
             <div className="budget-agent-name">crypto-scraper<span className="budget-status-pill">ACTIVE</span></div>
-            <div className="budget-agent-id">session_8f3a2c · 18 requests processed</div>
+            <div className="budget-agent-id">Example session id · dollar amounts are placeholders</div>
           </div>
         </div>
         <div className="budget-meter-wrap">
@@ -2459,7 +2484,7 @@ function IAPanelBudget() {
       <div className="ia-foot">
         <div className="ia-foot-item"><span className="ia-dot" style={{background:"#2dd4bf",boxShadow:"0 0 6px #2dd4bf"}}></span>Per-agent session budgets with hard USD caps</div>
         <div className="ia-foot-item"><span className="ia-dot" style={{background:"#fbbf24",boxShadow:"0 0 6px #fbbf24"}}></span>Webhook alerts before cap is hit</div>
-        <div className="ia-foot-item"><span className="ia-dot" style={{background:"#f87171",boxShadow:"0 0 6px #f87171"}}></span>Zero overspend — blocked at exactly $2.50</div>
+        <div className="ia-foot-item"><span className="ia-dot" style={{background:"#f87171",boxShadow:"0 0 6px #f87171"}}></span>Example cap at $2.50 — yours is whatever you configure in policy</div>
       </div>
     </>
   );
@@ -2658,7 +2683,7 @@ function Payments() {
         <p className="section-desc">
           ProceedGate is <strong>credits-based</strong>. Your agent spends checks offchain.
           When you run out, the API returns <span className="mono">402</span> and you top up in a single onchain transaction.
-          Packs are available at <a href="/topup.html" style={{color:"#2dd4bf"}}>topup.html</a>.
+          Packs are available at <a href="topup.html" style={{color:"#2dd4bf"}}>topup.html</a>.
         </p>
 
         <div className="pay-flow-scroll">
@@ -2734,7 +2759,7 @@ function Payments() {
               <li><span className="x">✓</span>Checks spend offchain (fast)</li>
               <li><span className="x">✓</span>One onchain tx per top-up pack</li>
               <li><span className="x">✓</span>HTTP 402 when you run out of checks</li>
-              <li><span className="x">✓</span>Top up at <a href="/topup.html" style={{color:"#2dd4bf"}}>topup.html</a></li>
+              <li><span className="x">✓</span>Top up at <a href="topup.html" style={{color:"#2dd4bf"}}>topup.html</a></li>
             </ul>
           </div>
         </div>
@@ -2855,7 +2880,7 @@ function Integration() {
           <div className="int-code-wrap">
             <div className="int-code-head">
               <span className="int-code-pkg">{tab.pkg}</span>
-              <a href="/docs.html" className="mono" style={{color:"#a1a1aa", fontSize:11}}>Full docs →</a>
+              <a href="docs.html" className="mono" style={{color:"#a1a1aa", fontSize:11}}>Full docs →</a>
             </div>
             <pre className="int-code">{tab.code}</pre>
           </div>
@@ -3001,8 +3026,8 @@ function Pricing() {
               <li><Check/>3-day log retention</li>
             </ul>
             <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-              <a href="/pay.html" className="price-cta ghost" style={{flex:1,minWidth:180}}>Start free →</a>
-              <a href="/topup.html" className="price-cta ghost" style={{flex:1,minWidth:180}}>Top up checks →</a>
+              <a href="pay.html" className="price-cta ghost" style={{flex:1,minWidth:180}}>Start free →</a>
+              <a href="topup.html" className="price-cta ghost" style={{flex:1,minWidth:180}}>Top up checks →</a>
             </div>
           </div>
           {/* STARTER */}
@@ -3022,7 +3047,7 @@ function Pricing() {
               <li><Check/>Agent reputation</li>
               <li><Check/>30-day log retention</li>
             </ul>
-            <a href="/pay.html?plan=starter" className="price-cta primary">Get started →</a>
+            <a href="pay.html?plan=starter" className="price-cta primary">Get started →</a>
           </div>
           {/* PRO */}
           <div className="price-card">
@@ -3041,7 +3066,7 @@ function Pricing() {
               <li><Check/>CostLedger audit trail</li>
               <li><Check/>90-day log retention</li>
             </ul>
-            <a href="/pay.html?plan=pro" className="price-cta ghost">Get started →</a>
+            <a href="pay.html?plan=pro" className="price-cta ghost">Get started →</a>
           </div>
         </div>
       </div>
@@ -3056,9 +3081,11 @@ function FinalCTA() {
         <h2>One wrapper.<br/>Every agent governed.</h2>
         <p>Works with any agent framework, language, or orchestrator. 5,000 free checks per month, no card required.</p>
         <div className="hero-cta" style={{marginTop:0}}>
-          <a href="/pay.html" className="btn-primary">Start free →</a>
-          <a href="/topup.html" className="btn-secondary">Top up checks</a>
-          <a href="/docs.html" className="btn-secondary">Read the docs</a>
+          <a href="pilot.html" className="btn-primary">Join pilot →</a>
+          <a href="retry-storm.html" className="btn-secondary">Retry storm lab</a>
+          <a href="pay.html" className="btn-secondary">Start free →</a>
+          <a href="topup.html" className="btn-secondary">Top up checks</a>
+          <a href="docs.html" className="btn-secondary">Read the docs</a>
         </div>
       </div>
     </section>
@@ -3074,9 +3101,11 @@ function Footer() {
           {l:"How it works", h:"#how"},
           {l:"Features",     h:"#features"},
           {l:"Pricing",      h:"#pricing"},
-          {l:"Scraping",     h:"/scraping.html"},
-          {l:"Docs",         h:"/docs.html"},
-          {l:"Dashboard",    h:"/dashboard.html"},
+          {l:"Scraping",     h:"scraping.html"},
+          {l:"Simulator",    h:"retry-storm.html"},
+          {l:"Pilot",        h:"pilot.html"},
+          {l:"Docs",         h:"docs.html"},
+          {l:"Dashboard",    h:"dashboard.html"},
           {l:"Status",       h:"https://governor.proceedgate.dev/v1/status"},
           {l:"Support",      h:"mailto:support@proceedgate.dev"},
         ].map(({l,h}) => (
