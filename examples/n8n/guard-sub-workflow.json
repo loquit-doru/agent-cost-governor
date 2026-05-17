@@ -1,0 +1,111 @@
+{
+  "name": "Guard Sub-workflow: Costly API",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "exec-trigger",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [200, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Mock shared state DB check (e.g. Postgres / Redis)\nconst inputData = $input.item.json;\n\nconst currentSpend = 1.50;\nconst budgetLimit = 2.00;\nconst estimatedToolCost = 0.75;\n\nreturn {\n  approved: (currentSpend + estimatedToolCost) <= budgetLimit,\n  query: inputData.query || \"default-search\",\n  message: \"Budget evaluation complete.\"\n};"
+      },
+      "id": "code-check",
+      "name": "Evaluate Budget Limits",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [420, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.approved }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "if-node",
+      "name": "Budget OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [640, 200]
+    },
+    {
+      "parameters": {
+        "url": "https://dummyjson.com/http/200/Costly_API_Mock_Success",
+        "options": {}
+      },
+      "id": "api-call",
+      "name": "Costly API Exec (Mock)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [860, 100]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "result",
+              "value": "Tool execution denied: Global budget limit reached. Please inform the user."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-error",
+      "name": "Deny Message",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [860, 320]
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Evaluate Budget Limits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluate Budget Limits": {
+      "main": [
+        [
+          {
+            "node": "Budget OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Budget OK?": {
+      "main": [
+        [
+          {
+            "node": "Costly API Exec (Mock)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Deny Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

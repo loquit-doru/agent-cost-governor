@@ -70,6 +70,11 @@
     .decision-pill.block { background: rgba(248,113,113,0.12); color: var(--red); border: 1px solid rgba(248,113,113,0.35); }
 
     .sim-actions { padding: 0 16px 16px; display: flex; flex-wrap: wrap; gap: 10px; }
+    .profile-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 14px; font-size: 13px; color: var(--tx-2); }
+    .profile-row label { font-family: var(--mono); font-size: 11px; color: var(--tx-3); text-transform: uppercase; letter-spacing: 0.06em; }
+    .profile-row select { background: var(--bg); color: var(--tx); border: 1px solid var(--border); border-radius: var(--r); padding: 8px 12px; font-size: 13px; min-width: 220px; }
+    .n8n-cta { margin-top: 20px; font-size: 13px; color: var(--tx-3); }
+    .n8n-cta a { color: var(--teal); text-decoration: underline; text-underline-offset: 3px; }
     .log { padding: 16px; font-family: var(--mono); font-size: 11.5px; line-height: 1.65; color: var(--tx-2); max-height: 200px; overflow-y: auto; white-space: pre-wrap; background: #0c0c0e; border-top: 1px solid var(--border); }
 
     .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); margin-top: 12px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
@@ -134,7 +139,7 @@
     <h1>Runaway workflow simulator</h1>
     <p class="lead">
       A workflow keeps processing the <strong>same lead</strong> and re-calling paid tools:
-      Webhook → SerpAPI → Firecrawl → OpenAI → CRM/SAP. This page is a <strong>client-side toy</strong> — reason codes below are illustrative labels for the demo, not live API fields.
+      Webhook → SerpAPI → Firecrawl → OpenAI → CRM/SAP. This is a <strong>client-side simulated demo</strong>. Reason codes are illustrative labels for the demo, not live API fields.
     </p>
     <div class="sim-banner">
       <strong>Simulated workflow. Not customer traffic.</strong>
@@ -156,6 +161,15 @@
           <p style="font-size:14px;color:var(--tx-2);margin-bottom:14px;">
             Each click = one workflow loop on task <code style="font-family:var(--mono);color:var(--teal)">lead:acme-4421</code> before the next paid tool batch.
           </p>
+          <div class="profile-row">
+            <label for="cost-profile">Cost profile</label>
+            <select id="cost-profile" aria-label="Simulated cost profile">
+              <option value="low">Low-cost workflow</option>
+              <option value="ai" selected>AI enrichment workflow</option>
+              <option value="media">Image/video workflow</option>
+              <option value="enterprise">Enterprise API workflow</option>
+            </select>
+          </div>
           <div class="sim-actions" style="padding:0;">
             <button type="button" class="btn btn-primary btn-lg" id="btn-step">Run workflow loop again</button>
             <button type="button" class="btn btn-ghost" id="btn-reset">Reset</button>
@@ -198,7 +212,7 @@
           <div class="stat"><div class="stat-k">Spend w/ guard</div><div class="stat-v allow" id="c-spend-guarded">$0.00</div></div>
         </div>
         <div style="padding:0 16px 8px;font-size:13px;color:var(--teal);">
-          Spend avoided: <strong id="c-saved">$0.00</strong> (blocked loops × $0.42 illustrative loop cost)
+          Spend avoided: <strong id="c-saved">$0.00</strong> <span id="saved-hint" style="font-weight:400;color:var(--tx-3);">(simulated; profile-based illustrative loop costs)</span>
         </div>
         <div class="tool-row" id="tool-pills">
           <span class="tool-pill" data-tool="serp">SerpAPI</span>
@@ -214,6 +228,10 @@
         <div class="log" id="event-log">— Ready. Demo policy: attempts 1–3 allow, 4–6 warn, 7+ block.\n</div>
       </div>
     </div>
+
+    <p class="n8n-cta">
+      Using n8n? See the <a href="n8n.html#shared-guard-sub-workflow">Shared Guard Sub-workflow pattern</a> →
+    </p>
   </div>
 </section>
 
@@ -234,7 +252,13 @@
 
 <script>
 (function () {
-  var LOOP_COST = 0.42;
+  var PROFILES = {
+    low: { raw: 0.50, allow: 0.20, warn: 0 },
+    ai: { raw: 6.00, allow: 2.80, warn: 0 },
+    media: { raw: 18.00, allow: 8.40, warn: 0 },
+    enterprise: { raw: 35.00, allow: 16.80, warn: 0 }
+  };
+
   var TOOLS_PER_LOOP = 4;
   var WORKFLOW = 'lead-enrich-v3';
   var TASK = 'lead:acme-4421';
@@ -249,6 +273,11 @@
   var logEl = document.getElementById('event-log');
   var pill = document.getElementById('decision-pill');
   var incident = document.getElementById('incident-report');
+  var profileSelect = document.getElementById('cost-profile');
+
+  function currentProfile() {
+    return PROFILES[profileSelect.value] || PROFILES.ai;
+  }
 
   function zoneForAttempt(num) {
     if (num <= 3) return 'allow';
@@ -262,6 +291,32 @@
     if (num === 5) return 'too_many_tool_calls';
     if (num === 6) return 'budget_threshold';
     return 'sensitive_endpoint_guard';
+  }
+
+  function guardedCostForZone(zone, profile) {
+    if (zone === 'allow') return profile.allow;
+    if (zone === 'warn') return profile.warn;
+    return 0;
+  }
+
+  function recountTotals() {
+    var profile = currentProfile();
+    blockedLoops = 0;
+    callsUnguarded = 0;
+    callsGuarded = 0;
+    spendRaw = 0;
+    spendGuarded = 0;
+    for (var i = 1; i <= n; i += 1) {
+      var z = zoneForAttempt(i);
+      callsUnguarded += TOOLS_PER_LOOP;
+      spendRaw += profile.raw;
+      if (z === 'block') {
+        blockedLoops += 1;
+      } else {
+        callsGuarded += TOOLS_PER_LOOP;
+        spendGuarded += guardedCostForZone(z, profile);
+      }
+    }
   }
 
   function appendLog(line) {
@@ -289,6 +344,9 @@
   }
 
   function render() {
+    var profile = currentProfile();
+    var saved = spendRaw - spendGuarded;
+
     document.getElementById('req-total').textContent = n + (n === 1 ? ' attempt' : ' attempts');
     document.getElementById('c-attempts').textContent = String(n);
     document.getElementById('c-calls-unguarded').textContent = String(callsUnguarded);
@@ -296,7 +354,9 @@
     document.getElementById('c-blocked').textContent = String(blockedLoops);
     document.getElementById('c-spend-raw').textContent = '$' + spendRaw.toFixed(2);
     document.getElementById('c-spend-guarded').textContent = '$' + spendGuarded.toFixed(2);
-    document.getElementById('c-saved').textContent = '$' + (spendRaw - spendGuarded).toFixed(2);
+    document.getElementById('c-saved').textContent = '$' + saved.toFixed(2);
+    document.getElementById('saved-hint').textContent =
+      '(simulated; ~$' + profile.raw.toFixed(2) + '/loop unguarded, allow ~$' + profile.allow.toFixed(2) + '/loop)';
 
     var z = n === 0 ? 'allow' : zoneForAttempt(n);
     var reason = reasonForAttempt(n, z);
@@ -307,6 +367,8 @@
 
     if (z !== 'block') {
       incident.classList.remove('visible');
+    } else if (n > 0) {
+      showIncident(n, reason, saved);
     }
   }
 
@@ -314,22 +376,22 @@
     n += 1;
     var z = zoneForAttempt(n);
     var reason = reasonForAttempt(n, z);
+    var profile = currentProfile();
 
     callsUnguarded += TOOLS_PER_LOOP;
-    spendRaw += LOOP_COST;
+    spendRaw += profile.raw;
 
     if (z === 'block') {
       blockedLoops += 1;
       appendLog('#' + n + ' BLOCK — ' + reason + ' · paid tool batch skipped (simulated).');
-      showIncident(n, reason, spendRaw - spendGuarded);
     } else if (z === 'warn') {
       callsGuarded += TOOLS_PER_LOOP;
-      spendGuarded += LOOP_COST;
+      spendGuarded += profile.warn;
       appendLog('#' + n + ' WARN — ' + reason + ' · proceed with caution (simulated).');
       flashTools();
     } else {
       callsGuarded += TOOLS_PER_LOOP;
-      spendGuarded += LOOP_COST;
+      spendGuarded += profile.allow;
       appendLog('#' + n + ' ALLOW — pre-call check passed; SerpAPI → Firecrawl → OpenAI → CRM (simulated).');
       flashTools();
     }
@@ -337,13 +399,21 @@
   });
 
   document.getElementById('btn-reset').addEventListener('click', function () {
-    n = 0; blockedLoops = 0;
-    callsUnguarded = 0; callsGuarded = 0;
-    spendRaw = 0; spendGuarded = 0;
+    n = 0;
+    blockedLoops = 0;
+    callsUnguarded = 0;
+    callsGuarded = 0;
+    spendRaw = 0;
+    spendGuarded = 0;
     logEl.textContent = '— Reset. Demo policy: attempts 1–3 allow, 4–6 warn, 7+ block.\n';
     pill.className = 'decision-pill allow';
     pill.textContent = 'allow';
     incident.classList.remove('visible');
+    render();
+  });
+
+  profileSelect.addEventListener('change', function () {
+    recountTotals();
     render();
   });
 

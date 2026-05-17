@@ -62,6 +62,19 @@ Content-Type: application/json
 
 // Optional: treat zone === "gray" as manual review (Planned workflow guard fields)</pre>
 
+  <h2 id="native-vs-proceedgate">Native n8n guard vs ProceedGate-powered guard</h2>
+  <p><strong>Native n8n:</strong> Guard sub-workflow + Code node (e.g. “Evaluate Budget Limits”) + your DB/Redis + custom policy logic you maintain per workflow.</p>
+  <p><strong>ProceedGate-powered:</strong> Same Guard sub-workflow shape, but replace the Code node with an <strong>HTTP Request</strong> to <code>POST /v1/check</code>, then route on <code>allowed</code> and <code>zone</code> (allow / warn / block) with a shared audit trail across agents and workflows.</p>
+  <p>Illustrative workflow JSON (not production-tested): <a href="https://github.com/loquit-doru/agent-cost-governor/blob/main/examples/n8n/guard-sub-workflow.json"><code>guard-sub-workflow.json</code></a> · <a href="https://github.com/loquit-doru/agent-cost-governor/blob/main/examples/n8n/main-ai-agent-flow.json"><code>main-ai-agent-flow.json</code></a>. Full guide: <code>examples/n8n/native-vs-proceedgate-guard-workflow.md</code>.</p>
+  <p><strong>Import order:</strong> import Workflow 1 (guard) → save → copy Workflow ID from the n8n URL → import Workflow 2 (main agent) → open <strong>Call n8n Workflow Tool</strong> → replace <code>REPLACE_WITH_WORKFLOW_1_ID</code> with that ID → test the native mock → optionally swap the Code budget node for ProceedGate <code>/v1/check</code>.</p>
+
+  <h2 id="shared-guard-sub-workflow">Shared Guard Sub-workflow pattern</h2>
+  <p>Reuse one guard across many main workflows by calling a sub-workflow before any costly tool batch:</p>
+  <p style="font-family:var(--mono);font-size:13px;color:var(--tx);line-height:1.8;">
+    Main workflow → Call n8n Workflow Tool → <strong>Shared Guard Sub-workflow</strong> → ProceedGate Check → allow / warn / block → optional Human Review → costly tool (SerpAPI, OpenAI, CRM, …)
+  </p>
+  <p>On <code>block</code>, the main branch stops before the next paid node. On <code>warn</code>, route to human review before CRM/SAP or other sensitive writes.</p>
+
   <h2>Example flow</h2>
   <p>Webhook → <strong>ProceedGate check</strong> → IF allowed → SerpAPI → Firecrawl → OpenAI → CRM. On block, skip paid nodes.</p>
   <p>Walk through a labeled demo: <a href="workflow-simulator.html">Runaway workflow simulator</a>.</p>
@@ -73,7 +86,7 @@ Content-Type: application/json
     <li><code>workflow_id</code>, <code>node_name</code> for audit exports</li>
   </ul>
 
-  <p>Markdown copy in repo: <code>examples/n8n/proceedgate-pre-call-guard.md</code></p>
+  <p>Markdown in repo: <code>examples/n8n/proceedgate-pre-call-guard.md</code> · <code>examples/n8n/native-vs-proceedgate-guard-workflow.md</code> · JSON: <code>guard-sub-workflow.json</code> · <code>main-ai-agent-flow.json</code></p>
 </div>
 </body>
 </html>
