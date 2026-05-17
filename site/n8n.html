@@ -64,8 +64,13 @@ Content-Type: application/json
 
   <h2 id="native-vs-proceedgate">Native n8n guard vs ProceedGate-powered guard</h2>
   <p><strong>Native n8n:</strong> Guard sub-workflow + Code node (e.g. “Evaluate Budget Limits”) + your DB/Redis + custom policy logic you maintain per workflow.</p>
-  <p><strong>ProceedGate-powered:</strong> Same Guard sub-workflow shape, but replace the Code node with an <strong>HTTP Request</strong> to <code>POST /v1/check</code>, then route on <code>allowed</code> and <code>zone</code> (allow / warn / block) with a shared audit trail across agents and workflows.</p>
-  <p>Illustrative workflow JSON (not production-tested): <a href="https://github.com/loquit-doru/agent-cost-governor/blob/main/examples/n8n/guard-sub-workflow.json"><code>guard-sub-workflow.json</code></a> · <a href="https://github.com/loquit-doru/agent-cost-governor/blob/main/examples/n8n/main-ai-agent-flow.json"><code>main-ai-agent-flow.json</code></a>. Full guide: <code>examples/n8n/native-vs-proceedgate-guard-workflow.md</code>.</p>
+  <p><strong>ProceedGate-powered:</strong> n8n keeps orchestration, approval UX, and workflow wiring; ProceedGate adds a shared guard decision/check layer. Same Guard sub-workflow shape, but replace the custom budget/repetition Code node with an <strong>HTTP Request</strong> to <code>POST /v1/check</code>. ProceedGate can replace that custom check with a managed allow/deny decision — then route primarily on <code>allowed</code> or HTTP 429. <code>zone</code> can be used for optional logging or review patterns where available, with shared decision logs across agents and workflows.</p>
+  <p>Illustrative workflow JSON (not production-tested). Download/import examples:</p>
+  <ul>
+    <li><a href="https://github.com/loquit-doru/agent-cost-governor/blob/main/examples/n8n/guard-sub-workflow.json">Guard Sub-workflow JSON</a></li>
+    <li><a href="https://github.com/loquit-doru/agent-cost-governor/blob/main/examples/n8n/main-ai-agent-flow.json">Main AI Agent Flow JSON</a></li>
+    <li><a href="https://github.com/loquit-doru/agent-cost-governor/blob/main/examples/n8n/native-vs-proceedgate-guard-workflow.md">Full native vs ProceedGate guide</a></li>
+  </ul>
   <p><strong>Import order:</strong> import Workflow 1 (guard) → save → copy Workflow ID from the n8n URL → import Workflow 2 (main agent) → open <strong>Call n8n Workflow Tool</strong> → replace <code>REPLACE_WITH_WORKFLOW_1_ID</code> with that ID → test the native mock → optionally swap the Code budget node for ProceedGate <code>/v1/check</code>.</p>
 
   <h2 id="shared-guard-sub-workflow">Shared Guard Sub-workflow pattern</h2>
@@ -80,6 +85,9 @@ Content-Type: application/json
   <p>Walk through a labeled demo: <a href="workflow-simulator.html">Runaway workflow simulator</a>.</p>
 
   <h2>Planned workflow guard fields</h2>
+  <div class="alert">
+    <strong>The fields below are not live <code>/v1/check</code> fields today;</strong> they are shown to explain the n8n workflow pattern we are exploring.
+  </div>
   <p>Not returned by <code>/v1/check</code> today — useful for future n8n node or policy packs:</p>
   <ul>
     <li><code>reason_code</code>: <code>repeated_task</code>, <code>budget_threshold</code>, <code>too_many_tool_calls</code>, <code>sensitive_endpoint_guard</code></li>
