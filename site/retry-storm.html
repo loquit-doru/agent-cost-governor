@@ -15,8 +15,12 @@
       --red: #f87171; --green: #4ade80; --yellow: #fbbf24;
       --r: 6px; --mono: 'SF Mono','Fira Code','Cascadia Code',Consolas,monospace;
     }
-    html { scroll-behavior: smooth; }
-    body { background: var(--bg); color: var(--tx); font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif; font-size: 15px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+    html {
+      scroll-behavior: smooth;
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+    }
+    body { background: var(--bg); color: var(--tx); font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif; font-size: 14px; line-height: 1.55; -webkit-font-smoothing: antialiased; }
     a { color: inherit; text-decoration: none; }
 
     nav { position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; min-height: 56px; border-bottom: 1px solid var(--border); background: rgba(9,9,11,0.85); backdrop-filter: blur(12px); flex-wrap: wrap; gap: 8px; row-gap: 10px; }
@@ -117,16 +121,20 @@
     <li><a href="docs.html">Docs</a></li>
     <li><a href="use-cases.html">Use cases</a></li>
     <li><a href="scraping.html">Scraping</a></li>
+    <li><a href="workflow-simulator.html">Simulator</a></li>
     <li><a href="pilot.html">Pilot</a></li>
   </ul>
   <div class="nav-right">
-    <a href="dashboard.html" class="btn btn-ghost">Dashboard</a>
-    <a href="pilot.html" class="btn btn-primary">Join pilot</a>
+    <a href="workflow-simulator.html" class="btn btn-primary">Workflow simulator</a>
+    <a href="pilot.html" class="btn btn-ghost">Join pilot</a>
   </div>
 </nav>
 
 <section style="padding-top:32px;">
   <div class="container">
+    <p style="font-size:14px;color:var(--tx-2);margin-bottom:16px;max-width:640px;">
+      Looking for AI workflow examples? Try the <a href="workflow-simulator.html" style="color:var(--teal);text-decoration:underline;">Runaway Workflow Simulator</a> (Webhook → SerpAPI → Firecrawl → OpenAI → CRM).
+    </p>
     <h1>Simulate a retry storm</h1>
     <p class="lead">
       Your scraper keeps retrying the same expensive SerpAPI / Apify / proxy task. This page is a <strong>toy counter</strong> so you can feel the shape of loop policy: here, requests 1–5 are “safe”, 6–10 are “gray”, and 11+ are “blocked”. Production gray-zone behavior can include extra signals (see note below); the storm hard-stop still maps to the same idea: stop before the next vendor bill.
@@ -201,8 +209,9 @@
 
 <section>
   <div class="container cta-row">
-    <a href="pilot.html#pilot-form" class="btn btn-primary btn-lg">Join the pilot</a>
-    <a href="use-cases.html#scraping" class="btn btn-ghost btn-lg">Live API demos →</a>
+    <button type="button" class="btn btn-primary btn-lg" id="btn-step-cta">Simulate a retry storm</button>
+    <a href="pilot.html#pilot-form" class="btn btn-ghost btn-lg">Join pilot</a>
+    <a href="docs.html" class="btn btn-ghost btn-lg">Docs</a>
   </div>
 </section>
 
@@ -272,6 +281,14 @@
   });
 
   render();
+
+  var ctaStep = document.getElementById('btn-step-cta');
+  if (ctaStep) {
+    ctaStep.addEventListener('click', function () {
+      document.getElementById('btn-step').click();
+      document.getElementById('btn-step').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }
 })();
 </script>
 

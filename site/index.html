@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>ProceedGate — Scraping cost firewall</title>
+<title>ProceedGate — Pre-call guard for expensive workflow tools</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -13,17 +13,20 @@
 <!-- Three.js is loaded lazily only if the 3D scene is visible -->
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  html { scroll-behavior: smooth; }
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
   body {
     background: #050510;
     color: #fff;
     font-family: 'Inter', -apple-system, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     overflow-x: hidden;
   }
-  nav,
-  section.section-pad,
-  footer { zoom: 1; }
 
   /* ── Unified card animation (matches In-Action panels) ───────────── */
   @keyframes cardSweep {
@@ -104,16 +107,6 @@
   ul { list-style: none; }
   .mono { font-family: 'JetBrains Mono', monospace; }
 
-  /* ── Background: blockchain-themed ──────────────────────────────── */
-  /* Hex pattern (BNB-style) */
-  .bg-hex {
-    position: fixed; inset: 0; pointer-events: none; z-index: 0;
-    opacity: 0.5;
-    mask-image: radial-gradient(ellipse 80% 70% at center, black 20%, transparent 85%);
-    -webkit-mask-image: radial-gradient(ellipse 80% 70% at center, black 20%, transparent 85%);
-  }
-  .bg-hex svg { width: 100%; height: 100%; }
-
   .bg-glow {
     position: fixed; inset: 0; pointer-events: none; z-index: 0;
     background:
@@ -122,85 +115,14 @@
       radial-gradient(500px circle at 50% 100%, rgba(59,130,246,.08), transparent 50%);
   }
 
-
-
-  /* Chain of blocks drifting horizontally */
-  .bg-chain {
-    position: fixed; inset: 0; pointer-events: none; z-index: 0;
-    overflow: hidden;
-    mask-image: radial-gradient(ellipse 90% 90% at center, transparent 30%, black 60%, transparent 95%);
-    -webkit-mask-image: radial-gradient(ellipse 90% 90% at center, transparent 30%, black 60%, transparent 95%);
-  }
-  .bg-chain-row {
-    position: absolute; left: -10%; right: -10%;
-    display: flex; gap: 60px; align-items: center;
-    animation: drift 90s linear infinite;
-    opacity: 0.5;
-  }
-  .bg-chain-row.r1 { top: 12%; }
-  .bg-chain-row.r2 { top: 38%; animation-duration: 110s; animation-direction: reverse; }
-  .bg-chain-row.r3 { top: 64%; animation-duration: 80s; }
-  .bg-chain-row.r4 { top: 88%; animation-duration: 100s; animation-direction: reverse; }
-  @keyframes drift {
-    from { transform: translateX(0); }
-    to   { transform: translateX(-50%); }
-  }
-  .bg-block {
-    flex-shrink: 0;
-    display: flex; flex-direction: column; gap: 3px;
-    padding: 8px 12px;
-    border: 1px solid rgba(45,212,191,0.18);
-    border-radius: 4px;
-    background: rgba(45,212,191,0.03);
-    font-family: 'JetBrains Mono', monospace;
-    color: rgba(45,212,191,0.4);
-    backdrop-filter: blur(4px);
-    min-width: 140px;
-  }
-  .bg-block-num { font-size: 11px; font-weight: 600; }
-  .bg-block-hash { font-size: 9px; color: rgba(161,161,170,0.4); letter-spacing: 0.5px; }
-  .bg-block-meta { font-size: 9px; color: rgba(161,161,170,0.35); }
-  .bg-chain-link {
-    flex-shrink: 0;
-    width: 24px; height: 1px;
-    background: linear-gradient(90deg, rgba(45,212,191,0.4), rgba(45,212,191,0.1));
-    position: relative;
-  }
-  .bg-chain-link::after {
-    content: '→';
-    position: absolute; right: -6px; top: -7px;
-    color: rgba(45,212,191,0.3); font-size: 11px;
-  }
-
-  /* Floating tx hash columns at far edges */
-  .bg-hashes {
-    position: fixed; inset: 0; pointer-events: none; z-index: 0;
-    overflow: hidden;
-  }
-  .bg-hash-col {
-    position: absolute; top: -120px;
-    display: flex; flex-direction: column; gap: 24px;
-    animation: rain 60s linear infinite;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px; color: rgba(45,212,191,0.25);
-    line-height: 1.4;
-  }
-  .bg-hash-col.c1 { left: 1.5%; }
-  .bg-hash-col.c2 { left: 96%;  animation-duration: 75s; }
-  @keyframes rain {
-    from { transform: translateY(0); }
-    to   { transform: translateY(50%); }
-  }
-  .bg-hash-line { white-space: nowrap; }
-  .bg-hash-line.dim { opacity: 0.45; }
-  .bg-hash-line.hot { color: rgba(74,222,128,0.5); }
-  .bg-hash-line.cold { color: rgba(248,113,113,0.5); }
-
   /* ── Nav ────────────────────────────────────────────────────────── */
   nav {
-    position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 100;
-    display: flex; align-items: center; gap: 4px;
-    padding: 6px 6px 6px 24px;
+    position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 100;
+    display: flex; align-items: center; flex-wrap: nowrap; justify-content: center;
+    gap: 4px;
+    width: fit-content;
+    max-width: calc(100vw - 40px);
+    padding: 7px 10px 7px 20px;
     background: rgba(10, 10, 18, 0.6);
     backdrop-filter: blur(20px) saturate(180%);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
@@ -210,29 +132,37 @@
   }
   .nav-logo {
     display: flex; align-items: center; gap: 8px;
-    font-weight: 800; font-size: 16px; letter-spacing: -0.02em;
-    padding-right: 20px; border-right: 1px solid rgba(255,255,255,0.08);
+    font-weight: 700; font-size: 15px; letter-spacing: -0.02em;
+    padding-right: 18px; border-right: 1px solid rgba(255,255,255,0.08);
     margin-right: 12px;
   }
   .nav-logo-mark {
-    width: 20px; height: 20px; border-radius: 6px;
+    width: 24px; height: 24px; border-radius: 7px;
     background: linear-gradient(135deg, #2dd4bf, #06b6d4);
     box-shadow: 0 0 20px rgba(45,212,191,0.5);
   }
   .nav-link {
-    font-size: 15px; font-weight: 500; color: #a1a1aa;
-    padding: 9px 16px; border-radius: 100px; transition: all .2s;
+    font-size: 13px; font-weight: 500; color: #a1a1aa;
+    padding: 8px 14px; border-radius: 100px; transition: all .2s;
+    white-space: nowrap;
   }
   .nav-link:hover { color: #fff; background: rgba(255,255,255,0.05); }
   .nav-cta {
-    font-size: 15px; font-weight: 600;
-    padding: 9px 20px; border-radius: 100px;
+    font-size: 13px; font-weight: 600;
+    padding: 8px 18px; border-radius: 100px;
     background: linear-gradient(135deg, #2dd4bf, #06b6d4);
     color: #000; margin-left: 8px;
+    white-space: nowrap;
+    flex-shrink: 0;
     box-shadow: 0 4px 16px rgba(45,212,191,0.3);
     transition: transform .2s, box-shadow .2s;
   }
   .nav-cta:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(45,212,191,0.5); }
+
+  /* Wide screens: slim bar like pre-deploy — Docs/Scraping/Pilot live in hero + footer, not duplicated in nav */
+  @media (min-width: 901px) {
+    .nav-link.nav-link--mobile { display: none; }
+  }
 
   /* ── Hero ───────────────────────────────────────────────────────── */
   .hero {
@@ -244,68 +174,75 @@
   }
   .hero-content {
     position: relative; z-index: 5;
-    max-width: 900px; text-align: center;
+    max-width: 900px;
+    margin: 0 auto;
+    text-align: center;
   }
   .hero-content::before {
     content: ''; position: absolute; inset: -20px -60px -10px;
-    background: radial-gradient(ellipse 60% 70% at center, rgba(5,5,16,0.85) 0%, rgba(5,5,16,0.55) 50%, transparent 80%);
+    background: radial-gradient(ellipse 60% 70% at center, rgba(5,5,16,0.82) 0%, rgba(5,5,16,0.5) 50%, transparent 80%);
     z-index: -1; pointer-events: none;
-    filter: blur(14px);
-  }
-  .hero h1 {
-    text-shadow: 0 4px 30px rgba(5, 5, 16, 0.6);
+    filter: blur(12px);
   }
   .hero-pill {
-    display: inline-flex; align-items: center; gap: 10px;
-    padding: 6px 16px 6px 8px; margin-bottom: 32px;
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 14px 6px 7px; margin-bottom: 1rem;
     background: rgba(45,212,191,0.08);
     border: 1px solid rgba(45,212,191,0.25);
     border-radius: 100px;
-    font-size: 12px; color: #2dd4bf; font-weight: 500;
+    font-size: 13px; color: #2dd4bf; font-weight: 500;
+    line-height: 1.4;
     backdrop-filter: blur(10px);
   }
   .hero-pill-badge {
     background: #2dd4bf; color: #000;
-    padding: 2px 10px; border-radius: 100px;
-    font-size: 10px; font-weight: 700;
+    padding: 3px 11px; border-radius: 100px;
+    font-size: 11px; font-weight: 700;
   }
+  /* Same scale as .section-title / .section-desc on the rest of the page */
   .hero h1 {
-    font-size: clamp(48px, 7vw, 96px); font-weight: 800;
-    letter-spacing: -0.04em; line-height: 0.95;
-    background: linear-gradient(180deg, #fff 0%, #a1a1aa 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+    font-size: clamp(38px, 5.9vw, 74px);
+    font-weight: 800;
+    font-synthesis: none;
+    letter-spacing: -0.04em;
+    line-height: 0.95;
+    color: #f1f5f9;
   }
   .hero h1 .accent {
-    background: linear-gradient(135deg, #2dd4bf 0%, #06b6d4 50%, #8b5cf6 100%);
+    display: inline;
+    font-weight: 700;
+    font-synthesis: none;
+    background: linear-gradient(135deg, #2dd4bf 0%, #06b6d4 45%, #8b5cf6 100%);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
+    -webkit-text-fill-color: transparent;
   }
   .hero p {
-    font-size: clamp(16px, 1.4vw, 20px);
-    color: #a1a1aa; line-height: 1.6;
-    max-width: 600px; margin: 32px auto 0;
+    font-size: clamp(15px, 1.2vw, 18px);
+    color: #a1a1aa;
+    line-height: 1.6;
+    max-width: 620px;
+    margin: 28px auto 0;
   }
-  .hero-glance {
-    max-width: 720px; margin: 24px auto 0; padding: 16px 20px;
-    border-radius: 14px; border: 1px solid rgba(255,255,255,0.1);
-    background: rgba(0,0,0,0.38); text-align: left;
-    font-size: 13.5px; color: #a1a1aa; line-height: 1.58;
-  }
+  .hero-glance { display: none; }
   .hero-glance strong { color: #e4e4e7; font-weight: 600; }
-  .hero-glance ul { margin: 0; padding-left: 18px; }
-  .hero-glance li { margin: 7px 0; }
+  .hero-glance ul { margin: 0; padding-left: 1.25rem; }
+  .hero-glance li { margin: 0.35rem 0; }
   @media (max-width: 600px) {
-    .hero-glance { font-size: 13px; padding: 14px 16px; }
+    .hero-glance { font-size: 14px; padding: 0.875rem 1rem; }
   }
   .hero-cta {
-    display: flex; gap: 12px; justify-content: center; margin-top: 48px; flex-wrap: wrap;
+    display: flex; gap: 12px; justify-content: center; margin-top: 44px; flex-wrap: wrap;
+  }
+  .hero-cta .btn-primary,
+  .hero-cta .btn-secondary {
+    font-size: 14px;
+    font-weight: 600;
   }
   .btn-primary {
     display: inline-flex; align-items: center; gap: 8px;
-    padding: 14px 24px; border-radius: 100px;
+    padding: 16px 28px; border-radius: 100px;
     background: linear-gradient(135deg, #2dd4bf, #06b6d4);
     color: #000; font-weight: 600; font-size: 14px;
     box-shadow: 0 8px 32px rgba(45,212,191,0.35), inset 0 1px 0 rgba(255,255,255,0.4);
@@ -314,7 +251,7 @@
   .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(45,212,191,0.5), inset 0 1px 0 rgba(255,255,255,0.4); }
   .btn-secondary {
     display: inline-flex; align-items: center; gap: 8px;
-    padding: 14px 24px; border-radius: 100px;
+    padding: 16px 28px; border-radius: 100px;
     background: rgba(255,255,255,0.05);
     color: #fff; font-weight: 500; font-size: 14px;
     border: 1px solid rgba(255,255,255,0.1);
@@ -380,7 +317,14 @@
     pointer-events: none;
     z-index: 0;
   }
-  .flow-demo.bg .flow-demo-header { opacity: 0.5; padding: 0 4px; }
+  .flow-demo.bg .flow-demo-header {
+    opacity: 0.45;
+    padding: 0 8px;
+    margin-bottom: 8px;
+    max-width: 100%;
+  }
+  .flow-demo.bg .flow-demo-title { font-size: 10px; }
+  .flow-demo.bg .flow-demo-live { font-size: 10px; }
   .flow-demo.bg .flow-gate-card { display: none; }
   .flow-demo.bg .flow-grid {
     grid-template-columns: 220px 1fr 220px;
@@ -401,8 +345,16 @@
     backdrop-filter: blur(12px);
   }
   .flow-demo.bg .flow-canvas {
-    /* SVG passes BEHIND the centered headline */
     z-index: 0;
+  }
+  @media (max-width: 1080px) {
+    .flow-demo.bg .flow-agents,
+    .flow-demo.bg .flow-outcomes { display: none; }
+    .flow-demo.bg .flow-grid {
+      grid-template-columns: 1fr;
+      min-height: min(320px, 40vh);
+      max-height: min(440px, 52vh);
+    }
   }
   .flow-demo-header {
     display: flex; justify-content: space-between; align-items: center;
@@ -550,7 +502,7 @@
     margin-bottom: 16px;
   }
   .section-title {
-    font-size: clamp(36px, 4.5vw, 64px); font-weight: 800;
+    font-size: clamp(32px, 4vw, 54px); font-weight: 800;
     letter-spacing: -0.03em; line-height: 1.05;
     background: linear-gradient(180deg, #fff 0%, #a1a1aa 100%);
     -webkit-background-clip: text;
@@ -559,7 +511,7 @@
     margin-bottom: 20px;
   }
   .section-desc {
-    font-size: 17px; color: #a1a1aa; line-height: 1.6; max-width: 600px;
+    font-size: 15px; color: #a1a1aa; line-height: 1.6; max-width: 600px;
   }
 
   /* ── How it works cards ─────────────────────────────────────────── */
@@ -591,10 +543,10 @@
     margin-bottom: 16px;
   }
   .hiw-card h3 {
-    font-size: 22px; font-weight: 700; letter-spacing: -0.01em;
+    font-size: 20px; font-weight: 700; letter-spacing: -0.01em;
     margin-bottom: 12px;
   }
-  .hiw-card p { font-size: 14px; color: #a1a1aa; line-height: 1.7; margin-bottom: 20px; }
+  .hiw-card p { font-size: 13px; color: #a1a1aa; line-height: 1.7; margin-bottom: 20px; }
   .hiw-snippet {
     font-family: 'JetBrains Mono', monospace; font-size: 12px;
     background: rgba(0,0,0,0.4);
@@ -645,8 +597,8 @@
     display: flex; align-items: center; justify-content: center;
     color: #2dd4bf; margin-bottom: 20px;
   }
-  .feat-card h3 { font-size: 20px; font-weight: 700; margin-bottom: 10px; letter-spacing: -0.01em; }
-  .feat-card p { font-size: 14px; color: #a1a1aa; line-height: 1.7; }
+  .feat-card h3 { font-size: 18px; font-weight: 700; margin-bottom: 10px; letter-spacing: -0.01em; }
+  .feat-card p { font-size: 13px; color: #a1a1aa; line-height: 1.7; }
   .feat-card .feat-tag {
     display: inline-block; margin-top: 16px;
     font-family: 'JetBrains Mono', monospace; font-size: 11px;
@@ -1118,10 +1070,10 @@
     border-radius: 24px;
   }
   .ce-panel h3 {
-    font-size: 28px; font-weight: 700; letter-spacing: -0.02em;
+    font-size: 24px; font-weight: 700; letter-spacing: -0.02em;
     margin-bottom: 14px;
   }
-  .ce-panel p { color: #a1a1aa; font-size: 15px; line-height: 1.65; margin-bottom: 20px; }
+  .ce-panel p { color: #a1a1aa; font-size: 14px; line-height: 1.65; margin-bottom: 20px; }
   .ce-tags { display: flex; flex-wrap: wrap; gap: 8px; }
   .ce-tag {
     font-family: 'JetBrains Mono', monospace; font-size: 11px;
@@ -1344,11 +1296,11 @@
   }
   .final-cta h2 {
     position: relative;
-    font-size: clamp(36px, 5vw, 64px); font-weight: 800;
+    font-size: clamp(32px, 4.2vw, 52px); font-weight: 800;
     letter-spacing: -0.03em; line-height: 1.05;
     margin-bottom: 20px;
   }
-  .final-cta p { position: relative; font-size: 18px; color: #a1a1aa; max-width: 540px; margin: 0 auto 40px; line-height: 1.6; }
+  .final-cta p { position: relative; font-size: 16px; color: #a1a1aa; max-width: 540px; margin: 0 auto 40px; line-height: 1.6; }
 
   /* ── Footer ─────────────────────────────────────────────────────── */
   footer {
@@ -1369,9 +1321,9 @@
     .section-pad { padding: 80px 0; }
     .container { padding: 0 24px; }
     .final-cta { padding: 60px 32px; margin: 0 20px 60px; }
-    nav { left: 12px; right: 12px; transform: none; padding: 6px 6px 6px 16px; flex-wrap: wrap; }
+    nav { left: 12px; right: 12px; transform: none; padding: 5px 6px 5px 14px; flex-wrap: wrap; row-gap: 4px; }
     nav .nav-link { display: none; }
-    nav .nav-link--mobile { display: block; }
+    nav .nav-link.nav-link--mobile { display: block; }
     .flow-demo { margin: 0 20px; padding: 20px; }
     .flow-grid { grid-template-columns: 1fr; gap: 16px; min-height: auto; }
     .flow-canvas { min-height: 220px; }
@@ -1388,11 +1340,11 @@
     .pay-stats { grid-template-columns: repeat(2, 1fr); }
     .pay-compare { grid-template-columns: 1fr; }
     .int-grid { grid-template-columns: 1fr; }
-    /* Animație fundal hero: ascunde coloanele agenți/outcomes pe mobil */
-    .flow-demo.bg .flow-agents,
-    .flow-demo.bg .flow-outcomes { display: none; }
-    .flow-demo.bg .flow-grid { grid-template-columns: 1fr; }
-    .flow-demo.bg { padding: 20px; }
+    /* Hero SVG band — same width scale as desktop */
+    .flow-demo.bg {
+      padding: 20px;
+      inset: 90px 0 24px;
+    }
 
     /* Footer: stack on tablet/mobile */
     footer { flex-direction: column; gap: 20px; text-align: center; padding: 32px 24px; }
@@ -1420,10 +1372,10 @@
 
     /* Hero: tighten up */
     .hero { padding: 100px 16px 60px; }
-    .hero h1 { font-size: clamp(36px, 10vw, 56px); letter-spacing: -0.03em; }
+    .hero h1 { font-size: clamp(34px, 9.5vw, 53px); letter-spacing: -0.03em; }
     .hero p { font-size: 15px; margin-top: 20px; }
     .hero-cta { margin-top: 32px; }
-    .hero-pill { font-size: 11px; }
+    .hero-pill { font-size: 12px; }
 
     /* Section titles */
     .section-title { font-size: clamp(28px, 8vw, 44px); }
@@ -1884,13 +1836,15 @@ function Nav() {
       <a href="docs.html" className="nav-link nav-link--mobile">Docs</a>
       <a href="use-cases.html" className="nav-link nav-link--mobile">Use cases</a>
       <a href="scraping.html" className="nav-link nav-link--mobile">Scraping</a>
+      <a href="workflow-simulator.html" className="nav-link nav-link--mobile">Simulator</a>
       <a href="pilot.html" className="nav-link nav-link--mobile">Pilot</a>
+      <a href="docs.html" className="nav-link nav-link--mobile">Docs</a>
       <a href="#how" className="nav-link">How it works</a>
       <a href="#features" className="nav-link">Features</a>
       <a href="#pricing" className="nav-link">Pricing</a>
       <a href="topup.html" className="nav-link">Top up</a>
       <a href="dashboard.html" className="nav-link">Dashboard</a>
-      <a href="pay.html" className="nav-cta">Get API key →</a>
+      <a href="workflow-simulator.html" className="nav-cta">Simulate workflow →</a>
     </nav>
   );
 }
@@ -1901,35 +1855,31 @@ function Hero() {
       <FlowDemo background />
       <div className="hero-content">
         <div className="hero-pill">
-          <span className="hero-pill-badge">Pilot</span>
-          Limited slots · apply on pilot.html (email handoff)
+          <span className="hero-pill-badge">Pre-call guard</span>
+          One check before costly or sensitive tools run
         </div>
         <h1>
-          Stop runaway scraper costs<br/>
-          before they drain <span className="accent">your quota</span>
+          Stop expensive workflow calls<br/>
+          before they <span className="accent">run</span>
         </h1>
         <p>
-          One gate before each expensive request: same URL, query, or task retries get flagged in the gray zone,
-          then hard-stopped with 429 so Apify, SerpAPI, Firecrawl, and proxy spend do not spiral.
+          ProceedGate adds one pre-call check before costly or sensitive tools like OpenAI, Replicate, SerpAPI, Firecrawl, Apify, SAP, CRM, or internal APIs. Detect repeated tasks, budget breaches, and risky tool calls before the next paid request happens.
         </p>
-        <div className="hero-glance">
-          <ul>
-            <li><strong>Problem:</strong> Retry storms and loops burn API, SERP, actor, and proxy quota before your job notices.</li>
-            <li><strong>Who it is for:</strong> Teams shipping scrapers, automation, and agent runners on paid external APIs.</li>
-            <li><strong>When you need it:</strong> Before every call that costs money or credits — especially retries on the same task key.</li>
-            <li><strong>When it loops:</strong> Same pattern past safe/gray thresholds → block with 429 / loop_detected so the paid call never runs.</li>
-            <li><strong>Pilot:</strong> Apply on <a href="pilot.html" style={{color:"#2dd4bf",textDecoration:"underline"}}>pilot.html</a> (email handoff; no silent form).</li>
-          </ul>
-        </div>
+        <p style={{fontSize:13,color:"#71717a",marginTop:12,maxWidth:720,marginLeft:"auto",marginRight:"auto"}}>
+          Built for AI agents, n8n-style automation, and scraper/API workflows. Demo data is simulated.
+        </p>
         <div className="hero-cta">
-          <a href="retry-storm.html" className="btn-primary">
-            Simulate a retry storm
+          <a href="workflow-simulator.html" className="btn-primary">
+            Simulate a runaway workflow
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <path d="M5 12h14M13 5l7 7-7 7"/>
             </svg>
           </a>
           <a href="pilot.html" className="btn-secondary">
             Join pilot
+          </a>
+          <a href="docs.html" className="btn-secondary">
+            Docs
           </a>
         </div>
       </div>
@@ -1959,15 +1909,23 @@ const AGENT_SLOTS = FLOW_AGENTS.map((_, i) => 36 + i * 64);
 
 function FlowDemo({ background = false }) {
   const [requests, setRequests] = useState([]);
-  const [allowed, setAllowed] = useState(0);
-  const [blocked, setBlocked] = useState(0);
+  /* Hero illustration: static headline-style counts (matches classic landing reference) */
+  const [allowed, setAllowed] = useState(background ? 1847 : 0);
+  const [blocked, setBlocked] = useState(background ? 23 : 0);
   const [activeAgents, setActiveAgents] = useState(new Set());
   const [pulses, setPulses] = useState([]);
   const reqId = useRef(0);
   const pulseId = useRef(0);
 
+  const strokeTeal = background ? "rgba(45,212,191,0.42)" : "rgba(45,212,191,0.10)";
+  const strokeGreen = background ? "rgba(74,222,128,0.48)" : "rgba(74,222,128,0.15)";
+  const strokeRed = background ? "rgba(248,113,113,0.48)" : "rgba(248,113,113,0.15)";
+  const dotR = background ? 7 : 6;
+  const dotInner = background ? 3.5 : 3;
+
   // Spawn requests at intervals
   useEffect(() => {
+    const ms = background ? 300 : 280;
     const i = setInterval(() => {
       const id = reqId.current++;
       const isBlocked = Math.random() < 0.18;
@@ -1983,9 +1941,9 @@ function FlowDemo({ background = false }) {
           const next = new Set(prev); next.delete(agentIdx); return next;
         });
       }, 600);
-    }, 280);
+    }, ms);
     return () => clearInterval(i);
-  }, []);
+  }, [background]);
 
   // Animation loop — update positions & retire completed
   useEffect(() => {
@@ -2011,8 +1969,10 @@ function FlowDemo({ background = false }) {
         }
         return active;
       });
-      if (toAllowed) setAllowed(a => a + toAllowed);
-      if (toBlocked) setBlocked(b => b + toBlocked);
+      if (!background) {
+        if (toAllowed) setAllowed(a => a + toAllowed);
+        if (toBlocked) setBlocked(b => b + toBlocked);
+      }
       if (newPulses.length) {
         setPulses(p => [...p, ...newPulses]);
         // Auto-cleanup pulses after 800ms
@@ -2024,7 +1984,7 @@ function FlowDemo({ background = false }) {
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, []);
+  }, [background]);
 
   // Compute request dot position at time t (0..1)
   function reqPos(req) {
@@ -2111,20 +2071,20 @@ function FlowDemo({ background = false }) {
                 key={`pa-${i}`}
                 d={`M ${AGENT_X} ${AGENT_SLOTS[i]} Q ${GATE_X * 0.55} ${AGENT_SLOTS[i]} ${GATE_X} ${GATE_Y}`}
                 fill="none"
-                stroke="rgba(45,212,191,0.10)"
-                strokeWidth="1"
+                stroke={strokeTeal}
+                strokeWidth={background ? 1.6 : 1}
                 strokeDasharray="2 4"
               />
             ))}
             {/* Gate → Allowed */}
             <path
               d={`M ${GATE_X} ${GATE_Y} Q ${(GATE_X+ALLOWED_X)/2} ${GATE_Y} ${ALLOWED_X-60} ${ALLOWED_Y}`}
-              fill="none" stroke="rgba(74,222,128,0.15)" strokeWidth="1" strokeDasharray="2 4"
+              fill="none" stroke={strokeGreen} strokeWidth={background ? 1.6 : 1} strokeDasharray="2 4"
             />
             {/* Gate → Blocked */}
             <path
               d={`M ${GATE_X} ${GATE_Y} Q ${(GATE_X+BLOCKED_X)/2} ${GATE_Y} ${BLOCKED_X-60} ${BLOCKED_Y}`}
-              fill="none" stroke="rgba(248,113,113,0.15)" strokeWidth="1" strokeDasharray="2 4"
+              fill="none" stroke={strokeRed} strokeWidth={background ? 1.6 : 1} strokeDasharray="2 4"
             />
 
             {/* Animated request dots */}
@@ -2132,8 +2092,8 @@ function FlowDemo({ background = false }) {
               const p = reqPos(r);
               return (
                 <g key={r.id} style={{ opacity: p.opacity }}>
-                  <circle cx={p.x} cy={p.y} r="6" fill={p.color} opacity="0.25"/>
-                  <circle cx={p.x} cy={p.y} r="3" fill={p.color}/>
+                  <circle cx={p.x} cy={p.y} r={dotR * 1.25} fill={p.color} opacity={background ? 0.42 : 0.28}/>
+                  <circle cx={p.x} cy={p.y} r={dotInner} fill={p.color}/>
                 </g>
               );
             })}
@@ -3078,14 +3038,14 @@ function FinalCTA() {
   return (
     <section className="section-pad" style={{paddingTop:0}}>
       <div className="final-cta">
-        <h2>One wrapper.<br/>Every agent governed.</h2>
-        <p>Works with any agent framework, language, or orchestrator. 5,000 free checks per month, no card required.</p>
+        <h2>One pre-call check.<br/>Before every expensive tool.</h2>
+        <p>Works with AI agents, n8n, and custom runners. 5,000 free checks per month, no card required.</p>
         <div className="hero-cta" style={{marginTop:0}}>
-          <a href="pilot.html" className="btn-primary">Join pilot →</a>
-          <a href="retry-storm.html" className="btn-secondary">Retry storm lab</a>
-          <a href="pay.html" className="btn-secondary">Start free →</a>
+          <a href="workflow-simulator.html" className="btn-primary">Simulate runaway workflow →</a>
+          <a href="pilot.html" className="btn-secondary">Join pilot</a>
+          <a href="docs.html" className="btn-secondary">Docs</a>
+          <a href="pay.html" className="btn-secondary">Get API key</a>
           <a href="topup.html" className="btn-secondary">Top up checks</a>
-          <a href="docs.html" className="btn-secondary">Read the docs</a>
         </div>
       </div>
     </section>
@@ -3102,7 +3062,7 @@ function Footer() {
           {l:"Features",     h:"#features"},
           {l:"Pricing",      h:"#pricing"},
           {l:"Scraping",     h:"scraping.html"},
-          {l:"Simulator",    h:"retry-storm.html"},
+          {l:"Simulator",    h:"workflow-simulator.html"},
           {l:"Pilot",        h:"pilot.html"},
           {l:"Docs",         h:"docs.html"},
           {l:"Dashboard",    h:"dashboard.html"},

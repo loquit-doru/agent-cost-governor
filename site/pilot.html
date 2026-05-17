@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <link rel="icon" type="image/jpeg" href="favicon.jpg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ProceedGate — Scraping cost firewall pilot</title>
-  <meta name="description" content="ProceedGate pilot for scraping teams: block retry storms before paid API and proxy calls. Apply by email; no silent form submission." />
+  <title>ProceedGate — Workflow guard pilot</title>
+  <meta name="description" content="Pilot for teams running expensive AI or automation workflows. Pre-call guard before OpenAI, n8n tools, CRM, and paid APIs. Apply by email." />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -15,8 +15,12 @@
       --red: #f87171; --green: #4ade80; --yellow: #fbbf24;
       --r: 6px; --mono: 'SF Mono','Fira Code','Cascadia Code',Consolas,monospace;
     }
-    html { scroll-behavior: smooth; }
-    body { background: var(--bg); color: var(--tx); font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif; font-size: 15px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+    html {
+      scroll-behavior: smooth;
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+    }
+    body { background: var(--bg); color: var(--tx); font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif; font-size: 14px; line-height: 1.55; -webkit-font-smoothing: antialiased; }
     a { color: inherit; text-decoration: none; }
 
     nav { position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; min-height: 56px; border-bottom: 1px solid var(--border); background: rgba(9,9,11,0.85); backdrop-filter: blur(12px); flex-wrap: wrap; gap: 8px; row-gap: 10px; }
@@ -122,25 +126,26 @@
     <li><a href="docs.html">Docs</a></li>
     <li><a href="use-cases.html">Use cases</a></li>
     <li><a href="scraping.html">Scraping</a></li>
+    <li><a href="workflow-simulator.html">Simulator</a></li>
     <li><a href="pilot.html" class="active">Pilot</a></li>
   </ul>
   <div class="nav-right">
-    <a href="dashboard.html" class="btn btn-ghost">Dashboard</a>
-    <a href="pay.html" class="btn btn-primary">Get API key</a>
+    <a href="workflow-simulator.html" class="btn btn-primary">Simulate workflow</a>
+    <a href="docs.html" class="btn btn-ghost">Docs</a>
   </div>
 </nav>
 
 <section class="glance" aria-label="At a glance">
   <div class="glance-inner">
     <dl>
-      <dt>Problem</dt>
-      <dd>Retry storms, 429 loops, and pagination bugs burn paid API, SERP, actor, and proxy quota.</dd>
-      <dt>Who it is for</dt>
-      <dd>Builders running Apify, SerpAPI, Firecrawl, Crawlee, Playwright, Puppeteer, or custom scrapers.</dd>
-      <dt>When you need it</dt>
-      <dd>Right before each expensive outbound call — especially when the same <code>task_key</code> retries.</dd>
-      <dt>When your scraper loops</dt>
-      <dd>Repeated identical patterns hit gray zone, then a hard block (429 / loop_detected) so the vendor call does not run.</dd>
+      <dt>Who</dt>
+      <dd>Teams running AI agents, n8n (or similar) automation, or internal workflows that call OpenAI, Replicate, SerpAPI, Firecrawl, Apify, SAP, CRM, or custom HTTP APIs.</dd>
+      <dt>What calls</dt>
+      <dd>One <code>POST /v1/check</code> before each expensive or sensitive tool step — same <code>task_hash</code> for the same unit of work (lead, ticket, URL, prompt context).</dd>
+      <dt>What failure</dt>
+      <dd>Runaway loops: same task re-processed, budget blown, or risky endpoints hit too often. Production returns <code>loop_detected</code> (429) when patterns exceed thresholds.</dd>
+      <dt>How to test</dt>
+      <dd><a href="workflow-simulator.html" style="color:var(--teal);text-decoration:underline;">Workflow simulator</a> (client-side) or live demos on <a href="use-cases.html" style="color:var(--teal);text-decoration:underline;">Use cases</a>.</dd>
       <dt>How to join the pilot</dt>
       <dd>Fill the form below and press the button: it opens an email to us (no server upload yet). Or email <a href="mailto:support@proceedgate.dev" style="color:var(--teal);text-decoration:underline;">support@proceedgate.dev</a> with the same fields.</dd>
     </dl>
@@ -149,15 +154,16 @@
 
 <section class="hero">
   <div class="container hero-inner">
-    <div class="badge">Pilot — limited slots · email to apply</div>
-    <p class="label">Scraping cost firewall</p>
-    <h1>Stop runaway scraper costs before they drain your quota.</h1>
+    <div class="badge">Pilot open · apply by email</div>
+    <p class="label">Pre-call guard pilot</p>
+    <h1>Pilot for teams running expensive AI or automation workflows.</h1>
     <p class="sub" style="margin:0 auto;">
-      ProceedGate adds one check before each expensive request. If your scraper retries the same URL, query, or task too many times, it blocks the loop with 429 before the paid call happens.
+      ProceedGate adds one pre-call check before costly or sensitive tools. Detect repeated tasks, budget pressure, and risky tool calls before the next paid request — in agents, n8n flows, or custom runners.
     </p>
     <div class="hero-cta">
-      <a href="#pilot-form" class="btn btn-primary btn-lg">Join the pilot</a>
-      <a href="retry-storm.html" class="btn btn-ghost btn-lg">Simulate a retry storm</a>
+      <a href="workflow-simulator.html" class="btn btn-primary btn-lg">Simulate a runaway workflow</a>
+      <a href="#pilot-form" class="btn btn-ghost btn-lg">Join pilot</a>
+      <a href="docs.html" class="btn btn-ghost btn-lg">Docs</a>
     </div>
   </div>
 </section>
@@ -165,8 +171,8 @@
 <section id="blocks">
   <div class="container-wide">
     <p class="label">What ProceedGate blocks</p>
-    <h2>Retry storms, pagination loops, and shared budget drain</h2>
-    <p class="sub" style="margin-bottom:28px;">Pain-first: catch the patterns that quietly burn SerpAPI credits, Apify CU, proxy GB, and Firecrawl pages.</p>
+    <h2>Repeated tasks, budget breaches, and risky tool calls</h2>
+    <p class="sub" style="margin-bottom:28px;">Catch workflow loops before OpenAI tokens, enrichment APIs, CRM writes, or scraper quota spiral.</p>
     <div class="cards">
       <div class="card">
         <h3>Same URL retry storms</h3>
@@ -198,14 +204,23 @@
     <h2>Drop-in ahead of the vendors you already pay</h2>
     <p class="sub">ProceedGate is HTTP-native — wrap the call site you control (runner, actor, gateway, or small proxy).</p>
     <div class="stack-list">
-      <span class="stack-pill">Apify</span>
+      <span class="stack-pill">OpenAI</span>
+      <span class="stack-pill">Replicate</span>
+      <span class="stack-pill">n8n</span>
       <span class="stack-pill">SerpAPI</span>
       <span class="stack-pill">Firecrawl</span>
-      <span class="stack-pill">Crawlee</span>
-      <span class="stack-pill">Playwright</span>
-      <span class="stack-pill">Puppeteer</span>
-      <span class="stack-pill">Custom scrapers</span>
+      <span class="stack-pill">Apify</span>
+      <span class="stack-pill">SAP / CRM</span>
+      <span class="stack-pill">Internal APIs</span>
     </div>
+  </div>
+</section>
+
+<section id="scraping-secondary">
+  <div class="container">
+    <p class="label">Also works for scraping / API loops</p>
+    <h2>Same guard, scraper-shaped workloads</h2>
+    <p class="sub">Retry storms on the same URL or <code>task_hash</code> — see <a href="scraping.html" style="color:var(--teal);text-decoration:underline;">Scraping</a> and <a href="retry-storm.html" style="color:var(--teal);text-decoration:underline;">retry storm lab</a>.</p>
   </div>
 </section>
 
@@ -257,15 +272,20 @@
 <section id="pilot-form">
   <div class="container">
     <p class="label">Lead capture</p>
-    <h2>Tell us about your scraper</h2>
+    <h2>Tell us about your workflow</h2>
 
     <div class="form-note">
       <strong style="color:var(--tx)">This is not a hosted form.</strong> The button does not POST to ProceedGate. It only opens your mail app with a draft to <code>support@proceedgate.dev</code>. If nothing opens, copy your answers and email that address manually.
       <!-- TODO(agent-cost-governor): POST pilot leads to a real endpoint when available (e.g. Worker + KV). Until then, keep this mailto fallback visible. -->
     </div>
-    <p style="font-size:13px;color:var(--tx-3);margin:-8px 0 16px;">
+    <p style="font-size:13px;color:var(--tx-3);margin:-8px 0 10px;">
       Direct line: <a id="pilot-mailto-direct" href="mailto:support@proceedgate.dev?subject=ProceedGate%20pilot%20inquiry" style="color:var(--teal);text-decoration:underline;">support@proceedgate.dev</a>
     </p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px;">
+      <button type="button" id="btn-copy-email" class="btn btn-ghost" style="font-size:13px;">Copy email</button>
+      <button type="button" id="btn-copy-template" class="btn btn-ghost" style="font-size:13px;">Copy pilot application template</button>
+      <span id="copy-feedback" style="align-self:center;font-size:12px;color:var(--tx-3);"></span>
+    </div>
 
     <form id="pilot-lead-form" class="card" style="padding:24px;">
       <div class="field">
@@ -281,8 +301,8 @@
         <input id="f-company" name="company" type="text" autocomplete="organization" />
       </div>
       <div class="field">
-        <label for="f-stack">Scraping stack used</label>
-        <input id="f-stack" name="stack" type="text" placeholder="e.g. Apify + Crawlee, Firecrawl, custom Playwright" />
+        <label for="f-stack">Automation / tool stack</label>
+        <input id="f-stack" name="stack" type="text" placeholder="e.g. n8n + OpenAI, LangGraph, Apify, SAP" />
       </div>
       <div class="field">
         <label for="f-spend">Approximate monthly API / proxy spend</label>
@@ -317,7 +337,7 @@
 </section>
 
 <p class="container" style="padding:20px 24px 32px;font-size:14px;color:var(--tx-3);text-align:center;border-top:1px solid var(--border);">
-  Try the <a href="retry-storm.html" style="color:var(--teal);text-decoration:underline;">labeled retry-storm simulator</a> (client-side only, clearly marked).
+  Try the <a href="workflow-simulator.html" style="color:var(--teal);text-decoration:underline;">runaway workflow simulator</a> or <a href="retry-storm.html" style="color:var(--teal);text-decoration:underline;">retry storm lab</a> (client-side only, clearly marked).
 </p>
 
 <footer>
@@ -342,6 +362,55 @@
 <script>
 (function () {
   var form = document.getElementById('pilot-lead-form');
+  var copyFeedback = document.getElementById('copy-feedback');
+
+  function setCopyFeedback(text) {
+    if (!copyFeedback) return;
+    copyFeedback.textContent = text;
+    window.setTimeout(function () {
+      if (copyFeedback.textContent === text) copyFeedback.textContent = '';
+    }, 1600);
+  }
+
+  function pilotTemplate() {
+    return [
+      'ProceedGate pilot application (static site form)',
+      '',
+      'Name:',
+      'Email:',
+      'Company / project:',
+      'Tool / automation stack:',
+      'Monthly API/proxy spend (range):',
+      'Retry storms / quota burn before?:',
+      '',
+      'Notes:',
+    ].join('\n');
+  }
+
+  var copyEmailBtn = document.getElementById('btn-copy-email');
+  if (copyEmailBtn) {
+    copyEmailBtn.addEventListener('click', async function () {
+      try {
+        await navigator.clipboard.writeText('support@proceedgate.dev');
+        setCopyFeedback('Email copied.');
+      } catch (_) {
+        setCopyFeedback('Copy failed. Copy support@proceedgate.dev manually.');
+      }
+    });
+  }
+
+  var copyTemplateBtn = document.getElementById('btn-copy-template');
+  if (copyTemplateBtn) {
+    copyTemplateBtn.addEventListener('click', async function () {
+      try {
+        await navigator.clipboard.writeText(pilotTemplate());
+        setCopyFeedback('Template copied.');
+      } catch (_) {
+        setCopyFeedback('Copy failed. Use the form fields below.');
+      }
+    });
+  }
+
   form.addEventListener('submit', function (ev) {
     ev.preventDefault();
     var name = document.getElementById('f-name').value.trim();
@@ -357,7 +426,7 @@
       'Name: ' + name,
       'Email: ' + email,
       'Company / project: ' + company,
-      'Scraping stack: ' + stack,
+      'Tool / automation stack: ' + stack,
       'Monthly API/proxy spend (range): ' + spend,
       'Retry storms / quota burn before?: ' + storms,
       '',

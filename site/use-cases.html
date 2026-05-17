@@ -6,7 +6,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ProceedGate — Use Cases</title>
   <meta name="description" content="How ProceedGate works with LLM gateways, scraping pipelines, and multi-agent systems. Live API demos included." />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%232dd4bf'/><path d='M10 16l4 4 8-8' stroke='%230f172a' stroke-width='2.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -16,8 +15,12 @@
       --red: #f87171; --green: #4ade80; --yellow: #fbbf24;
       --r: 6px; --mono: 'SF Mono','Fira Code','Cascadia Code',Consolas,monospace;
     }
-    html { scroll-behavior: smooth; }
-    body { background: var(--bg); color: var(--tx); font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif; font-size: 15px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+    html {
+      scroll-behavior: smooth;
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+    }
+    body { background: var(--bg); color: var(--tx); font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif; font-size: 14px; line-height: 1.55; -webkit-font-smoothing: antialiased; }
     a { color: inherit; text-decoration: none; }
 
     nav { position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; height: 56px; border-bottom: 1px solid var(--border); background: rgba(9,9,11,0.85); backdrop-filter: blur(12px); }
@@ -148,16 +151,14 @@
   <ul class="nav-links">
     <li><a href="index.html">Home</a></li>
     <li><a href="docs.html">Docs</a></li>
-    <li><a href="retry-storm.html">Simulator</a></li>
+    <li><a href="workflow-simulator.html">Simulator</a></li>
     <li><a href="scraping.html">Scraping</a></li>
     <li><a href="pilot.html">Pilot</a></li>
-    <li><a href="#llm">LLM</a></li>
-    <li><a href="#scraping">Scrape demo</a></li>
-    <li><a href="#multiagent">Multi-agent</a></li>
+    <li><a href="n8n.html">n8n</a></li>
   </ul>
   <div class="nav-right">
     <a href="dashboard.html" class="btn btn-ghost">Dashboard</a>
-    <a href="pay.html" class="btn btn-primary">Get started</a>
+    <a href="workflow-simulator.html" class="btn btn-primary">Simulate workflow</a>
   </div>
 </nav>
 
@@ -165,92 +166,53 @@
 <section id="hero">
   <div class="container-sm">
     <p class="label">Use cases</p>
-    <h1>One API.<br/>Any agent.</h1>
+    <h1>Guard expensive tool calls before they run.</h1>
     <p class="hero-sub">
-      Three real scenarios where ProceedGate stops runaway behavior.
-      Each demo below calls the live API — click 11+ times to trigger storm detection.
-      Prefer a fully labeled client-side walkthrough first? <a href="retry-storm.html" style="color:var(--teal);text-decoration:underline;">Retry storm simulator</a>
+      Pre-call guard for AI agents, n8n-style automation, business APIs, and scraping loops.
+      Live demos call the API — click 11+ times on the same demo to trigger storm detection.
+      Prefer a labeled walkthrough first? <a href="workflow-simulator.html" style="color:var(--teal);text-decoration:underline;">Runaway workflow simulator</a>
     </p>
     <div class="uc-nav">
-      <a href="#llm"        class="uc-pill">LLM Gateway</a>
-      <a href="#scraping"   class="uc-pill">Scraping Pipeline</a>
-      <a href="#multiagent" class="uc-pill">Multi-Agent</a>
+      <a href="#llm"        class="uc-pill">01 · AI Workflow Guard</a>
+      <a href="#multiagent" class="uc-pill">02 · n8n / Automation</a>
+      <a href="#business"   class="uc-pill">03 · Business API</a>
+      <a href="#scraping"   class="uc-pill">04 · Scraping</a>
     </div>
   </div>
 </section>
 
-<!-- Use Case 1: LLM Gateway -->
-<section id="llm" class="uc-section">
+<!-- Use Case 03: Business API (static) -->
+<section id="business" class="uc-section">
   <div class="container">
     <div class="uc-header">
       <div class="uc-header-left">
-        <div class="uc-tag">01 · LLM API Gateway</div>
-        <h2>Stop infinite reasoning loops</h2>
-        <p class="sub">A buggy prompt causes GPT-4 to keep calling itself, re-evaluating the same context. Each call costs ~$0.04. At 200 calls that's $8 before anyone notices.</p>
+        <div class="uc-tag">03 · Business API Guardrails</div>
+        <h2>Protect SAP, CRM, and internal HTTP APIs</h2>
+        <p class="sub">Workflows that write to SAP, Salesforce, or internal billing APIs need the same guard as LLM tools — block repeated writes on the same business key before the next POST.</p>
       </div>
     </div>
-
     <div class="ps-grid">
       <div class="ps-cell">
         <div class="ps-label problem">Problem</div>
-        <p>An agent using <span class="mono">model_call</span> enters a reasoning loop — same prompt, same context, same output, repeat. The LLM API doesn't know it's a loop. It just bills per token.</p>
+        <p>A stuck automation replays the same invoice or lead ID. Each pass triggers another paid ERP connector call or mutates production data.</p>
       </div>
       <div class="ps-cell">
         <div class="ps-label solution">With ProceedGate</div>
-        <p>Every model call hashes the prompt context. After 10 identical hashes in 60s, the check returns <span class="mono">loop_detected</span> and stops the agent cold — before it burns through your monthly API budget.</p>
+        <p>Hash the business key (<code>task_hash</code>) and call <code>/v1/check</code> before the CRM/SAP node. Loop detection returns 429 before the write.</p>
       </div>
     </div>
-
-    <div class="code-demo-split">
-      <div class="code-wrap">
-        <div class="code-head"><span>llm-agent.ts</span></div>
-        <pre><span class="ck">const</span> PG_KEY = process.env.PG_KEY;
-
-<span class="ck">async function</span> <span class="cf">pgCheck</span>(agentId: string, taskHash: string) {
-  <span class="ck">const</span> res = <span class="ck">await</span> <span class="cf">fetch</span>(<span class="cs">'https://governor.proceedgate.dev/v1/check'</span>, {
-    method: <span class="cs">'POST'</span>,
-    headers: { <span class="cs">'Authorization'</span>: <span class="cs">`Bearer ${PG_KEY}`</span>, <span class="cs">'Content-Type'</span>: <span class="cs">'application/json'</span> },
-    body: <span class="cf">JSON.stringify</span>({
-      agent_id:  agentId,
-      task_hash: taskHash,
-      action:    <span class="cs">'model_call'</span>,
-    }),
-  });
-  <span class="ck">if</span> (!res.ok) <span class="ck">throw new</span> <span class="cf">Error</span>((await res.<span class="cf">json</span>()).error);
-  <span class="ck">return</span> res.<span class="cf">json</span>(); <span class="cc">// { allowed, proceed_token, zone, ... }</span>
-}
-
-<span class="cc">// before every GPT-4 call:</span>
-<span class="ck">const</span> gate = <span class="ck">await</span> <span class="cf">pgCheck</span>(<span class="cs">'reasoning-agent'</span>, <span class="cf">sha256</span>(prompt));
-<span class="ck">if</span> (!gate.allowed) <span class="ck">throw new</span> <span class="cf">Error</span>(<span class="cs">'loop_detected'</span>);</pre>
-      </div>
-
-      <div class="demo-panel">
-        <div class="demo-head">
-          <span>Live API test</span>
-          <span id="llm-count" style="color:var(--teal)">0 calls</span>
-        </div>
-        <div class="demo-body">
-          <button class="demo-btn" onclick="testApi('llm','model_call')">
-            POST /check — model_call
-          </button>
-          <div class="demo-counter" id="llm-hint">Click 11+ times to trigger storm detection</div>
-          <div class="demo-result" id="llm-result">—</div>
-          <div class="demo-latency" id="llm-latency"></div>
-        </div>
-      </div>
-    </div>
+    <p style="font-size:13px;color:var(--tx-3);margin-top:12px;">Illustrative policy labels like <code>sensitive_endpoint_guard</code> appear in the <a href="workflow-simulator.html" style="color:var(--teal);text-decoration:underline;">workflow simulator</a> only — not in the live API response today.</p>
   </div>
 </section>
 
-<!-- Use Case 2: Scraping -->
+<!-- Use Case 4: Scraping -->
 <section id="scraping" class="uc-section">
   <div class="container">
     <div class="uc-header">
       <div class="uc-header-left">
-        <div class="uc-tag">02 · Scraping Pipeline</div>
+        <div class="uc-tag">04 · Scraping</div>
         <h2>Block Apify and SerpAPI retry storms</h2>
-        <p class="sub">A 403 or rate limit triggers automatic retries. Without a circuit breaker the scraper retries the same URL hundreds of times — each one counting against your quota.</p>
+        <p class="sub">A 403 or rate limit triggers automatic retries. Without a pre-call guard the scraper retries the same URL hundreds of times — each one counting against your quota.</p>
       </div>
     </div>
 
@@ -303,14 +265,14 @@
   </div>
 </section>
 
-<!-- Use Case 3: Multi-Agent -->
+<!-- Use Case 2: Multi-Agent -->
 <section id="multiagent" class="uc-section">
   <div class="container">
     <div class="uc-header">
       <div class="uc-header-left">
-        <div class="uc-tag">03 · Multi-Agent Pipeline</div>
-        <h2>Shared budget across a crew</h2>
-        <p class="sub">A pipeline of 4 agents (Researcher → Analyst → Writer → Reviewer) shares one budget. If Researcher enters a loop, it shouldn't drain the credits for everyone else.</p>
+        <div class="uc-tag">02 · n8n / Automation</div>
+        <h2>Guard every expensive node in the flow</h2>
+        <p class="sub">Webhook → HTTP Request (ProceedGate) → IF → SerpAPI / OpenAI / CRM. Same <code>task_hash</code> for one lead or ticket stops the flow before the next paid node. See <a href="n8n.html" style="color:var(--teal);text-decoration:underline;">n8n guide</a>.</p>
       </div>
     </div>
 
@@ -368,6 +330,70 @@
   </div>
 </section>
 
+<!-- Use Case 3: LLM Gateway -->
+<section id="llm" class="uc-section">
+  <div class="container">
+    <div class="uc-header">
+      <div class="uc-header-left">
+        <div class="uc-tag">01 · AI Workflow Guard</div>
+        <h2>Stop runaway agent tool loops</h2>
+        <p class="sub">An agent keeps enriching the same lead: SerpAPI → Firecrawl → OpenAI → CRM. One pre-call check per loop detects repeated <code>task_hash</code> before the next model or tool bill.</p>
+      </div>
+    </div>
+
+    <div class="ps-grid">
+      <div class="ps-cell">
+        <div class="ps-label problem">Problem</div>
+        <p>An agent using <span class="mono">model_call</span> enters a reasoning loop — same prompt, same context, same output, repeat. The LLM API doesn't know it's a loop. It just bills per token.</p>
+      </div>
+      <div class="ps-cell">
+        <div class="ps-label solution">With ProceedGate</div>
+        <p>Every model call hashes the prompt context. After 10 identical hashes in 60s, the check returns <span class="mono">loop_detected</span> and stops the agent cold — before it burns through your monthly API budget.</p>
+      </div>
+    </div>
+
+    <div class="code-demo-split">
+      <div class="code-wrap">
+        <div class="code-head"><span>llm-agent.ts</span></div>
+        <pre><span class="ck">const</span> PG_KEY = process.env.PG_KEY;
+
+<span class="ck">async function</span> <span class="cf">pgCheck</span>(agentId: string, taskHash: string) {
+  <span class="ck">const</span> res = <span class="ck">await</span> <span class="cf">fetch</span>(<span class="cs">'https://governor.proceedgate.dev/v1/check'</span>, {
+    method: <span class="cs">'POST'</span>,
+    headers: { <span class="cs">'Authorization'</span>: <span class="cs">`Bearer ${PG_KEY}`</span>, <span class="cs">'Content-Type'</span>: <span class="cs">'application/json'</span> },
+    body: <span class="cf">JSON.stringify</span>({
+      agent_id:  agentId,
+      task_hash: taskHash,
+      action:    <span class="cs">'model_call'</span>,
+    }),
+  });
+  <span class="ck">if</span> (!res.ok) <span class="ck">throw new</span> <span class="cf">Error</span>((await res.<span class="cf">json</span>()).error);
+  <span class="ck">return</span> res.<span class="cf">json</span>(); <span class="cc">// { allowed, proceed_token, zone, ... }</span>
+}
+
+<span class="cc">// before every GPT-4 call:</span>
+<span class="ck">const</span> gate = <span class="ck">await</span> <span class="cf">pgCheck</span>(<span class="cs">'reasoning-agent'</span>, <span class="cf">sha256</span>(prompt));
+<span class="ck">if</span> (!gate.allowed) <span class="ck">throw new</span> <span class="cf">Error</span>(<span class="cs">'loop_detected'</span>);</pre>
+      </div>
+
+      <div class="demo-panel">
+        <div class="demo-head">
+          <span>Live API test</span>
+          <span id="llm-count" style="color:var(--teal)">0 calls</span>
+        </div>
+        <div class="demo-body">
+          <button class="demo-btn" onclick="testApi('llm','model_call')">
+            POST /check — model_call
+          </button>
+          <div class="demo-counter" id="llm-hint">Click 11+ times to trigger storm detection</div>
+          <div class="demo-result" id="llm-result">—</div>
+          <div class="demo-latency" id="llm-latency"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- Feature matrix -->
 <section>
   <div class="container">
@@ -379,9 +405,9 @@
       <thead>
         <tr>
           <th>Feature</th>
-          <th class="col-h">LLM Gateway</th>
+          <th class="col-h">AI workflow</th>
+          <th class="col-h">n8n / auto</th>
           <th class="col-h">Scraping</th>
-          <th class="col-h">Multi-Agent</th>
         </tr>
       </thead>
       <tbody>
@@ -412,8 +438,8 @@
         <tr>
           <td>Per-agent loop detection (shared workspace)</td>
           <td class="no">—</td>
-          <td class="no">—</td>
           <td class="yes">✓</td>
+          <td class="no">—</td>
         </tr>
         <tr>
           <td>Webhook alert on loop block</td>
@@ -438,7 +464,8 @@
     <div class="cta-box">
       <h2>Start with 5,000 free checks</h2>
       <p>No card required. The demos above use the real API — your integration will too.</p>
-      <a href="pay.html" class="btn btn-primary btn-lg">Get your API key →</a>
+      <a href="workflow-simulator.html" class="btn btn-primary btn-lg">Simulate workflow</a>
+      <a href="pilot.html" class="btn btn-ghost btn-lg" style="margin-left:8px;">Join pilot</a>
     </div>
   </div>
 </section>
@@ -456,7 +483,7 @@
       <ul class="foot-links">
         <li><a href="index.html">Home</a></li>
         <li><a href="scraping.html">Scraping</a></li>
-        <li><a href="retry-storm.html">Simulator</a></li>
+        <li><a href="workflow-simulator.html">Simulator</a></li>
         <li><a href="pilot.html">Pilot</a></li>
         <li><a href="docs.html">Docs</a></li>
         <li><a href="dashboard.html">Dashboard</a></li>

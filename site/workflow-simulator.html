@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/jpeg" href="favicon.jpg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ProceedGate — Runaway workflow simulator</title>
+  <meta name="description" content="Simulated AI workflow: same lead loops through SerpAPI, Firecrawl, OpenAI, and CRM. See allow, warn, and block before paid tool calls." />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #09090b; --surface: #111113; --border: #1f1f23; --border-hi: #2a2a2f;
+      --tx: #fafafa; --tx-2: #a1a1aa; --tx-3: #52525b;
+      --teal: #2dd4bf; --teal-dim: rgba(45,212,191,0.10);
+      --red: #f87171; --green: #4ade80; --yellow: #fbbf24;
+      --r: 6px; --mono: 'SF Mono','Fira Code','Cascadia Code',Consolas,monospace;
+    }
+    html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+    body { background: var(--bg); color: var(--tx); font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif; font-size: 14px; line-height: 1.55; -webkit-font-smoothing: antialiased; }
+    a { color: inherit; text-decoration: none; }
+
+    nav { position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; min-height: 56px; border-bottom: 1px solid var(--border); background: rgba(9,9,11,0.85); backdrop-filter: blur(12px); flex-wrap: wrap; gap: 8px; row-gap: 10px; }
+    .nav-logo { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 15px; }
+    .nav-links { display: flex; align-items: center; gap: 4px; list-style: none; flex-wrap: wrap; justify-content: flex-end; max-width: 100%; }
+    .nav-links a { padding: 6px 12px; border-radius: var(--r); font-size: 14px; color: var(--tx-2); transition: color 0.15s, background 0.15s; }
+    .nav-links a:hover { color: var(--tx); background: var(--surface); }
+    .nav-links a.active { color: var(--teal); }
+    .nav-right { display: flex; align-items: center; gap: 8px; }
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: var(--r); font-size: 14px; font-weight: 500; cursor: pointer; border: none; transition: opacity 0.15s, background 0.15s, border-color 0.15s, color 0.15s; text-decoration: none; }
+    .btn-ghost { background: transparent; color: var(--tx-2); border: 1px solid var(--border); }
+    .btn-ghost:hover { color: var(--tx); border-color: var(--border-hi); }
+    .btn-primary { background: var(--teal); color: #09090b; font-weight: 600; }
+    .btn-primary:hover { opacity: 0.88; }
+    .btn-lg { padding: 10px 22px; font-size: 15px; }
+
+    .container { max-width: 1040px; margin: 0 auto; padding: 0 24px; }
+    section { padding: 48px 0; }
+    section + section { border-top: 1px solid var(--border); }
+
+    .sim-banner { margin: 16px 0 0; padding: 12px 16px; border: 1px solid rgba(251,191,36,0.35); border-radius: 10px; background: rgba(251,191,36,0.08); font-size: 13px; color: var(--tx-2); line-height: 1.5; }
+    .sim-banner strong { color: var(--yellow); }
+
+    h1 { font-size: clamp(28px, 5vw, 42px); font-weight: 700; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 12px; }
+    .lead { color: var(--tx-2); max-width: 720px; margin-bottom: 20px; font-size: 16px; }
+
+    .flow-chain { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; font-family: var(--mono); color: var(--tx-3); margin: 16px 0 20px; }
+    .flow-chain span { padding: 4px 10px; border: 1px solid var(--border); border-radius: 99px; color: var(--tx-2); }
+    .flow-chain .arrow { border: none; padding: 0; color: var(--tx-3); }
+
+    .sim-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+    .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+    .panel-head { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 12px; font-family: var(--mono); color: var(--tx-3); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+
+    .stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 16px; }
+    @media (min-width: 640px) { .stats { grid-template-columns: repeat(3, 1fr); } }
+    .stat { padding: 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); }
+    .stat-k { font-size: 11px; font-family: var(--mono); color: var(--tx-3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+    .stat-v { font-size: 20px; font-weight: 700; font-family: var(--mono); }
+    .stat-v.allow { color: var(--green); }
+    .stat-v.warn { color: var(--yellow); }
+    .stat-v.block { color: var(--red); }
+
+    .tool-row { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 16px 12px; font-size: 12px; font-family: var(--mono); }
+    .tool-pill { padding: 4px 10px; border-radius: 99px; border: 1px solid var(--border); color: var(--tx-3); }
+    .tool-pill.on { border-color: rgba(45,212,191,0.4); color: var(--teal); background: var(--teal-dim); }
+
+    .decision-pill { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 99px; font-weight: 600; font-size: 14px; font-family: var(--mono); }
+    .decision-pill.allow { background: rgba(74,222,128,0.12); color: var(--green); border: 1px solid rgba(74,222,128,0.35); }
+    .decision-pill.warn { background: rgba(251,191,36,0.12); color: var(--yellow); border: 1px solid rgba(251,191,36,0.35); }
+    .decision-pill.block { background: rgba(248,113,113,0.12); color: var(--red); border: 1px solid rgba(248,113,113,0.35); }
+
+    .sim-actions { padding: 0 16px 16px; display: flex; flex-wrap: wrap; gap: 10px; }
+    .log { padding: 16px; font-family: var(--mono); font-size: 11.5px; line-height: 1.65; color: var(--tx-2); max-height: 200px; overflow-y: auto; white-space: pre-wrap; background: #0c0c0e; border-top: 1px solid var(--border); }
+
+    .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); margin-top: 12px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    .compare-cell { background: var(--bg); padding: 12px 14px; font-size: 13px; }
+    .compare-cell strong { display: block; font-size: 11px; font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--tx-3); margin-bottom: 6px; }
+
+    .incident { margin-top: 16px; padding: 16px; border: 1px solid rgba(248,113,113,0.35); border-radius: 10px; background: rgba(248,113,113,0.06); display: none; }
+    .incident.visible { display: block; }
+    .incident h3 { font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--red); }
+    .incident dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; font-size: 13px; }
+    .incident dt { font-family: var(--mono); font-size: 11px; color: var(--tx-3); text-transform: uppercase; }
+    .incident dd { margin: 0; color: var(--tx-2); }
+
+    .flow-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 12px; font-size: 13px; color: var(--tx-2); }
+    .step-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .step-dot.safe { background: var(--green); }
+    .step-dot.warn { background: var(--yellow); }
+    .step-dot.block { background: var(--red); }
+
+    footer { border-top: 1px solid var(--border); padding: 28px 0; margin-top: 24px; }
+    .foot { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; font-size: 13px; color: var(--tx-3); }
+    .foot a { color: var(--tx-2); text-decoration: underline; text-underline-offset: 3px; }
+
+    .cta-row { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: center; }
+
+    @media (max-width: 768px) {
+      .nav-links { width: 100%; justify-content: center; order: 3; padding-bottom: 6px; }
+      .nav-right { width: 100%; justify-content: center; order: 2; flex-wrap: wrap; }
+      .nav-logo { order: 1; }
+      .sim-grid { grid-template-columns: 1fr; }
+      .compare { grid-template-columns: 1fr; }
+      .cta-row { flex-direction: column; }
+      .cta-row .btn { width: 100%; max-width: 360px; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-logo">
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+      <rect width="20" height="20" rx="5" fill="#2dd4bf"/>
+      <path d="M6 10l3 3 5-6" stroke="#09090b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    ProceedGate
+  </a>
+  <ul class="nav-links">
+    <li><a href="docs.html">Docs</a></li>
+    <li><a href="use-cases.html">Use cases</a></li>
+    <li><a href="n8n.html">n8n</a></li>
+    <li><a href="scraping.html">Scraping</a></li>
+    <li><a href="pilot.html">Pilot</a></li>
+  </ul>
+  <div class="nav-right">
+    <a href="dashboard.html" class="btn btn-ghost">Dashboard</a>
+    <a href="pilot.html" class="btn btn-primary">Join pilot</a>
+  </div>
+</nav>
+
+<section style="padding-top:32px;">
+  <div class="container">
+    <h1>Runaway workflow simulator</h1>
+    <p class="lead">
+      A workflow keeps processing the <strong>same lead</strong> and re-calling paid tools:
+      Webhook → SerpAPI → Firecrawl → OpenAI → CRM/SAP. This page is a <strong>client-side toy</strong> — reason codes below are illustrative labels for the demo, not live API fields.
+    </p>
+    <div class="sim-banner">
+      <strong>Simulated workflow. Not customer traffic.</strong>
+      No billing data and no network calls unless you separately use the live demos on <a href="use-cases.html" style="color:var(--teal);text-decoration:underline;">Use cases</a>.
+    </div>
+
+    <div class="flow-chain" aria-label="Example workflow steps">
+      <span>Webhook</span><span class="arrow">→</span>
+      <span>SerpAPI</span><span class="arrow">→</span>
+      <span>Firecrawl</span><span class="arrow">→</span>
+      <span>OpenAI</span><span class="arrow">→</span>
+      <span>CRM / SAP</span>
+    </div>
+
+    <div class="sim-grid">
+      <div class="panel">
+        <div class="panel-head"><span>Controls · lead-enrich-v3</span><span id="req-total" style="color:var(--teal)">0 attempts</span></div>
+        <div style="padding:16px;">
+          <p style="font-size:14px;color:var(--tx-2);margin-bottom:14px;">
+            Each click = one workflow loop on task <code style="font-family:var(--mono);color:var(--teal)">lead:acme-4421</code> before the next paid tool batch.
+          </p>
+          <div class="sim-actions" style="padding:0;">
+            <button type="button" class="btn btn-primary btn-lg" id="btn-step">Run workflow loop again</button>
+            <button type="button" class="btn btn-ghost" id="btn-reset">Reset</button>
+          </div>
+          <div class="flow-row">
+            <span class="step-dot safe"></span> 1–3 allow &nbsp;
+            <span class="step-dot warn"></span> 4–6 warn &nbsp;
+            <span class="step-dot block"></span> 7+ block
+          </div>
+          <p style="margin-top:16px;font-size:13px;color:var(--tx-3);">
+            Reason code (illustrative): <strong id="reason-code" style="color:var(--tx-2)">—</strong>
+          </p>
+          <p style="margin-top:10px;font-size:13px;color:var(--tx-3);">
+            Decision: <span id="decision-pill" class="decision-pill allow">allow</span>
+          </p>
+
+          <div id="incident-report" class="incident" aria-live="polite">
+            <h3>Incident report (simulated)</h3>
+            <dl>
+              <dt>Type</dt><dd id="ir-type">—</dd>
+              <dt>Workflow</dt><dd id="ir-workflow">lead-enrich-v3</dd>
+              <dt>Repeated task</dt><dd id="ir-task">lead:acme-4421</dd>
+              <dt>Blocked after</dt><dd id="ir-attempts">—</dd>
+              <dt>Est. spend avoided</dt><dd id="ir-saved">—</dd>
+              <dt>Reason code</dt><dd id="ir-reason">—</dd>
+              <dt>Recommended fix</dt><dd id="ir-fix">—</dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><span>Spend comparison (illustrative $/loop)</span></div>
+        <div class="stats">
+          <div class="stat"><div class="stat-k">Attempts</div><div class="stat-v" id="c-attempts">0</div></div>
+          <div class="stat"><div class="stat-k">Tool calls (no guard)</div><div class="stat-v" id="c-calls-unguarded">0</div></div>
+          <div class="stat"><div class="stat-k">Tool calls (with guard)</div><div class="stat-v allow" id="c-calls-guarded">0</div></div>
+          <div class="stat"><div class="stat-k">Blocked calls</div><div class="stat-v block" id="c-blocked">0</div></div>
+          <div class="stat"><div class="stat-k">Spend w/o guard</div><div class="stat-v" id="c-spend-raw">$0.00</div></div>
+          <div class="stat"><div class="stat-k">Spend w/ guard</div><div class="stat-v allow" id="c-spend-guarded">$0.00</div></div>
+        </div>
+        <div style="padding:0 16px 8px;font-size:13px;color:var(--teal);">
+          Spend avoided: <strong id="c-saved">$0.00</strong> (blocked loops × $0.42 illustrative loop cost)
+        </div>
+        <div class="tool-row" id="tool-pills">
+          <span class="tool-pill" data-tool="serp">SerpAPI</span>
+          <span class="tool-pill" data-tool="crawl">Firecrawl</span>
+          <span class="tool-pill" data-tool="llm">OpenAI</span>
+          <span class="tool-pill" data-tool="crm">CRM</span>
+        </div>
+        <div class="compare">
+          <div class="compare-cell"><strong>Without guard</strong><span id="cmp-no-guard">Every loop bills all four tools.</span></div>
+          <div class="compare-cell"><strong>With ProceedGate</strong><span id="cmp-guard">Stops before the next paid batch after block.</span></div>
+        </div>
+        <div class="panel-head" style="border-top:1px solid var(--border)"><span>Event log</span></div>
+        <div class="log" id="event-log">— Ready. Demo policy: attempts 1–3 allow, 4–6 warn, 7+ block.\n</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="container cta-row">
+    <a href="pilot.html" class="btn btn-primary btn-lg">Join pilot</a>
+    <a href="docs.html" class="btn btn-ghost btn-lg">Docs</a>
+    <a href="retry-storm.html" class="btn btn-ghost btn-lg">Scraper retry storm lab</a>
+  </div>
+</section>
+
+<footer>
+  <div class="container foot">
+    <span>ProceedGate · Workflow simulator (simulated)</span>
+    <span><a href="docs.html">Docs</a> · <a href="n8n.html">n8n</a> · <a href="pilot.html">Pilot</a></span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var LOOP_COST = 0.42;
+  var TOOLS_PER_LOOP = 4;
+  var WORKFLOW = 'lead-enrich-v3';
+  var TASK = 'lead:acme-4421';
+
+  var n = 0;
+  var blockedLoops = 0;
+  var callsUnguarded = 0;
+  var callsGuarded = 0;
+  var spendRaw = 0;
+  var spendGuarded = 0;
+
+  var logEl = document.getElementById('event-log');
+  var pill = document.getElementById('decision-pill');
+  var incident = document.getElementById('incident-report');
+
+  function zoneForAttempt(num) {
+    if (num <= 3) return 'allow';
+    if (num <= 6) return 'warn';
+    return 'block';
+  }
+
+  function reasonForAttempt(num, zone) {
+    if (zone === 'allow') return '—';
+    if (num === 4) return 'repeated_task';
+    if (num === 5) return 'too_many_tool_calls';
+    if (num === 6) return 'budget_threshold';
+    return 'sensitive_endpoint_guard';
+  }
+
+  function appendLog(line) {
+    var t = new Date().toISOString().split('T')[1].replace('Z', '');
+    logEl.textContent += '[' + t + '] ' + line + '\n';
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function flashTools() {
+    var pills = document.querySelectorAll('.tool-pill');
+    pills.forEach(function (p) { p.classList.add('on'); });
+    window.setTimeout(function () {
+      pills.forEach(function (p) { p.classList.remove('on'); });
+    }, 400);
+  }
+
+  function showIncident(attemptNum, reason, saved) {
+    incident.classList.add('visible');
+    document.getElementById('ir-type').textContent = 'Runaway workflow loop (simulated)';
+    document.getElementById('ir-attempts').textContent = attemptNum + ' attempts on same task';
+    document.getElementById('ir-saved').textContent = '$' + saved.toFixed(2);
+    document.getElementById('ir-reason').textContent = reason;
+    document.getElementById('ir-fix').textContent =
+      'Dedupe task_hash per lead, cap tool calls per workflow run, and route 4–6 to human review before CRM/SAP writes.';
+  }
+
+  function render() {
+    document.getElementById('req-total').textContent = n + (n === 1 ? ' attempt' : ' attempts');
+    document.getElementById('c-attempts').textContent = String(n);
+    document.getElementById('c-calls-unguarded').textContent = String(callsUnguarded);
+    document.getElementById('c-calls-guarded').textContent = String(callsGuarded);
+    document.getElementById('c-blocked').textContent = String(blockedLoops);
+    document.getElementById('c-spend-raw').textContent = '$' + spendRaw.toFixed(2);
+    document.getElementById('c-spend-guarded').textContent = '$' + spendGuarded.toFixed(2);
+    document.getElementById('c-saved').textContent = '$' + (spendRaw - spendGuarded).toFixed(2);
+
+    var z = n === 0 ? 'allow' : zoneForAttempt(n);
+    var reason = reasonForAttempt(n, z);
+    document.getElementById('reason-code').textContent = reason;
+
+    pill.className = 'decision-pill ' + z;
+    pill.textContent = z === 'allow' ? 'allow' : z === 'warn' ? 'warn' : 'block';
+
+    if (z !== 'block') {
+      incident.classList.remove('visible');
+    }
+  }
+
+  document.getElementById('btn-step').addEventListener('click', function () {
+    n += 1;
+    var z = zoneForAttempt(n);
+    var reason = reasonForAttempt(n, z);
+
+    callsUnguarded += TOOLS_PER_LOOP;
+    spendRaw += LOOP_COST;
+
+    if (z === 'block') {
+      blockedLoops += 1;
+      appendLog('#' + n + ' BLOCK — ' + reason + ' · paid tool batch skipped (simulated).');
+      showIncident(n, reason, spendRaw - spendGuarded);
+    } else if (z === 'warn') {
+      callsGuarded += TOOLS_PER_LOOP;
+      spendGuarded += LOOP_COST;
+      appendLog('#' + n + ' WARN — ' + reason + ' · proceed with caution (simulated).');
+      flashTools();
+    } else {
+      callsGuarded += TOOLS_PER_LOOP;
+      spendGuarded += LOOP_COST;
+      appendLog('#' + n + ' ALLOW — pre-call check passed; SerpAPI → Firecrawl → OpenAI → CRM (simulated).');
+      flashTools();
+    }
+    render();
+  });
+
+  document.getElementById('btn-reset').addEventListener('click', function () {
+    n = 0; blockedLoops = 0;
+    callsUnguarded = 0; callsGuarded = 0;
+    spendRaw = 0; spendGuarded = 0;
+    logEl.textContent = '— Reset. Demo policy: attempts 1–3 allow, 4–6 warn, 7+ block.\n';
+    pill.className = 'decision-pill allow';
+    pill.textContent = 'allow';
+    incident.classList.remove('visible');
+    render();
+  });
+
+  render();
+})();
+</script>
+
+</body>
+</html>

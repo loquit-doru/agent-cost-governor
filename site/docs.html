@@ -105,12 +105,13 @@
     ProceedGate
   </a>
   <div class="nav-links">
-    <a href="scraping.html">Scraping</a>
+    <a href="workflow-simulator.html">Simulator</a>
     <a href="use-cases.html">Use Cases</a>
+    <a href="n8n.html">n8n</a>
     <a href="pilot.html">Pilot</a>
     <a href="docs.html" class="active">Docs</a>
     <a href="mailto:support@proceedgate.dev">Support</a>
-    <a href="pay.html" style="background:var(--teal-dim);color:var(--teal);padding:6px 12px;border-radius:6px;border:1px solid rgba(45,212,191,.25);">Get API Key</a>
+    <a href="pay.html" style="color:var(--tx-2);padding:6px 12px;">Get API Key</a>
   </div>
 </nav>
 
@@ -119,6 +120,7 @@
     <div class="sidebar-section">
       <div class="sidebar-label">Getting Started</div>
       <a class="sidebar-link active" href="#quickstart">Quickstart</a>
+      <a class="sidebar-link" href="#placement">Where to place</a>
       <a class="sidebar-link" href="#authentication">Authentication</a>
       <a class="sidebar-link" href="#base-url">Base URL</a>
     </div>
@@ -156,6 +158,7 @@
     </div>
     <div class="sidebar-section">
       <div class="sidebar-label">Integration</div>
+      <a class="sidebar-link" href="n8n.html">n8n integration</a>
       <a class="sidebar-link" href="#nodejs">Node.js (raw)</a>
       <a class="sidebar-link" href="#python">Python (raw)</a>
       <a class="sidebar-link" href="#errors">Error Codes</a>
@@ -164,7 +167,18 @@
 
   <main class="content">
     <h1>Documentation</h1>
-    <p class="intro">ProceedGate is a circuit breaker for AI agents. One HTTP call before each action detects retry storms, enforces budgets, and returns a signed token as proof of governance.</p>
+    <p class="intro">ProceedGate is a reusable <strong>pre-call guard</strong> for expensive or sensitive AI workflow tool calls. Add one <code>POST /v1/check</code> before OpenAI, Replicate, SerpAPI, Firecrawl, Apify, SAP, CRM, or internal HTTP steps to detect repeated tasks, budget pressure, and runaway loops before the next paid request runs. Scraping and retry-storm workloads are supported as a secondary pattern — see <a href="scraping.html">Scraping</a>.</p>
+
+    <h2 id="placement">Where to place ProceedGate</h2>
+    <p>Insert the guard <strong>immediately before</strong> the tool call that spends money or touches sensitive data — not after the vendor responds.</p>
+<pre><span class="d">// Illustrative flow (any orchestrator)</span>
+Webhook / trigger
+  → <span class="g">ProceedGate /v1/check</span>  <span class="d">// agent_id + task_hash</span>
+  → IF allowed → SerpAPI / Firecrawl / OpenAI / CRM
+  → IF blocked → alert + stop (no vendor call)
+
+<span class="d">// n8n: HTTP Request → IF on allowed / zone → expensive nodes</span></pre>
+    <p>See <a href="n8n.html">Using ProceedGate with n8n</a> and <a href="workflow-simulator.html">Runaway workflow simulator</a> (client-side demo).</p>
 
     <!-- Quickstart -->
     <h2 id="quickstart">Quickstart</h2>
@@ -747,7 +761,7 @@ gated = BudgetAwareCrew(
     max_budget=<span class="g">2.50</span>,  <span class="d"># $2.50 hard stop</span>
 )
 
-result = gated.kickoff(inputs={<span class="y">"topic"</span>: <span class="y">"BNB Chain DeFi"</span>})
+result = gated.kickoff(inputs={<span class="y">"topic"</span>: <span class="y">"lead enrichment workflow"</span>})
 print(f<span class="y">"Spent: ${gated.total_cost:.4f}"</span>)</pre>
 
     <!-- SDK: MCP Server -->
