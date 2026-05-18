@@ -63,3 +63,7 @@ scripts/VOICEOVER_SCRIPT.md
 worker/src/index.old.ts
 worker/CONFIG.md
 bsc.address
+
+# Local secrets (never commit)
+.proceedgate-secrets/
+worker/.local-secrets/

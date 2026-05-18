@@ -972,9 +972,13 @@ export class BillingStoreDO {
     }
   }
 
+  private n8nDownloadDayKey(day: string): string {
+    return `n8n_download:${day}`;
+  }
+
   private async recordN8nDownloadEvent(event: N8nDownloadEvent): Promise<void> {
     const day = event.created_at.slice(0, 10);
-    const key = `n8n_download:${day}`;
+    const key = this.n8nDownloadDayKey(day);
     const events = (await this.state.storage.get<N8nDownloadEvent[]>(key)) ?? [];
     events.push(event);
     const maxPerDay = 5_000;
@@ -1029,12 +1033,28 @@ export class BillingStoreDO {
     let invalid7d = 0;
     let invalidAnonymous24h = 0;
     let n8nLikeChecks7d = 0;
+    let n8nDownloads24h = 0;
+    let n8nDownloads7d = 0;
 
     const workspaceValidCounts = new Map<string, number>();
     const agents7d = new Set<string>();
     const agentCounts = new Map<string, number>();
     const stepCounts = new Map<string, number>();
     const n8nWorkspaces = new Set<string>();
+    const n8nDownloadUniqueIps7d = new Set<string>();
+    const n8nAssetCounts = new Map<string, number>();
+
+    for (const day of days7) {
+      const downloadEvents =
+        (await this.state.storage.get<N8nDownloadEvent[]>(this.n8nDownloadDayKey(day))) ?? [];
+      for (const ev of downloadEvents) {
+        const in24h = ev.created_at >= cutoff24h;
+        n8nDownloads7d += 1;
+        if (in24h) n8nDownloads24h += 1;
+        if (ev.ip_hash) n8nDownloadUniqueIps7d.add(ev.ip_hash);
+        n8nAssetCounts.set(ev.asset_id, (n8nAssetCounts.get(ev.asset_id) ?? 0) + 1);
+      }
+    }
 
     for (const day of days7) {
       const events = (await this.state.storage.get<V1CheckEvent[]>(this.v1CheckDayKey(day))) ?? [];
@@ -1095,6 +1115,11 @@ export class BillingStoreDO {
       .slice(0, 10)
       .map(([step_hash, count]) => ({ step_hash, count }));
 
+    const topN8nDownloads7d = [...n8nAssetCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([asset_id, downloads]) => ({ asset_id, downloads }));
+
     return {
       checks_24h: checks24h,
       checks_7d: checks7d,
@@ -1112,6 +1137,10 @@ export class BillingStoreDO {
       invalid_anonymous_24h: invalidAnonymous24h,
       n8n_like_workspaces_7d: n8nWorkspaces.size,
       n8n_like_checks_7d: n8nLikeChecks7d,
+      n8n_downloads_24h: n8nDownloads24h,
+      n8n_downloads_7d: n8nDownloads7d,
+      n8n_download_unique_ips_7d: n8nDownloadUniqueIps7d.size,
+      top_n8n_downloads_7d: topN8nDownloads7d,
       top_agents_7d: topAgents7d,
       top_steps_7d: topSteps7d,
     };
