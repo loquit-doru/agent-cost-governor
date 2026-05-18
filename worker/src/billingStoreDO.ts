@@ -20,6 +20,12 @@ import {
 } from './lib/crossIntelligence.js';
 import type { D1Database } from './lib/crossIntelligence.js';
 import { CREDITS } from './lib/constants.js';
+import {
+  applyFreeTopUp,
+  freeGrantStorageKey,
+  resolveEffectivePlanFromSub,
+  type EffectivePlanSnapshot,
+} from './lib/effectivePlan.js';
 
 export type BillingQuoteRecord = {
   quoteId: string;
@@ -479,6 +485,82 @@ export class BillingStoreDO {
   private async putBalance(balance: WorkspaceBalance): Promise<void> {
     balance.updatedAtMs = Date.now();
     await this.state.storage.put(`ws:${balance.workspaceId}`, balance);
+  }
+
+  private async resolveEffectivePlan(
+    workspaceId: string,
+    nowMs: number,
+  ): Promise<EffectivePlanSnapshot | null> {
+    const sub = await this.state.storage.get<{
+      plan?: string;
+      expiresAtMs?: number;
+    }>(`sub:${workspaceId}`);
+    if (!sub) return null;
+
+    const storedPlan = sub.plan || 'free';
+    const expiresAtMs = sub.expiresAtMs ?? 0;
+    const bal = await this.readBalanceRecord(workspaceId);
+    const creditsRemaining = bal?.credits ?? 0;
+
+    return resolveEffectivePlanFromSub({
+      storedPlan,
+      expiresAtMs,
+      creditsRemaining,
+      nowMs,
+    });
+  }
+
+  /**
+   * Policy B: once per calendar month (UTC), top free-tier balance up to 5000 if below cap.
+   */
+  private async reconcileFreeAllowance(
+    workspaceId: string,
+    effective: EffectivePlanSnapshot,
+    nowMs: number,
+  ): Promise<{ credits_remaining: number; free_grant_applied: boolean }> {
+    if (effective.effective_plan !== 'free') {
+      return { credits_remaining: effective.credits_remaining, free_grant_applied: false };
+    }
+
+    const grantKey = freeGrantStorageKey(workspaceId, effective.free_period_key);
+    const alreadyGranted = await this.state.storage.get<boolean>(grantKey);
+    if (alreadyGranted) {
+      const bal = await this.readBalanceRecord(workspaceId);
+      return { credits_remaining: bal?.credits ?? effective.credits_remaining, free_grant_applied: false };
+    }
+
+    const resolved = await this.resolveBalance(workspaceId);
+    if (!resolved.ok) {
+      return { credits_remaining: effective.credits_remaining, free_grant_applied: false };
+    }
+
+    const before = resolved.balance.credits;
+    const after = applyFreeTopUp(before);
+    if (after !== before) {
+      resolved.balance.credits = after;
+      await this.putBalance(resolved.balance);
+    }
+    await this.state.storage.put(grantKey, true);
+    return { credits_remaining: after, free_grant_applied: after > before };
+  }
+
+  private async reconcileBilling(
+    workspaceId: string,
+    nowMs = Date.now(),
+  ): Promise<
+    | { ok: true; effective: EffectivePlanSnapshot; free_grant_applied: boolean }
+    | { ok: false; error: 'subscription_not_found' | 'billing_not_initialized' | 'workspace_not_initialized' }
+  > {
+    const effective = await this.resolveEffectivePlan(workspaceId, nowMs);
+    if (!effective) {
+      const resolved = await this.resolveBalance(workspaceId);
+      if (!resolved.ok) return { ok: false, error: resolved.error };
+      return { ok: false, error: 'subscription_not_found' };
+    }
+
+    const grant = await this.reconcileFreeAllowance(workspaceId, effective, nowMs);
+    effective.credits_remaining = grant.credits_remaining;
+    return { ok: true, effective, free_grant_applied: grant.free_grant_applied };
   }
 
   private async getAuth(workspaceId: string): Promise<WorkspaceAuth | null> {
@@ -1104,7 +1186,12 @@ export class BillingStoreDO {
       };
       
       const body = (await request.json().catch(() => null)) as CreateWorkspaceBody | null;
-      if (!body?.workspace_id || !body?.api_key_hash || !body?.credits) {
+      if (
+        !body?.workspace_id ||
+        !body?.api_key_hash ||
+        typeof body.credits !== 'number' ||
+        body.credits < 0
+      ) {
         return new Response('invalid_request', { status: 400 });
       }
 
@@ -1163,15 +1250,44 @@ export class BillingStoreDO {
       const workspaceId = parts[1]!;
 
       if (request.method === 'GET' && parts.length === 2) {
-        const resolved = await this.resolveBalance(workspaceId);
-        if (!resolved.ok) {
+        const reconciled = await this.reconcileBilling(workspaceId);
+        if (!reconciled.ok) {
+          const resolved = await this.resolveBalance(workspaceId);
+          if (!resolved.ok) {
+            return Response.json(
+              { ok: false, error: resolved.error, workspace_id: workspaceId, credits: 0 },
+              { status: 404 },
+            );
+          }
           return Response.json(
-            { ok: false, error: resolved.error, workspace_id: workspaceId, credits: 0 },
-            { status: 404 },
+            { workspace_id: workspaceId, credits: resolved.balance.credits },
+            { status: 200 },
           );
         }
         return Response.json(
-          { workspace_id: workspaceId, credits: resolved.balance.credits },
+          {
+            workspace_id: workspaceId,
+            credits: reconciled.effective.credits_remaining,
+          },
+          { status: 200 },
+        );
+      }
+
+      if (request.method === 'GET' && parts.length === 3 && parts[2] === 'billing-effective') {
+        const reconciled = await this.reconcileBilling(workspaceId);
+        if (!reconciled.ok) {
+          return Response.json(
+            { ok: false, error: reconciled.error },
+            { status: reconciled.error === 'billing_not_initialized' ? 404 : 404 },
+          );
+        }
+        return Response.json(
+          {
+            ok: true,
+            workspace_id: workspaceId,
+            ...reconciled.effective,
+            free_grant_applied: reconciled.free_grant_applied,
+          },
           { status: 200 },
         );
       }
@@ -1206,6 +1322,7 @@ export class BillingStoreDO {
           }, { status: 402 });
         }
 
+        const reconciled = await this.reconcileBilling(workspaceId);
         const resolved = await this.resolveBalance(workspaceId);
         if (!resolved.ok) {
           return Response.json(
@@ -1224,12 +1341,14 @@ export class BillingStoreDO {
         // Record usage
         await this.recordUsage(workspaceId, n, body?.action, body?.tool);
 
-        // Check if credits are low (below 20% of max)
-        const sub = await this.state.storage.get<{ 
-          credits?: number; 
-          features?: { logRetentionDays?: number } 
-        }>(`sub:${workspaceId}`);
-        const maxCredits = sub?.credits ?? 25000;
+        // Check if credits are low (below 20% of max) — use effective plan allowance
+        const maxCredits =
+          reconciled.ok && reconciled.effective.included_checks > 0
+            ? reconciled.effective.included_checks
+            : (await this.state.storage.get<{ credits?: number }>(`sub:${workspaceId}`))?.credits ?? 25000;
+        const sub = await this.state.storage.get<{ features?: { logRetentionDays?: number } }>(
+          `sub:${workspaceId}`,
+        );
         const creditsLowThreshold = 0.2; // 20%
         const isCreditsLow = bal.credits < (maxCredits * creditsLowThreshold);
 

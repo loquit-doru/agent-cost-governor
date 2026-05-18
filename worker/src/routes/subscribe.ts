@@ -17,6 +17,7 @@ import { writeMetric } from '../metrics.js';
 import { sendSubscriptionConfirmation, sendFreeWelcomeEmail, isEmailConfigured } from '../services/email.js';
 import { webhookSubscriptionCreated, webhookSubscriptionRenewed, sendWebhook } from '../services/webhook.js';
 import { getBillingStub, doUrl } from '../lib/do.js';
+import { reconcileWorkspaceBilling } from '../services/store.js';
 import { hashApiKey } from '../lib/crypto.js';
 import { CREDITS, API_KEY_PREFIXES } from '../lib/constants.js';
 import { requireAdminAuth } from '../middleware/auth.js';
@@ -1890,13 +1891,17 @@ subscribeRoutes.get('/v1/me', async (c) => {
 
   const { workspace_id: workspaceId } = await lookupRes.json() as { workspace_id: string };
 
-  // Get balance
-  const balanceRes = await stub.fetch(
-    doUrl(`/workspaces/${workspaceId}`)
-  );
-  const balance = await balanceRes.json() as { credits: number };
+  const billingReconciled = await reconcileWorkspaceBilling(c.env, workspaceId);
+  if (!billingReconciled.ok) {
+    return c.json({
+      ok: false,
+      error: billingReconciled.error,
+      hint: 'Workspace billing could not be reconciled.',
+    }, billingReconciled.status === 404 ? 404 : 502);
+  }
+  const { billing } = billingReconciled;
 
-  // Get subscription info
+  // Get subscription info (stored metadata — expiry dates for display)
   const subRes = await stub.fetch(
     doUrl(`/workspaces/${workspaceId}/subscription`)
   );
@@ -1910,8 +1915,7 @@ subscribeRoutes.get('/v1/me', async (c) => {
   );
   const webhookConfigured = webhookRes.ok;
 
-  // Determine plan and features
-  const planId = (subscription?.plan || 'free') as PlanId;
+  const planId = billing.effective_plan as PlanId;
   const plan = PLANS[planId] || PLANS.free;
 
   return c.json({
@@ -1922,9 +1926,12 @@ subscribeRoutes.get('/v1/me', async (c) => {
       name: plan.name,
     },
     credits: {
-      remaining: balance.credits,
-      included: plan.checks,
+      remaining: billing.credits_remaining,
+      included: billing.included_checks,
     },
+    ...(billing.previous_plan
+      ? { previous_plan: billing.previous_plan }
+      : {}),
     features: {
       projects: plan.projects,
       log_retention_days: plan.logRetentionDays,

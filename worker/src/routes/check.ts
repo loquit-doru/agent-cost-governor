@@ -6,7 +6,11 @@ import { computeRetryFrictionPrice, computeLowConfidencePrice, computeLLMCostPri
 import { getBillingMode, getX402Price, getX402Chain, getX402Recipient } from '../lib/config.js';
 import { makeDecisionId, setProceedgateHeaders } from '../lib/utils.js';
 import { signProceedToken } from '../services/signing.js';
-import { putDecisionRecord, consumeWorkspaceCredits, getWorkspaceCredits } from '../services/store.js';
+import {
+  putDecisionRecord,
+  consumeWorkspaceCredits,
+  reconcileWorkspaceBilling,
+} from '../services/store.js';
 import { requireWorkspaceAuth } from '../middleware/auth.js';
 import { logEvent, actorKey } from '../observability.js';
 import { writeMetric } from '../metrics.js';
@@ -1476,26 +1480,28 @@ checkRoutes.post('/v1/check', async (c) => {
 
   const { agent_id, task_hash, action, step_hash } = parsed.data;
 
-  // 4. Billing preflight — no credits → 402 before loop detection (avoids storm on unpaid retries)
-  const balancePreflight = await getWorkspaceCredits(c.env, workspaceId);
-  if (!balancePreflight.ok) {
+  // 4. Billing preflight — reconcile effective plan + free allowance, then 402 if no credits
+  const billingPreflight = await reconcileWorkspaceBilling(c.env, workspaceId);
+  if (!billingPreflight.ok) {
     writeMetric(c.env, {
-      indexes: ['check_credits_blocked', 'retry_friction_v1', action, balancePreflight.error],
+      indexes: ['check_credits_blocked', 'retry_friction_v1', action, billingPreflight.error],
       doubles: [1, Date.now() - startMs],
     });
-    const status = balancePreflight.status === 404 ? 404 : 402;
+    const status = billingPreflight.status === 404 ? 404 : 402;
     return c.json({
       allowed: false,
-      error: balancePreflight.error,
+      error: billingPreflight.error,
       credits_remaining: 0,
       zone: 'billing',
       reason:
-        balancePreflight.error === 'billing_not_initialized'
+        billingPreflight.error === 'billing_not_initialized'
           ? 'Workspace billing is not initialized.'
-          : 'Workspace is not fully initialized.',
+          : billingPreflight.error === 'workspace_not_initialized'
+            ? 'Workspace is not fully initialized.'
+            : 'Workspace billing could not be reconciled.',
     }, status);
   }
-  if (balancePreflight.credits < 1) {
+  if (billingPreflight.billing.credits_remaining < 1) {
     writeMetric(c.env, {
       indexes: ['check_credits_blocked', 'retry_friction_v1', action, 'insufficient_credits'],
       doubles: [1, Date.now() - startMs],

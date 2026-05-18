@@ -1,7 +1,13 @@
 import type { Env } from '../types.js';
 import type { DecisionRecord } from '../decisionStoreDO.js';
 import type { BillingQuoteRecord } from '../billingStoreDO.js';
+import type { EffectivePlanSnapshot } from '../lib/effectivePlan.js';
 import { getBillingStub, getDecisionStub, doUrl } from '../lib/do.js';
+
+export type WorkspaceBillingEffective = EffectivePlanSnapshot & {
+  workspace_id: string;
+  free_grant_applied?: boolean;
+};
 
 // ============================================================================
 // Decision Store Operations
@@ -90,6 +96,47 @@ export async function redeemBillingQuote(
       : 502;
 
   return { ok: false, status: safeStatus, error: err, credits };
+}
+
+export async function reconcileWorkspaceBilling(
+  env: Env,
+  workspaceId: string,
+): Promise<
+  | { ok: true; billing: WorkspaceBillingEffective }
+  | { ok: false; error: string; status: number }
+> {
+  const stub = getBillingStub(env);
+  const url = doUrl(`/workspaces/${encodeURIComponent(workspaceId)}/billing-effective`);
+  const res = await stub.fetch(url, { method: 'GET' });
+  const body = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+  if (!res.ok) {
+    const err =
+      typeof body?.error === 'string' && body.error ? body.error : 'billing_reconcile_failed';
+    return { ok: false, error: err, status: res.status };
+  }
+  if (
+    typeof body?.effective_plan !== 'string' ||
+    typeof body?.included_checks !== 'number' ||
+    typeof body?.credits_remaining !== 'number'
+  ) {
+    return { ok: false, error: 'billing_reconcile_invalid', status: 502 };
+  }
+  return {
+    ok: true,
+    billing: {
+      workspace_id: workspaceId,
+      stored_plan: String(body.stored_plan ?? 'free'),
+      effective_plan: String(body.effective_plan),
+      status: body.status === 'expired' ? 'expired' : 'active',
+      included_checks: body.included_checks as number,
+      credits_remaining: body.credits_remaining as number,
+      free_period_key: String(body.free_period_key ?? ''),
+      reason: body.reason as WorkspaceBillingEffective['reason'],
+      previous_plan:
+        typeof body.previous_plan === 'string' ? body.previous_plan : undefined,
+      free_grant_applied: body.free_grant_applied === true,
+    },
+  };
 }
 
 export async function getWorkspaceCredits(

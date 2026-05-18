@@ -43,7 +43,13 @@ function createBillingEnv(doInstance: BillingStoreDO): Env {
 
 async function seedWorkspace(
   doInstance: BillingStoreDO,
-  opts: { workspaceId: string; credits: number; apiKey?: string },
+  opts: {
+    workspaceId: string;
+    credits: number;
+    apiKey?: string;
+    plan?: string;
+    expires_at_ms?: number;
+  },
 ) {
   const apiKey = opts.apiKey ?? `pg_ws_${opts.workspaceId.padEnd(48, '0').slice(0, 48)}`;
   const apiKeyHash = await hashApiKey(apiKey);
@@ -54,9 +60,9 @@ async function seedWorkspace(
       body: JSON.stringify({
         workspace_id: opts.workspaceId,
         api_key_hash: apiKeyHash,
-        plan: 'free',
+        plan: opts.plan ?? 'free',
         credits: opts.credits,
-        expires_at_ms: Date.now() + 30 * 24 * 60 * 60 * 1000,
+        expires_at_ms: opts.expires_at_ms ?? Date.now() + 30 * 24 * 60 * 60 * 1000,
       }),
     }),
   );
@@ -116,6 +122,7 @@ describe('POST /v1/check', () => {
   it('B: no credits returns 402 and does not increment loop counter', async () => {
     const wsId = 'ws-no-credits';
     const { apiKey } = await seedWorkspace(billingDo, { workspaceId: wsId, credits: 1 });
+    await billingDo.fetch(new Request(`https://do.internal/workspaces/${wsId}/billing-effective`));
     const state = (billingDo as unknown as { state: { storage: { put: (k: string, v: object) => Promise<void> } } }).state;
     await state.storage.put(`ws:${wsId}`, { workspaceId: wsId, credits: 0, updatedAtMs: Date.now() });
 
@@ -148,6 +155,7 @@ describe('POST /v1/check', () => {
   it('C: repeated no-credit checks stay 402 and never become 429', async () => {
     const wsId = 'ws-repeat-402';
     const { apiKey } = await seedWorkspace(billingDo, { workspaceId: wsId, credits: 1 });
+    await billingDo.fetch(new Request(`https://do.internal/workspaces/${wsId}/billing-effective`));
     const state = (billingDo as unknown as { state: { storage: { put: (k: string, v: object) => Promise<void> } } }).state;
     await state.storage.put(`ws:${wsId}`, { workspaceId: wsId, credits: 0, updatedAtMs: Date.now() });
 
@@ -192,6 +200,70 @@ describe('POST /v1/check', () => {
     expect(res.status).toBe(404);
     expect(body.allowed).toBe(false);
     expect(body.error).toBe('billing_not_initialized');
+  });
+
+  it('G: active starter with credits returns 200', async () => {
+    const { apiKey } = await seedWorkspace(billingDo, {
+      workspaceId: 'ws-starter-active',
+      plan: 'starter',
+      credits: 100,
+      expires_at_ms: Date.now() + 30 * 24 * 60 * 60 * 1000,
+    });
+
+    const res = await postCheck(env, apiKey, {
+      agent_id: 'agent-1',
+      task_hash: 'starter-task',
+      action: 'tool_call',
+    });
+    const body = await res.json() as { allowed: boolean; credits_remaining?: number };
+
+    expect(res.status).toBe(200);
+    expect(body.allowed).toBe(true);
+    expect(body.credits_remaining).toBe(99);
+  });
+
+  it('H: expired starter with zero credits reconciles free and allows check', async () => {
+    const { apiKey } = await seedWorkspace(billingDo, {
+      workspaceId: 'ws-starter-expired',
+      plan: 'starter',
+      credits: 0,
+      expires_at_ms: Date.now() - 86_400_000,
+    });
+
+    const res = await postCheck(env, apiKey, {
+      agent_id: 'agent-1',
+      task_hash: 'expired-starter-task',
+      action: 'tool_call',
+    });
+    const body = await res.json() as { allowed: boolean; credits_remaining?: number };
+
+    expect(res.status).toBe(200);
+    expect(body.allowed).toBe(true);
+    expect(body.credits_remaining).toBe(CREDITS.FREE_TIER - 1);
+  });
+
+  it('I: expired starter after monthly grant exhausted returns 402 without storm', async () => {
+    const wsId = 'ws-starter-exhausted';
+    const { apiKey } = await seedWorkspace(billingDo, {
+      workspaceId: wsId,
+      plan: 'starter',
+      credits: 0,
+      expires_at_ms: Date.now() - 1,
+    });
+    await billingDo.fetch(
+      new Request(`https://do.internal/workspaces/${wsId}/billing-effective`),
+    );
+    const state = (billingDo as unknown as { state: { storage: { put: (k: string, v: object) => Promise<void> } } }).state;
+    await state.storage.put(`ws:${wsId}`, { workspaceId: wsId, credits: 0, updatedAtMs: Date.now() });
+
+    const payload = { agent_id: 'agent-1', task_hash: 'no-credits-task', action: 'tool_call' as const };
+    for (let i = 0; i < 5; i++) {
+      const res = await postCheck(env, apiKey, payload);
+      expect(res.status).toBe(402);
+      const body = await res.json() as { zone: string; iteration_count?: number };
+      expect(body.zone).toBe('billing');
+      expect(body.iteration_count).toBeUndefined();
+    }
   });
 
   it('F: invalid action costly_tool_lookup returns 400', async () => {
