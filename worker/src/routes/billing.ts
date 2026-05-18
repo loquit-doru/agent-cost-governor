@@ -247,8 +247,15 @@ billingRoutes.get('/v1/billing/balance', async (c) => {
   const authErr = await requireWorkspaceAuth(c, workspaceId);
   if (authErr) return authErr;
 
-  const credits = await getWorkspaceCredits(c.env, workspaceId);
-  return c.json({ ok: true, workspace_id: workspaceId, credits }, 200);
+  const balance = await getWorkspaceCredits(c.env, workspaceId);
+  if (!balance.ok) {
+    const status = balance.status === 404 ? 404 : 402;
+    return c.json(
+      { ok: false, error: balance.error, workspace_id: workspaceId, credits: balance.credits },
+      status,
+    );
+  }
+  return c.json({ ok: true, workspace_id: workspaceId, credits: balance.credits }, 200);
 });
 
 // Set budget limits

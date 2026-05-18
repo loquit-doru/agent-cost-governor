@@ -92,13 +92,29 @@ export async function redeemBillingQuote(
   return { ok: false, status: safeStatus, error: err, credits };
 }
 
-export async function getWorkspaceCredits(env: Env, workspaceId: string): Promise<number> {
+export async function getWorkspaceCredits(
+  env: Env,
+  workspaceId: string,
+): Promise<
+  | { ok: true; credits: number }
+  | { ok: false; error: string; status: number; credits: number }
+> {
   const stub = getBillingStub(env);
   const url = doUrl(`/workspaces/${encodeURIComponent(workspaceId)}`);
   const res = await stub.fetch(url, { method: 'GET' });
-  if (!res.ok) throw new Error(`billing_workspace_get_failed status=${res.status}`);
-  const body = (await res.json().catch(() => null)) as { credits?: unknown } | null;
-  return typeof body?.credits === 'number' ? body.credits : 0;
+  const body = (await res.json().catch(() => null)) as {
+    credits?: unknown;
+    error?: unknown;
+  } | null;
+  const credits = typeof body?.credits === 'number' ? body.credits : 0;
+  if (!res.ok) {
+    const err =
+      typeof body?.error === 'string' && body.error
+        ? body.error
+        : 'billing_workspace_get_failed';
+    return { ok: false, error: err, status: res.status, credits };
+  }
+  return { ok: true, credits };
 }
 
 export async function consumeWorkspaceCredits(

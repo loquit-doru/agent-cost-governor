@@ -19,6 +19,7 @@ import {
   cleanupOldPatterns,
 } from './lib/crossIntelligence.js';
 import type { D1Database } from './lib/crossIntelligence.js';
+import { CREDITS } from './lib/constants.js';
 
 export type BillingQuoteRecord = {
   quoteId: string;
@@ -284,8 +285,8 @@ export class BillingStoreDO {
 
         // Hard enforcement: block workspace if subscription expired
         if (daysLeft <= 0) {
-          const bal = await this.getBalance(workspaceId);
-          if (bal.credits > 0) {
+          const bal = await this.readBalanceRecord(workspaceId);
+          if (bal && bal.credits > 0) {
             console.log(`[BillingStoreDO] Subscription expired for ${workspaceId}, freezing ${bal.credits} credits`);
             // Store frozen credits for potential reactivation
             await this.state.storage.put(`frozen_credits:${workspaceId}`, bal.credits);
@@ -411,17 +412,68 @@ export class BillingStoreDO {
     return record;
   }
 
-  private async getBalance(workspaceId: string): Promise<WorkspaceBalance> {
-    const existing = (await this.state.storage.get<WorkspaceBalance>(`ws:${workspaceId}`)) ?? null;
-    if (existing) return existing;
+  private async readBalanceRecord(workspaceId: string): Promise<WorkspaceBalance | null> {
+    return (await this.state.storage.get<WorkspaceBalance>(`ws:${workspaceId}`)) ?? null;
+  }
 
-    const fresh: WorkspaceBalance = {
+  /** Resolve workspace balance without creating orphan zero-credit rows. */
+  private async resolveBalance(workspaceId: string): Promise<
+    | { ok: true; balance: WorkspaceBalance; reconstructed?: boolean }
+    | { ok: false; error: 'workspace_not_initialized' | 'billing_not_initialized' }
+  > {
+    const existing = await this.readBalanceRecord(workspaceId);
+    if (existing) return { ok: true, balance: existing };
+
+    const auth = await this.getAuth(workspaceId);
+    const sub = await this.state.storage.get<{
+      plan?: string;
+      credits?: number;
+    }>(`sub:${workspaceId}`);
+
+    if (!auth && !sub) {
+      return { ok: false, error: 'billing_not_initialized' };
+    }
+
+    if (!sub) {
+      return { ok: false, error: 'workspace_not_initialized' };
+    }
+
+    // Free tier: recover balance row from subscription metadata when auth exists.
+    if (sub.plan === 'free' && auth) {
+      const credits =
+        typeof sub.credits === 'number' && sub.credits > 0 ? sub.credits : CREDITS.FREE_TIER;
+      const fresh: WorkspaceBalance = {
+        workspaceId,
+        credits,
+        updatedAtMs: Date.now(),
+      };
+      await this.putBalance(fresh);
+      console.log(`[BillingStoreDO] Reconstructed free-tier balance for ${workspaceId}: ${credits} credits`);
+      return { ok: true, balance: fresh, reconstructed: true };
+    }
+
+    // Paid workspace with auth but missing balance row — zero balance, no free grant.
+    if (auth) {
+      const fresh: WorkspaceBalance = {
+        workspaceId,
+        credits: 0,
+        updatedAtMs: Date.now(),
+      };
+      await this.putBalance(fresh);
+      return { ok: true, balance: fresh, reconstructed: true };
+    }
+
+    return { ok: false, error: 'workspace_not_initialized' };
+  }
+
+  private async getBalance(workspaceId: string): Promise<WorkspaceBalance> {
+    const resolved = await this.resolveBalance(workspaceId);
+    if (resolved.ok) return resolved.balance;
+    return {
       workspaceId,
       credits: 0,
       updatedAtMs: Date.now(),
     };
-    await this.state.storage.put(`ws:${workspaceId}`, fresh);
-    return fresh;
   }
 
   private async putBalance(balance: WorkspaceBalance): Promise<void> {
@@ -1010,7 +1062,14 @@ export class BillingStoreDO {
         await this.state.storage.put(`quote:${quoteId}`, record);
         await this.state.storage.put(`tx:${txHash}`, quoteId);
 
-        const bal = await this.getBalance(record.workspaceId);
+        const resolved = await this.resolveBalance(record.workspaceId);
+        const bal: WorkspaceBalance = resolved.ok
+          ? resolved.balance
+          : {
+              workspaceId: record.workspaceId,
+              credits: 0,
+              updatedAtMs: Date.now(),
+            };
         bal.credits = Math.max(0, bal.credits) + record.credits;
         await this.putBalance(bal);
 
@@ -1104,8 +1163,17 @@ export class BillingStoreDO {
       const workspaceId = parts[1]!;
 
       if (request.method === 'GET' && parts.length === 2) {
-        const bal = await this.getBalance(workspaceId);
-        return Response.json({ workspace_id: workspaceId, credits: bal.credits }, { status: 200 });
+        const resolved = await this.resolveBalance(workspaceId);
+        if (!resolved.ok) {
+          return Response.json(
+            { ok: false, error: resolved.error, workspace_id: workspaceId, credits: 0 },
+            { status: 404 },
+          );
+        }
+        return Response.json(
+          { workspace_id: workspaceId, credits: resolved.balance.credits },
+          { status: 200 },
+        );
       }
 
       if (request.method === 'GET' && parts.length === 3 && parts[2] === 'auth') {
@@ -1138,7 +1206,14 @@ export class BillingStoreDO {
           }, { status: 402 });
         }
 
-        const bal = await this.getBalance(workspaceId);
+        const resolved = await this.resolveBalance(workspaceId);
+        if (!resolved.ok) {
+          return Response.json(
+            { ok: false, error: resolved.error, credits: 0 },
+            { status: resolved.error === 'billing_not_initialized' ? 404 : 402 },
+          );
+        }
+        const bal = resolved.balance;
         if (bal.credits < n) {
           return Response.json({ ok: false, error: 'insufficient_credits', credits: bal.credits }, { status: 402 });
         }
@@ -1508,7 +1583,8 @@ export class BillingStoreDO {
       // ======================================================================
       if (request.method === 'GET' && parts.length === 3 && parts[2] === 'stats') {
         const stats = await this.state.storage.get<BlockedStats>(`blocked:${workspaceId}`);
-        const bal = await this.getBalance(workspaceId);
+        const resolved = await this.resolveBalance(workspaceId);
+        const balCredits = resolved.ok ? resolved.balance.credits : 0;
         const sub = await this.state.storage.get<{ credits?: number }>(`sub:${workspaceId}`);
         const maxCredits = sub?.credits ?? 25000;
         
@@ -1518,7 +1594,7 @@ export class BillingStoreDO {
         return Response.json({
           ok: true,
           workspace_id: workspaceId,
-          credits_remaining: bal.credits,
+          credits_remaining: balCredits,
           credits_used_this_month: monthUsage,
           max_credits: maxCredits,
           blocked_requests: stats?.blockedRequests ?? 0,
@@ -2507,13 +2583,13 @@ export class BillingStoreDO {
 
         if (planFilter && sub.plan !== planFilter) continue;
 
-        const bal = await this.getBalance(workspaceId);
+        const bal = await this.readBalanceRecord(workspaceId);
         const auth = await this.getAuth(workspaceId);
 
         workspaces.push({
           workspace_id: workspaceId,
           plan: sub.plan,
-          credits_remaining: bal.credits,
+          credits_remaining: bal?.credits ?? 0,
           credits_allocated: sub.credits,
           expires_at: new Date(sub.expiresAtMs).toISOString(),
           created_at: new Date(sub.createdAtMs).toISOString(),

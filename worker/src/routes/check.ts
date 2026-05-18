@@ -6,7 +6,7 @@ import { computeRetryFrictionPrice, computeLowConfidencePrice, computeLLMCostPri
 import { getBillingMode, getX402Price, getX402Chain, getX402Recipient } from '../lib/config.js';
 import { makeDecisionId, setProceedgateHeaders } from '../lib/utils.js';
 import { signProceedToken } from '../services/signing.js';
-import { putDecisionRecord, consumeWorkspaceCredits } from '../services/store.js';
+import { putDecisionRecord, consumeWorkspaceCredits, getWorkspaceCredits } from '../services/store.js';
 import { requireWorkspaceAuth } from '../middleware/auth.js';
 import { logEvent, actorKey } from '../observability.js';
 import { writeMetric } from '../metrics.js';
@@ -1476,7 +1476,40 @@ checkRoutes.post('/v1/check', async (c) => {
 
   const { agent_id, task_hash, action, step_hash } = parsed.data;
 
-  // 4. Loop detection
+  // 4. Billing preflight — no credits → 402 before loop detection (avoids storm on unpaid retries)
+  const balancePreflight = await getWorkspaceCredits(c.env, workspaceId);
+  if (!balancePreflight.ok) {
+    writeMetric(c.env, {
+      indexes: ['check_credits_blocked', 'retry_friction_v1', action, balancePreflight.error],
+      doubles: [1, Date.now() - startMs],
+    });
+    const status = balancePreflight.status === 404 ? 404 : 402;
+    return c.json({
+      allowed: false,
+      error: balancePreflight.error,
+      credits_remaining: 0,
+      zone: 'billing',
+      reason:
+        balancePreflight.error === 'billing_not_initialized'
+          ? 'Workspace billing is not initialized.'
+          : 'Workspace is not fully initialized.',
+    }, status);
+  }
+  if (balancePreflight.credits < 1) {
+    writeMetric(c.env, {
+      indexes: ['check_credits_blocked', 'retry_friction_v1', action, 'insufficient_credits'],
+      doubles: [1, Date.now() - startMs],
+    });
+    return c.json({
+      allowed: false,
+      error: 'insufficient_credits',
+      credits_remaining: 0,
+      zone: 'billing',
+      reason: 'Insufficient credits. Top up to continue.',
+    }, 402);
+  }
+
+  // 5. Loop detection
   const patternHash = await crypto.subtle.digest(
     'SHA-256',
     new TextEncoder().encode(`${action}:${task_hash}:${step_hash ?? ''}`),
@@ -1547,7 +1580,7 @@ checkRoutes.post('/v1/check', async (c) => {
     }
   }
 
-  // 5. Consume credits
+  // 6. Consume credits (preflight already ensured credits >= 1)
   const consumed = await consumeWorkspaceCredits(c.env, workspaceId, 1, { action });
 
   if (!consumed.ok) {
@@ -1559,15 +1592,15 @@ checkRoutes.post('/v1/check', async (c) => {
     }).catch(() => {});
     return c.json({
       allowed: false,
-      zone: loopData.zone,
+      zone: 'billing',
       iteration_count: loopData.count,
-      error: 'insufficient_credits',
+      error: consumed.error || 'insufficient_credits',
       credits_remaining: consumed.credits,
       reason: 'Insufficient credits. Top up to continue.',
-    }, 402);
+    }, consumed.status === 404 ? 404 : 402);
   }
 
-  // 6. Sign proceed token and return
+  // 7. Sign proceed token and return
   const decisionId = makeDecisionId();
   const signed = await signProceedToken({
     env: c.env,
