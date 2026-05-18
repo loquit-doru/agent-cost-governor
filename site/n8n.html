@@ -72,7 +72,9 @@ Content-Type: application/json
     <li><a href="https://github.com/loquit-doru/agent-cost-governor/blob/main/examples/n8n/main-ai-agent-flow.json">Main AI Agent Flow JSON</a></li>
     <li><a href="https://github.com/loquit-doru/agent-cost-governor/blob/main/examples/n8n/native-vs-proceedgate-guard-workflow.md">Full native vs ProceedGate guide</a></li>
   </ul>
-  <p><strong>Import order:</strong> import Workflow 1 (guard) → save → copy Workflow ID from the n8n URL → import Workflow 2 (main agent) → open <strong>Call n8n Workflow Tool</strong> → replace <code>REPLACE_WITH_WORKFLOW_1_ID</code> with that ID → test the native mock → optionally swap the Code budget node for ProceedGate <code>/v1/check</code>.</p>
+  <p><strong>Import path A — native n8n:</strong> Import Guard Sub-workflow JSON → test mock Code budget logic.</p>
+  <p><strong>Import path B — ProceedGate-powered:</strong> Import ProceedGate-powered Guard Sub-workflow JSON → replace <code>REPLACE_WITH_PG_WORKSPACE_KEY</code> → route on <code>allowed</code>/denied.</p>
+  <p><strong>Then:</strong> Import Main AI Agent Flow and point <strong>Call n8n Workflow Tool</strong> to whichever guard workflow you want to test.</p>
 
   <h2 id="shared-guard-sub-workflow">Shared Guard Sub-workflow pattern</h2>
   <p>Reuse one guard across many main workflows by calling a sub-workflow before any costly tool batch:</p>
