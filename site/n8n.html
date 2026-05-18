@@ -55,8 +55,8 @@ Content-Type: application/json
 }</pre>
 
   <h2>IF routing (illustrative)</h2>
-  <p>Map the JSON body — production uses <code>allowed</code> and HTTP status (429 when blocked):</p>
-<pre>// IF node (example expressions)
+  <p>Map the JSON body — production uses <code>allowed</code> and HTTP status (429 when blocked). On the ProceedGate <strong>HTTP Request</strong> node, enable <strong>Never Error</strong> (<code>options.response.response.neverError: true</code> in the repo export) so 429 responses with <code>allowed: false</code> reach the IF node instead of failing the workflow.</p>
+<pre>// IF node (example expressions; matches proceedgate-guard-sub-workflow.json)
 {{ $json.allowed === true }}  → continue to OpenAI / SerpAPI / CRM
 {{ $json.allowed === false }} → stop branch, Slack alert, dead-letter
 

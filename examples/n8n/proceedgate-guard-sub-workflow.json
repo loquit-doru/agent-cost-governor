@@ -29,7 +29,13 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"agent_id\": \"n8n-main-agent\",\n  \"task_hash\": \"{{ $json.query || 'default-search' }}\",\n  \"action\": \"tool_call\",\n  \"step_hash\": \"guarded_costly_tool\"\n}",
-        "options": {}
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
       },
       "id": "pg-check",
       "name": "ProceedGate Check",

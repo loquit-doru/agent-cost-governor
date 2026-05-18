@@ -2,21 +2,17 @@
 
 Two-workflow pattern: a **shared Guard Sub-workflow** called from a **Main AI Agent** flow via **Call n8n Workflow Tool**. n8n handles orchestration; ProceedGate holds shared policy, loop state, credits, and audit across workflows.
 
-> **Disclaimer:** Workflow JSON snippets and node names below are **illustrative** (source export files were not in this repo). Import your own exports, then adapt. Test in your n8n instance before production.
+> **Disclaimer:** Import the JSON exports below, then adapt credentials and workflow IDs. Test in your n8n instance before production.
 
 ## Source workflow files
 
-| Workflow | Expected name | Status in repo |
-|----------|---------------|----------------|
-| Guard Sub-workflow | Native guard with mock budget logic | **Not found** — add exports under `examples/n8n/` when available |
-| Main AI Agent Flow | Main flow using Call n8n Workflow Tool | **Not found** — same |
+| Workflow | File | Status in repo |
+|----------|------|----------------|
+| Guard Sub-workflow (native) | `examples/n8n/guard-sub-workflow.json` | Present |
+| ProceedGate Guard Sub-workflow | `examples/n8n/proceedgate-guard-sub-workflow.json` | Present |
+| Main AI Agent Flow | `examples/n8n/main-ai-agent-flow.json` | Present |
 
-If you have the JSON exports, place them as:
-
-- `examples/n8n/guard-sub-workflow.json`
-- `examples/n8n/main-ai-agent-flow.json`
-
-Then re-import in n8n and follow the steps below.
+Re-import in n8n and follow the steps below.
 
 ---
 
@@ -104,7 +100,7 @@ The main flow should **not** duplicate budget logic — it delegates to the sub-
 | URL | `https://governor.proceedgate.dev/v1/check` |
 | Authentication | Header `Authorization: Bearer pg_ws_...` |
 | Body | JSON (see below) |
-| Options | **Continue On Fail** off — you want explicit IF routing on status/body |
+| Options | **Never Error** on (`options.response.response.neverError: true`) — ProceedGate returns HTTP 429 with `{ allowed: false, ... }` on loop blocks; without this, n8n may error before the IF node runs |
 
 **Verified body fields** (`easyCheckSchema` in `worker/src/routes/check.ts`): `agent_id`, `task_hash`, optional `action`, optional `step_hash`.
 
@@ -125,9 +121,15 @@ Use `step_hash` to name the guarded step; use `tool_call` for external paid tool
 
 Stable `task_hash` per unit of work (same search / lead / ticket) is required for loop detection. Vary it when the work unit changes.
 
+### HTTP 429 and Never Error
+
+When loop detection blocks a call, `/v1/check` returns **HTTP 429** with a JSON body that still includes `allowed: false` (verified in `worker/src/routes/check.ts`). By default, n8n’s HTTP Request node treats non-2xx as a failure and can stop the workflow before **Allowed?** runs.
+
+In `proceedgate-guard-sub-workflow.json`, **ProceedGate Check** sets `options.response.response.neverError: true` so 200 and 429 both emit items. Route on `$json.allowed` — do **not** rely on node failure for deny.
+
 ### Wire IF after HTTP Request
 
-Use the **parsed JSON body** from the HTTP Request node (not only HTTP status):
+Use the **parsed JSON body** from the HTTP Request node (with Never Error, body fields are at the item root — not under `$json.body` unless you also enable full response):
 
 | Condition | Route |
 |-----------|--------|
@@ -191,4 +193,4 @@ Keep **Call n8n Workflow Tool** pointing at this sub-workflow. Only the guard in
 
 - [proceedgate-pre-call-guard.md](./proceedgate-pre-call-guard.md) — single-workflow HTTP + IF pattern
 - [n8n.html](../../site/n8n.html) — site guide
-- Repo: `examples/n8n/` — add your JSON exports when available
+- Repo: `examples/n8n/` — importable JSON exports listed above
