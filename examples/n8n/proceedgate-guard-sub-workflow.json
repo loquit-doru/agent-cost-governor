@@ -1,0 +1,129 @@
+{
+  "name": "ProceedGate Guard Sub-workflow: Costly API",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "exec-trigger",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [200, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://governor.proceedgate.dev/v1/check",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer REPLACE_WITH_PG_WORKSPACE_KEY"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"agent_id\": \"n8n-main-agent\",\n  \"task_hash\": \"{{ $json.query || 'default-search' }}\",\n  \"action\": \"tool_call\",\n  \"step_hash\": \"guarded_costly_tool\"\n}",
+        "options": {}
+      },
+      "id": "pg-check",
+      "name": "ProceedGate Check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [420, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.allowed }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "if-node",
+      "name": "Allowed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [640, 200]
+    },
+    {
+      "parameters": {
+        "url": "https://dummyjson.com/http/200/Costly_API_Mock_Success",
+        "options": {}
+      },
+      "id": "api-call",
+      "name": "Costly API Exec (Mock)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [860, 100]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "result",
+              "value": "Tool execution denied: ProceedGate blocked this call because the task repeated or policy was hit. Please inform the user."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-error",
+      "name": "Deny Message",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [860, 320]
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "ProceedGate Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ProceedGate Check": {
+      "main": [
+        [
+          {
+            "node": "Allowed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Allowed?": {
+      "main": [
+        [
+          {
+            "node": "Costly API Exec (Mock)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Deny Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

@@ -20,6 +20,20 @@ Then re-import in n8n and follow the steps below.
 
 ---
 
+## ProceedGate-powered importable workflow
+
+Import [`examples/n8n/proceedgate-guard-sub-workflow.json`](./proceedgate-guard-sub-workflow.json) when you want **ProceedGate** (`POST /v1/check`) to make the allow/deny decision instead of a native Code node.
+
+1. Import [`guard-sub-workflow.json`](./guard-sub-workflow.json) first to see the native pattern (Execute Workflow Trigger → mock budget → IF → costly tool / deny).
+2. Import [`proceedgate-guard-sub-workflow.json`](./proceedgate-guard-sub-workflow.json) when you want `/v1/check` to decide: same orchestration shape, but **ProceedGate Check** replaces **Evaluate Budget Limits**.
+3. In the **ProceedGate Check** HTTP Request node, replace `REPLACE_WITH_PG_WORKSPACE_KEY` with your workspace API key (`pg_ws_...`).
+4. **n8n** still handles orchestration, sub-workflow calls, IF branching, and the **Deny Message** text returned to the parent agent.
+5. **ProceedGate** holds the shared guard decision (loop detection, credits, `allowed`, audit) across workflows and agents.
+
+Wire your main flow’s **Call n8n Workflow Tool** to this sub-workflow the same way as the native guard.
+
+---
+
 ## Architecture
 
 ```text
