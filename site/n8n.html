@@ -26,6 +26,9 @@
     ul { padding-left: 20px; }
     pre { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; overflow-x: auto; font-family: var(--mono); font-size: 12.5px; line-height: 1.65; color: var(--tx-2); margin: 12px 0 20px; }
     .alert { border-radius: 8px; padding: 12px 14px; font-size: 13px; margin: 16px 0; border: 1px solid rgba(251,191,36,0.35); background: rgba(251,191,36,0.08); color: var(--tx-2); }
+    .alert.info { border-color: rgba(45,212,191,0.35); background: var(--teal-dim); }
+    .alert.info strong { color: var(--tx); }
+    .alert .cta { display: inline-block; margin-top: 10px; font-weight: 600; }
     code { font-family: var(--mono); font-size: 12px; background: rgba(255,255,255,0.06); padding: 2px 5px; border-radius: 4px; }
     @media (max-width: 640px) { nav { justify-content: center; } }
   </style>
@@ -41,6 +44,14 @@
 
   <div class="alert">
     <strong>Verified API fields</strong> for <code>POST /v1/check</code>: <code>agent_id</code>, <code>task_hash</code>, optional <code>action</code> (<code>tool_call</code> · <code>model_call</code> · <code>retry</code> · …), optional <code>step_hash</code>. See <a href="docs.html#check">Docs</a>. Fields like <code>workflow_id</code> or <code>reason_code</code> in examples below are <strong>illustrative n8n patterns</strong> unless marked otherwise.
+  </div>
+
+  <div class="alert info">
+    <strong>Before you import — need an API key?</strong>
+    Create a free ProceedGate workspace to get <strong>5,000 checks/month</strong> (no credit card). Paste your workspace key into the n8n HTTP Request node as:
+    <pre style="margin:10px 0 8px;padding:10px 12px;font-size:12px;">Authorization: Bearer pg_ws_...</pre>
+    Do not hard-code the key in shared workflow exports.
+    <a href="pay.html" class="cta">Get free API key →</a>
   </div>
 
   <h2>HTTP Request node (production payload)</h2>

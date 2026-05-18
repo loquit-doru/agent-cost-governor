@@ -2,6 +2,12 @@
 
 Place ProceedGate **before** expensive or sensitive nodes. Production check endpoint: `POST https://governor.proceedgate.dev/v1/check`.
 
+## Workspace API key (required)
+
+You need a **workspace API key** (`pg_ws_...`) on every check. Create a free workspace at [proceedgate.dev/pay.html](https://proceedgate.dev/pay.html) — **5,000 checks/month**, no credit card.
+
+In importable workflow JSON, replace `REPLACE_WITH_PG_WORKSPACE_KEY` with your key in the HTTP Request node. **Do not commit** real keys to JSON, GitHub, or shared workflow exports; use n8n credentials in production.
+
 ## Verified request body (`/v1/check`)
 
 ```json

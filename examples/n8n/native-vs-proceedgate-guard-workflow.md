@@ -4,6 +4,14 @@ Two-workflow pattern: a **shared Guard Sub-workflow** called from a **Main AI Ag
 
 > **Disclaimer:** Import the JSON exports below, then adapt credentials and workflow IDs. Test in your n8n instance before production.
 
+## Workspace API key (required)
+
+ProceedGate checks require a **workspace API key** (`pg_ws_...`). Create a free workspace at [proceedgate.dev/pay.html](https://proceedgate.dev/pay.html) — **5,000 checks/month**, no credit card.
+
+After import, open the **ProceedGate Check** HTTP Request node and replace the placeholder `REPLACE_WITH_PG_WORKSPACE_KEY` with your key (Header: `Authorization: Bearer pg_ws_...`).
+
+**Never commit your real key** to workflow JSON, GitHub, or shared exports. Use n8n credentials or environment variables in production.
+
 ## Source workflow files
 
 | Workflow | File | Status in repo |
