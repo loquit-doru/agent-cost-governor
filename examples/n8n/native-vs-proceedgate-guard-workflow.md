@@ -108,7 +108,7 @@ The main flow should **not** duplicate budget logic — it delegates to the sub-
 | URL | `https://governor.proceedgate.dev/v1/check` |
 | Authentication | Header `Authorization: Bearer pg_ws_...` |
 | Body | JSON (see below) |
-| Options | **Never Error** on (`options.response.response.neverError: true`) — ProceedGate returns HTTP 429 with `{ allowed: false, ... }` on loop blocks; without this, n8n may error before the IF node runs |
+| Options | **Never Error** on (`options.response.response.neverError: true`) — ProceedGate may return non-2xx (e.g. 402 credits, 429 loop) with `{ allowed: false, ... }`; without this, n8n may error before the IF node runs |
 
 **Verified body fields** (`easyCheckSchema` in `worker/src/routes/check.ts`): `agent_id`, `task_hash`, optional `action`, optional `step_hash`.
 
@@ -133,7 +133,7 @@ Stable `task_hash` per unit of work (same search / lead / ticket) is required fo
 
 When loop detection blocks a call, `/v1/check` returns **HTTP 429** with a JSON body that still includes `allowed: false` (verified in `worker/src/routes/check.ts`). By default, n8n’s HTTP Request node treats non-2xx as a failure and can stop the workflow before **Allowed?** runs.
 
-In `proceedgate-guard-sub-workflow.json`, **ProceedGate Check** sets `options.response.response.neverError: true` so 200 and 429 both emit items. Route on `$json.allowed` — do **not** rely on node failure for deny.
+In `proceedgate-guard-sub-workflow.json`, **ProceedGate Check** sets `options.response.response.neverError: true` so non-2xx responses like 402 or 429 with `allowed: false` reach the IF node instead of failing the workflow. Route on `$json.allowed` — do **not** rely on node failure for deny.
 
 ### Wire IF after HTTP Request
 

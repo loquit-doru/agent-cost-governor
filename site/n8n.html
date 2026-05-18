@@ -40,7 +40,7 @@
 </nav>
 <div class="wrap">
   <h1>Using ProceedGate with n8n</h1>
-  <p>Place an <strong>HTTP Request</strong> node immediately before expensive or sensitive nodes (OpenAI, HTTP Tool, SerpAPI, CRM, etc.). Route with an <strong>IF</strong> node on the check result.</p>
+  <p>Place an <strong>HTTP Request</strong> node immediately before expensive or sensitive nodes (OpenAI, HTTP Tool, SerpAPI, CRM, etc.). Route with an <strong>IF</strong> node on <code>allowed</code>.</p>
 
   <div class="alert">
     <strong>Verified API fields</strong> for <code>POST /v1/check</code>: <code>agent_id</code>, <code>task_hash</code>, optional <code>action</code> (<code>tool_call</code> · <code>model_call</code> · <code>retry</code> · …), optional <code>step_hash</code>. See <a href="docs.html#check">Docs</a>. Fields like <code>workflow_id</code> or <code>reason_code</code> in examples below are <strong>illustrative n8n patterns</strong> unless marked otherwise.
@@ -66,7 +66,7 @@ Content-Type: application/json
 }</pre>
 
   <h2>IF routing (illustrative)</h2>
-  <p>Map the JSON body — production uses <code>allowed</code> and HTTP status (429 when blocked). On the ProceedGate <strong>HTTP Request</strong> node, enable <strong>Never Error</strong> (<code>options.response.response.neverError: true</code> in the repo export) so 429 responses with <code>allowed: false</code> reach the IF node instead of failing the workflow.</p>
+  <p>Map the JSON body — production uses <code>allowed</code> and HTTP status (429 when blocked). On the ProceedGate <strong>HTTP Request</strong> node, enable <strong>Never Error</strong> (<code>options.response.response.neverError: true</code> in the repo export) so non-2xx responses like 402 or 429 with <code>allowed: false</code> reach the IF node instead of failing the workflow.</p>
 <pre>// IF node (example expressions; matches proceedgate-guard-sub-workflow.json)
 {{ $json.allowed === true }}  → continue to OpenAI / SerpAPI / CRM
 {{ $json.allowed === false }} → stop branch, Slack alert, dead-letter
