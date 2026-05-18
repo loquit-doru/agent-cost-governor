@@ -259,6 +259,15 @@
     transition: all .2s;
   }
   .btn-secondary:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); }
+  .hero-n8n-link {
+    display: inline-block;
+    margin-top: 16px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #71717a;
+    transition: color .2s;
+  }
+  .hero-n8n-link:hover { color: #2dd4bf; }
 
   /* ── Stats marquee ──────────────────────────────────────────────── */
   .stats-marquee {
@@ -1882,6 +1891,7 @@ function Hero() {
             Docs
           </a>
         </div>
+        <a href="n8n.html" className="hero-n8n-link">Use with n8n →</a>
       </div>
     </section>
   );
