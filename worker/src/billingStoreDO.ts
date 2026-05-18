@@ -26,6 +26,8 @@ import {
   resolveEffectivePlanFromSub,
   type EffectivePlanSnapshot,
 } from './lib/effectivePlan.js';
+import type { N8nDownloadEvent, V1CheckEvent } from './lib/usageTracking.js';
+import { isN8nLike } from './lib/usageTracking.js';
 
 export type BillingQuoteRecord = {
   quoteId: string;
@@ -396,6 +398,8 @@ export class BillingStoreDO {
         }
       }
     }
+
+    await this.cleanupOldUsageTracking(8);
 
     // Schedule next alarm for tomorrow
     const tomorrow = new Date();
@@ -946,6 +950,173 @@ export class BillingStoreDO {
     return new Response('method_not_allowed', { status: 405 });
   }
 
+  private v1CheckDayKey(day: string): string {
+    return `v1_check:${day}`;
+  }
+
+  private async recordV1CheckEvent(event: V1CheckEvent): Promise<void> {
+    const day = event.created_at.slice(0, 10);
+    const key = this.v1CheckDayKey(day);
+    const events = (await this.state.storage.get<V1CheckEvent[]>(key)) ?? [];
+    events.push(event);
+    const maxPerDay = 20_000;
+    if (events.length > maxPerDay) {
+      events.splice(0, events.length - maxPerDay);
+    }
+    await this.state.storage.put(key, events);
+
+    if (!event.workspace_id && event.error_category === 'invalid') {
+      const aggKey = `v1_check_invalid_agg:${day}`;
+      const count = (await this.state.storage.get<number>(aggKey)) ?? 0;
+      await this.state.storage.put(aggKey, count + 1);
+    }
+  }
+
+  private async recordN8nDownloadEvent(event: N8nDownloadEvent): Promise<void> {
+    const day = event.created_at.slice(0, 10);
+    const key = `n8n_download:${day}`;
+    const events = (await this.state.storage.get<N8nDownloadEvent[]>(key)) ?? [];
+    events.push(event);
+    const maxPerDay = 5_000;
+    if (events.length > maxPerDay) {
+      events.splice(0, events.length - maxPerDay);
+    }
+    await this.state.storage.put(key, events);
+  }
+
+  private async listV1CheckDays(maxDays: number): Promise<string[]> {
+    const days: string[] = [];
+    const now = new Date();
+    for (let i = 0; i < maxDays; i++) {
+      const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - i));
+      days.push(d.toISOString().slice(0, 10));
+    }
+    return days;
+  }
+
+  private async cleanupOldUsageTracking(retentionDays = 8): Promise<void> {
+    const cutoff = new Date();
+    cutoff.setUTCDate(cutoff.getUTCDate() - retentionDays);
+    const cutoffDay = cutoff.toISOString().slice(0, 10);
+
+    const prefixes = ['v1_check:', 'v1_check_invalid_agg:', 'n8n_download:'];
+    for (const prefix of prefixes) {
+      const keys = await this.state.storage.list({ prefix });
+      for (const [key] of keys) {
+        const day = key.slice(prefix.length);
+        if (day < cutoffDay) {
+          await this.state.storage.delete(key);
+        }
+      }
+    }
+  }
+
+  private async computeUsageMetrics(): Promise<Record<string, unknown>> {
+    const days7 = await this.listV1CheckDays(7);
+    const nowMs = Date.now();
+    const ms24h = 24 * 60 * 60 * 1000;
+    const cutoff24h = new Date(nowMs - ms24h).toISOString();
+
+    let checks24h = 0;
+    let checks7d = 0;
+    let allowed24h = 0;
+    let allowed7d = 0;
+    let blocked24h = 0;
+    let blocked7d = 0;
+    let billingDenied24h = 0;
+    let billingDenied7d = 0;
+    let invalid24h = 0;
+    let invalid7d = 0;
+    let invalidAnonymous24h = 0;
+    let n8nLikeChecks7d = 0;
+
+    const workspaceValidCounts = new Map<string, number>();
+    const agents7d = new Set<string>();
+    const agentCounts = new Map<string, number>();
+    const stepCounts = new Map<string, number>();
+    const n8nWorkspaces = new Set<string>();
+
+    for (const day of days7) {
+      const events = (await this.state.storage.get<V1CheckEvent[]>(this.v1CheckDayKey(day))) ?? [];
+      for (const ev of events) {
+        const in24h = ev.created_at >= cutoff24h;
+        checks7d += 1;
+        if (in24h) checks24h += 1;
+
+        const isValid = !!ev.workspace_id && ev.error_category !== 'invalid';
+
+        if (ev.error_category === 'allowed') {
+          allowed7d += 1;
+          if (in24h) allowed24h += 1;
+        } else if (ev.error_category === 'billing') {
+          billingDenied7d += 1;
+          if (in24h) billingDenied24h += 1;
+        } else if (ev.error_category === 'invalid') {
+          invalid7d += 1;
+          if (in24h) invalid24h += 1;
+        } else if (ev.error_category === 'storm' || (ev.allowed === false && ev.http_status !== 402)) {
+          blocked7d += 1;
+          if (in24h) blocked24h += 1;
+        }
+
+        if (isValid) {
+          const ws = ev.workspace_id!;
+          workspaceValidCounts.set(ws, (workspaceValidCounts.get(ws) ?? 0) + 1);
+          if (ev.agent_id) {
+            agents7d.add(ev.agent_id);
+            agentCounts.set(ev.agent_id, (agentCounts.get(ev.agent_id) ?? 0) + 1);
+          }
+          if (ev.step_hash) {
+            stepCounts.set(ev.step_hash, (stepCounts.get(ev.step_hash) ?? 0) + 1);
+          }
+        }
+
+        if (!ev.workspace_id && ev.error_category === 'invalid' && in24h) {
+          invalidAnonymous24h += 1;
+        }
+
+        if (isN8nLike(ev.agent_id, ev.user_agent)) {
+          n8nLikeChecks7d += 1;
+          if (ev.workspace_id) n8nWorkspaces.add(ev.workspace_id);
+        }
+      }
+    }
+
+    const activeWorkspaces7d = [...workspaceValidCounts.values()].filter((n) => n >= 1).length;
+    const activatedWorkspaces7d = [...workspaceValidCounts.values()].filter((n) => n >= 10).length;
+
+    const topAgents7d = [...agentCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([agent_id, count]) => ({ agent_id, count }));
+
+    const topSteps7d = [...stepCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([step_hash, count]) => ({ step_hash, count }));
+
+    return {
+      checks_24h: checks24h,
+      checks_7d: checks7d,
+      active_workspaces_7d: activeWorkspaces7d,
+      activated_workspaces_7d: activatedWorkspaces7d,
+      active_agents_7d: agents7d.size,
+      allowed_24h: allowed24h,
+      allowed_7d: allowed7d,
+      blocked_24h: blocked24h,
+      blocked_7d: blocked7d,
+      billing_denied_24h: billingDenied24h,
+      billing_denied_7d: billingDenied7d,
+      invalid_24h: invalid24h,
+      invalid_7d: invalid7d,
+      invalid_anonymous_24h: invalidAnonymous24h,
+      n8n_like_workspaces_7d: n8nWorkspaces.size,
+      n8n_like_checks_7d: n8nLikeChecks7d,
+      top_agents_7d: topAgents7d,
+      top_steps_7d: topSteps7d,
+    };
+  }
+
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
     const parts = url.pathname.split('/').filter(Boolean);
@@ -1059,6 +1230,31 @@ export class BillingStoreDO {
         },
         { status: allowed ? 200 : 429 },
       );
+    }
+
+    if (parts[0] === 'usage') {
+      if (parts[1] === 'v1-check' && request.method === 'POST') {
+        const body = (await request.json().catch(() => null)) as V1CheckEvent | null;
+        if (!body?.created_at || body.source !== 'v1_check') {
+          return new Response('invalid_request', { status: 400 });
+        }
+        await this.recordV1CheckEvent(body);
+        return Response.json({ ok: true }, { status: 200 });
+      }
+
+      if (parts[1] === 'n8n-download' && request.method === 'POST') {
+        const body = (await request.json().catch(() => null)) as N8nDownloadEvent | null;
+        if (!body?.created_at || !body.asset_id) {
+          return new Response('invalid_request', { status: 400 });
+        }
+        await this.recordN8nDownloadEvent(body);
+        return Response.json({ ok: true }, { status: 200 });
+      }
+
+      if (parts[1] === 'metrics' && request.method === 'GET') {
+        const metrics = await this.computeUsageMetrics();
+        return Response.json({ ok: true, ...metrics }, { status: 200 });
+      }
     }
 
     // POST /email-index { email, workspace_id } - manually register email index

@@ -69,6 +69,10 @@ export function getAdminApiKey(env: Env): string {
   return String(env.API_ADMIN_KEY ?? '').trim();
 }
 
+export function getAdminMetricsToken(env: Env): string {
+  return String(env.ADMIN_METRICS_TOKEN ?? '').trim();
+}
+
 // ============================================================================
 // Rate Limiting Configuration
 // ============================================================================

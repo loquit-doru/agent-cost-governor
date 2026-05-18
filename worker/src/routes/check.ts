@@ -20,8 +20,49 @@ import { getBillingStub, doUrl, billingRequest } from '../lib/do.js';
 import { hashApiKey } from '../lib/crypto.js';
 import { API_KEY_PREFIXES } from '../lib/constants.js';
 import { generateReasoning, generateReasoningWithAI, aiDecideGrayZone, cachedGrayZoneDecision } from '../lib/aiReasoning.js';
+import type { AppContext } from '../types.js';
+import {
+  scheduleV1CheckLog,
+  categorizeV1CheckStatus,
+  hashIpForUsage,
+  clientIpFromHeaders,
+  tryExecutionCtx,
+} from '../lib/usageTracking.js';
 
 const checkRoutes = new Hono<{ Bindings: Env; Variables: Vars }>();
+
+type V1CheckLogInput = {
+  workspace_id?: string | null;
+  api_key_hash?: string | null;
+  agent_id?: string | null;
+  action?: string | null;
+  step_hash?: string | null;
+  task_hash?: string | null;
+  allowed?: boolean;
+  zone?: string | null;
+  http_status: number;
+};
+
+function logV1Check(c: AppContext, fields: V1CheckLogInput): void {
+  const error_category = categorizeV1CheckStatus(fields.http_status, fields.allowed);
+  scheduleV1CheckLog(tryExecutionCtx(c), c.env, async () => ({
+    created_at: new Date().toISOString(),
+    workspace_id: fields.workspace_id ?? null,
+    api_key_hash: fields.api_key_hash ?? null,
+    agent_id: fields.agent_id ?? null,
+    action: fields.action ?? null,
+    step_hash: fields.step_hash ?? null,
+    task_hash: fields.task_hash ?? null,
+    allowed: fields.allowed ?? false,
+    zone: fields.zone ?? null,
+    http_status: fields.http_status,
+    error_category,
+    user_agent: (c.req.header('user-agent') ?? '').slice(0, 200) || null,
+    ip_hash: await hashIpForUsage(clientIpFromHeaders(c.req.raw.headers)),
+    request_id: c.get('requestId') ?? crypto.randomUUID(),
+    source: 'v1_check' as const,
+  }));
+}
 
 checkRoutes.post('/v1/governor/check', async (c) => {
   const startMs = Date.now();
@@ -1445,26 +1486,32 @@ const easyCheckSchema = z.object({
 checkRoutes.post('/v1/check', async (c) => {
   const startMs = Date.now();
   const origin = new URL(c.req.url).origin;
+  let apiKeyHash: string | null = null;
+  let workspaceId: string | null = null;
 
   // 1. Auth: extract workspace from Bearer token
   const authHeader = c.req.header('Authorization');
   if (!authHeader?.startsWith('Bearer ')) {
+    logV1Check(c, { http_status: 401 });
     return c.json({ ok: false, error: 'missing_authorization', hint: 'Authorization: Bearer pg_ws_...' }, 401);
   }
   const apiKey = authHeader.slice(7).trim();
   if (!apiKey.startsWith(API_KEY_PREFIXES.WORKSPACE)) {
+    logV1Check(c, { http_status: 401 });
     return c.json({ ok: false, error: 'invalid_api_key_format', hint: `API key must start with ${API_KEY_PREFIXES.WORKSPACE}` }, 401);
   }
+
+  apiKeyHash = await hashApiKey(apiKey);
 
   // 2. Parse body
   const body = await c.req.json().catch(() => null);
   const parsed = easyCheckSchema.safeParse(body);
   if (!parsed.success) {
+    logV1Check(c, { api_key_hash: apiKeyHash, http_status: 400 });
     return c.json({ ok: false, error: 'invalid_request', hint: 'Required: { agent_id, task_hash }', issues: parsed.error.issues }, 400);
   }
 
   // 3. Lookup workspace_id from API key
-  const apiKeyHash = await hashApiKey(apiKey);
   const stub = getBillingStub(c.env);
 
   const lookupRes = await stub.fetch(doUrl('/keys/lookup'), {
@@ -1474,9 +1521,19 @@ checkRoutes.post('/v1/check', async (c) => {
   });
 
   if (!lookupRes.ok) {
+    logV1Check(c, {
+      api_key_hash: apiKeyHash,
+      agent_id: parsed.data.agent_id,
+      action: parsed.data.action,
+      task_hash: parsed.data.task_hash,
+      step_hash: parsed.data.step_hash,
+      allowed: false,
+      http_status: 404,
+    });
     return c.json({ ok: false, error: 'workspace_not_found', hint: 'API key not associated with any workspace.' }, 404);
   }
-  const { workspace_id: workspaceId } = await lookupRes.json() as { workspace_id: string };
+  const lookupBody = await lookupRes.json() as { workspace_id: string };
+  workspaceId = lookupBody.workspace_id;
 
   const { agent_id, task_hash, action, step_hash } = parsed.data;
 
@@ -1488,6 +1545,17 @@ checkRoutes.post('/v1/check', async (c) => {
       doubles: [1, Date.now() - startMs],
     });
     const status = billingPreflight.status === 404 ? 404 : 402;
+    logV1Check(c, {
+      workspace_id: workspaceId,
+      api_key_hash: apiKeyHash,
+      agent_id,
+      action,
+      task_hash,
+      step_hash,
+      allowed: false,
+      zone: 'billing',
+      http_status: status,
+    });
     return c.json({
       allowed: false,
       error: billingPreflight.error,
@@ -1505,6 +1573,17 @@ checkRoutes.post('/v1/check', async (c) => {
     writeMetric(c.env, {
       indexes: ['check_credits_blocked', 'retry_friction_v1', action, 'insufficient_credits'],
       doubles: [1, Date.now() - startMs],
+    });
+    logV1Check(c, {
+      workspace_id: workspaceId,
+      api_key_hash: apiKeyHash,
+      agent_id,
+      action,
+      task_hash,
+      step_hash,
+      allowed: false,
+      zone: 'billing',
+      http_status: 402,
     });
     return c.json({
       allowed: false,
@@ -1545,6 +1624,17 @@ checkRoutes.post('/v1/check', async (c) => {
   if (loopCheckRes.status === 429) {
     logEvent({ event: 'loop_detected', workspace_id: workspaceId, actor_key: await actorKey(agent_id), action, pattern_hash: patternHash, count: loopData.count, zone: 'storm' });
     writeMetric(c.env, { indexes: ['check_loop_blocked', 'retry_friction_v1', action, 'loop_detected'], doubles: [1, Date.now() - startMs] });
+    logV1Check(c, {
+      workspace_id: workspaceId,
+      api_key_hash: apiKeyHash,
+      agent_id,
+      action,
+      task_hash,
+      step_hash,
+      allowed: false,
+      zone: 'storm',
+      http_status: 429,
+    });
     return c.json({
       allowed: false,
       zone: 'storm',
@@ -1574,6 +1664,17 @@ checkRoutes.post('/v1/check', async (c) => {
 
       if (grayDecision.decision === 'block') {
         writeMetric(c.env, { indexes: ['check_gray_blocked', 'retry_friction_v1', action, 'ai_block'], doubles: [1, Date.now() - startMs] });
+        logV1Check(c, {
+          workspace_id: workspaceId,
+          api_key_hash: apiKeyHash,
+          agent_id,
+          action,
+          task_hash,
+          step_hash,
+          allowed: false,
+          zone: 'gray',
+          http_status: 429,
+        });
         return c.json({
           allowed: false,
           zone: 'gray',
@@ -1596,6 +1697,18 @@ checkRoutes.post('/v1/check', async (c) => {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ reason: consumed.error || 'insufficient_credits', estimated_cost_usd: 0.01, action }),
     }).catch(() => {});
+    const creditStatus = consumed.status === 404 ? 404 : 402;
+    logV1Check(c, {
+      workspace_id: workspaceId,
+      api_key_hash: apiKeyHash,
+      agent_id,
+      action,
+      task_hash,
+      step_hash,
+      allowed: false,
+      zone: 'billing',
+      http_status: creditStatus,
+    });
     return c.json({
       allowed: false,
       zone: 'billing',
@@ -1603,7 +1716,7 @@ checkRoutes.post('/v1/check', async (c) => {
       error: consumed.error || 'insufficient_credits',
       credits_remaining: consumed.credits,
       reason: 'Insufficient credits. Top up to continue.',
-    }, consumed.status === 404 ? 404 : 402);
+    }, creditStatus);
   }
 
   // 7. Sign proceed token and return
@@ -1622,6 +1735,18 @@ checkRoutes.post('/v1/check', async (c) => {
 
   logEvent({ event: 'check_ok', workspace_id: workspaceId, actor_key: await actorKey(agent_id), action, zone: loopData.zone, count: loopData.count });
   writeMetric(c.env, { indexes: ['check_ok', 'retry_friction_v1', action, 'none'], doubles: [1, Date.now() - startMs] });
+
+  logV1Check(c, {
+    workspace_id: workspaceId,
+    api_key_hash: apiKeyHash,
+    agent_id,
+    action,
+    task_hash,
+    step_hash,
+    allowed: true,
+    zone: loopData.zone,
+    http_status: 200,
+  });
 
   return c.json({
     allowed: true,

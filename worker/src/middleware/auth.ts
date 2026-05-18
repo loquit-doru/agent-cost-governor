@@ -1,6 +1,6 @@
 import type { MiddlewareHandler } from 'hono';
 import type { Env, Vars, AppContext } from '../types.js';
-import { getApiAuthMode, getSharedApiKey, getAdminApiKey } from '../lib/config.js';
+import { getApiAuthMode, getSharedApiKey, getAdminApiKey, getAdminMetricsToken } from '../lib/config.js';
 import { getRequestApiKey, sha256Hex } from '../lib/utils.js';
 import { verifyWorkspaceApiKeyInStore } from '../services/store.js';
 import { timingSafeCompare } from '../lib/crypto.js';
@@ -65,6 +65,24 @@ export async function requireAdminAuth(c: AppContext): Promise<Response | null> 
   // Use timing-safe comparison to prevent timing attacks
   const isValid = await timingSafeCompare(header, admin);
   if (!isValid) return c.json({ ok: false, error: 'unauthorized' }, 401);
+
+  return null;
+}
+
+/**
+ * Admin auth via X-Admin-Key or Authorization: Bearer ADMIN_METRICS_TOKEN.
+ */
+export async function requireAdminOrMetricsAuth(c: AppContext): Promise<Response | null> {
+  const adminErr = await requireAdminAuth(c);
+  if (!adminErr) return null;
+
+  const metricsToken = getAdminMetricsToken(c.env);
+  if (!metricsToken) return adminErr;
+
+  const auth = String(c.req.header('authorization') ?? '').trim();
+  const bearer = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
+  const isValid = await timingSafeCompare(bearer, metricsToken);
+  if (!isValid) return adminErr;
 
   return null;
 }

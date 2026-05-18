@@ -3,7 +3,8 @@ import type { Env, Vars } from '../types.js';
 import { workspaceCreateSchema, workspaceAdminSchema } from '../lib/schemas.js';
 import { makeDecisionId } from '../lib/utils.js';
 import { hashApiKey } from '../lib/crypto.js';
-import { requireAdminAuth } from '../middleware/auth.js';
+import { requireAdminAuth, requireAdminOrMetricsAuth } from '../middleware/auth.js';
+import { fetchUsageMetrics } from '../lib/usageTracking.js';
 import {
   setWorkspaceApiKey,
   deleteWorkspaceApiKey,
@@ -111,6 +112,18 @@ adminRoutes.get('/v1/workspaces/status', async (c) => {
     },
     200,
   );
+});
+
+adminRoutes.get('/admin/metrics', async (c) => {
+  const authErr = await requireAdminOrMetricsAuth(c);
+  if (authErr) return authErr;
+
+  try {
+    const metrics = await fetchUsageMetrics(c.env);
+    return c.json({ ok: true, ...metrics }, 200);
+  } catch {
+    return c.json({ ok: false, error: 'metrics_unavailable' }, 500);
+  }
 });
 
 // Cross-workspace intelligence: global anomaly detection (admin-only)

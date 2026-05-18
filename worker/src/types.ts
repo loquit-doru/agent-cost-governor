@@ -49,6 +49,7 @@ export type Env = {
   API_AUTH_MODE?: string; // "off" | "shared" | "workspace"
   API_SHARED_KEY?: string;
   API_ADMIN_KEY?: string;
+  ADMIN_METRICS_TOKEN?: string;
 
   // Optional: Cloudflare Analytics Engine dataset binding
   METRICS?: {

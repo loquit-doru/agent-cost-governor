@@ -29,6 +29,7 @@ import { costsRoutes } from './routes/costs.js';
 import { sessionRoutes } from './routes/session.js';
 import { agentsRoutes } from './routes/agents.js';
 import { healthRoutes } from './routes/health.js';
+import { dlRoutes } from './routes/dl.js';
 
 // Durable Objects (re-export)
 export { DecisionStoreDO } from './decisionStoreDO.js';
@@ -63,6 +64,7 @@ const adminRateLimiter = createRateLimiter({
 });
 
 app.use('/v1/admin/*', adminRateLimiter);
+app.use('/admin/*', adminRateLimiter);
 
 // Mount routes
 app.route('/', jwksRoutes);
@@ -79,6 +81,7 @@ app.route('/', costsRoutes);
 app.route('/', sessionRoutes);
 app.route('/', agentsRoutes);
 app.route('/', healthRoutes);
+app.route('/', dlRoutes);
 
 // 404 fallback
 app.notFound((c) => {

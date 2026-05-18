@@ -78,10 +78,10 @@ Content-Type: application/json
   <p><strong>ProceedGate-powered:</strong> n8n keeps orchestration, approval UX, and workflow wiring; ProceedGate adds a shared guard decision/check layer. Same Guard sub-workflow shape, but replace the custom budget/repetition Code node with an <strong>HTTP Request</strong> to <code>POST /v1/check</code>. ProceedGate can replace that custom check with a managed allow/deny decision — then route primarily on <code>allowed</code> or HTTP 429. <code>zone</code> can be used for optional logging or review patterns where available, with shared decision logs across agents and workflows.</p>
   <p>Illustrative workflow JSON (not production-tested). Download/import examples:</p>
   <ul>
-    <li><a href="https://github.com/loquit-doru/agent-cost-governor/blob/main/examples/n8n/guard-sub-workflow.json">Guard Sub-workflow JSON</a></li>
-    <li><a href="https://github.com/loquit-doru/agent-cost-governor/blob/main/examples/n8n/proceedgate-guard-sub-workflow.json">ProceedGate-powered Guard Sub-workflow JSON</a></li>
-    <li><a href="https://github.com/loquit-doru/agent-cost-governor/blob/main/examples/n8n/main-ai-agent-flow.json">Main AI Agent Flow JSON</a></li>
-    <li><a href="https://github.com/loquit-doru/agent-cost-governor/blob/main/examples/n8n/native-vs-proceedgate-guard-workflow.md">Full native vs ProceedGate guide</a></li>
+    <li><a href="https://governor.proceedgate.dev/dl/n8n/guard-sub-workflow">Guard Sub-workflow JSON</a></li>
+    <li><a href="https://governor.proceedgate.dev/dl/n8n/proceedgate-guard-sub-workflow">ProceedGate-powered Guard Sub-workflow JSON</a></li>
+    <li><a href="https://governor.proceedgate.dev/dl/n8n/main-ai-agent-flow">Main AI Agent Flow JSON</a></li>
+    <li><a href="https://governor.proceedgate.dev/dl/n8n/native-vs-proceedgate-guide">Full native vs ProceedGate guide</a></li>
   </ul>
   <p><strong>Import path A — native n8n:</strong> Import Guard Sub-workflow JSON → test mock Code budget logic.</p>
   <p><strong>Import path B — ProceedGate-powered:</strong> Import ProceedGate-powered Guard Sub-workflow JSON → replace <code>REPLACE_WITH_PG_WORKSPACE_KEY</code> → route on <code>allowed</code>/denied.</p>
@@ -109,6 +109,11 @@ Content-Type: application/json
   </ul>
 
   <p>Markdown in repo: <code>examples/n8n/proceedgate-pre-call-guard.md</code> · <code>examples/n8n/native-vs-proceedgate-guard-workflow.md</code> · JSON: <code>guard-sub-workflow.json</code> · <code>main-ai-agent-flow.json</code> · <code>proceedgate-guard-sub-workflow.json</code></p>
+
+  <h2>Privacy (n8n integration telemetry)</h2>
+  <div class="alert info">
+    <strong>What we store (operator-only, not public):</strong> hashed API key fingerprint, hashed IP prefix, workspace id, agent id, action, task/step hashes, allow/deny outcome, zone, HTTP status category, user-agent string, request id, and timestamp for <code>POST /v1/check</code>. Workflow downloads via <code>/dl/n8n/*</code> log asset id + hashed IP only. We do <strong>not</strong> store prompts, raw payloads, raw IPs, or API keys.
+  </div>
 </div>
 </body>
 </html>
