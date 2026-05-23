@@ -304,6 +304,54 @@ describe('n8n download routes', () => {
     expect(entry?.ip_hash).toBeTruthy();
     expect(entry).not.toHaveProperty('ip');
     expect(JSON.stringify(entry)).not.toContain('203.0.113.1');
+    expect(downloads?.filter((d) => d.asset_id === 'guard-sub-workflow')).toHaveLength(1);
+  });
+
+  it('11b: HEAD does not increment download counter', async () => {
+    const day = new Date().toISOString().slice(0, 10);
+    const state = (billingDo as unknown as {
+      state: {
+        storage: {
+          get: (k: string) => Promise<Array<Record<string, unknown>> | undefined>;
+        };
+      };
+    }).state;
+
+    const res = await dlApp.request(
+      'http://localhost/dl/n8n/guard-sub-workflow',
+      { method: 'HEAD', headers: { 'cf-connecting-ip': '203.0.113.9' } },
+      env,
+    );
+    expect(res.status).toBe(302);
+    expect(res.headers.get('location')).toContain('guard-sub-workflow.json');
+    await new Promise((r) => setTimeout(r, 10));
+
+    const downloads = await state.storage.get(`n8n_download:${day}`);
+    expect((downloads ?? []).filter((d) => d.asset_id === 'guard-sub-workflow')).toHaveLength(0);
+  });
+
+  it('11c: GET increments download counter exactly once', async () => {
+    const day = new Date().toISOString().slice(0, 10);
+    const state = (billingDo as unknown as {
+      state: {
+        storage: {
+          get: (k: string) => Promise<Array<Record<string, unknown>> | undefined>;
+        };
+      };
+    }).state;
+
+    const res = await dlApp.request(
+      'http://localhost/dl/n8n/proceedgate-guard-sub-workflow',
+      { headers: { 'cf-connecting-ip': '203.0.113.10' } },
+      env,
+    );
+    expect(res.status).toBe(302);
+    await new Promise((r) => setTimeout(r, 10));
+
+    const downloads = await state.storage.get(`n8n_download:${day}`);
+    expect(
+      downloads?.filter((d) => d.asset_id === 'proceedgate-guard-sub-workflow'),
+    ).toHaveLength(1);
   });
 
   it('12: admin metrics expose n8n download counters', async () => {

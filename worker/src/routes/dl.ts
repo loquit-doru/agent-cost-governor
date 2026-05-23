@@ -49,7 +49,9 @@ function scheduleN8nDownloadLog(c: AppContext, assetId: string): void {
 for (const [slug, filename] of Object.entries(N8N_ASSETS)) {
   dlRoutes.get(`/dl/n8n/${slug}`, (c) => {
     const location = n8nRedirectUrl(filename);
-    scheduleN8nDownloadLog(c, slug);
+    if (c.req.method === 'GET') {
+      scheduleN8nDownloadLog(c, slug);
+    }
     return c.redirect(location, 302);
   });
 }
