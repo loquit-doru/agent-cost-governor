@@ -1,0 +1,172 @@
+{
+  "name": "ProceedGate Demo — No Account",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 240]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "agent_id",
+              "value": "n8n-demo"
+            },
+            {
+              "name": "task_hash",
+              "value": "quickstart-repeat-demo"
+            },
+            {
+              "name": "action",
+              "value": "tool_call"
+            },
+            {
+              "name": "step_hash",
+              "value": "mock_paid_tool"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-sample",
+      "name": "Set sample task",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [420, 240]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://governor.proceedgate.dev/v1/check/demo",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"agent_id\": \"{{ $json.agent_id }}\",\n  \"task_hash\": \"{{ $json.task_hash }}\",\n  \"action\": \"{{ $json.action }}\",\n  \"step_hash\": \"{{ $json.step_hash }}\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "pg-demo-check",
+      "name": "ProceedGate Demo Check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [640, 240]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.allowed }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "if-allowed",
+      "name": "Allowed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [860, 240]
+    },
+    {
+      "parameters": {
+        "url": "https://dummyjson.com/http/200/Mock_Paid_Tool_Success",
+        "options": {}
+      },
+      "id": "mock-tool",
+      "name": "Mock Paid Tool",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1080, 140]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "result",
+              "value": "Demo deny path: ProceedGate blocked the repeated task before the mock paid tool ran."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "deny-message",
+      "name": "Deny Message",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [1080, 360]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set sample task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set sample task": {
+      "main": [
+        [
+          {
+            "node": "ProceedGate Demo Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ProceedGate Demo Check": {
+      "main": [
+        [
+          {
+            "node": "Allowed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Allowed?": {
+      "main": [
+        [
+          {
+            "node": "Mock Paid Tool",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Deny Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

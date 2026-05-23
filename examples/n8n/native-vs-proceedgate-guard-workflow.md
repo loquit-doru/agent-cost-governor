@@ -4,9 +4,21 @@ Two-workflow pattern: a **shared Guard Sub-workflow** called from a **Main AI Ag
 
 > **Disclaimer:** Import the JSON exports below, then adapt credentials and workflow IDs. Test in your n8n instance before production.
 
-## Workspace API key (required)
+## Workspace API key (required for production)
 
-ProceedGate checks require a **workspace API key** (`pg_ws_...`). Create a free workspace at [proceedgate.dev/pay.html](https://proceedgate.dev/pay.html) — **5,000 checks/month**, no credit card.
+ProceedGate checks require a **workspace API key** (`pg_ws_...`) for `POST /v1/check`. Create a free workspace at [proceedgate.dev/pay.html](https://proceedgate.dev/pay.html) — **5,000 checks/month**, no credit card.
+
+### No-account demo (routing only)
+
+If you only want to sanity-check **allow/deny routing** in n8n before signing up, start with the **no-account demo workflow**:
+
+- File: [`examples/n8n/proceedgate-demo-no-account.json`](./proceedgate-demo-no-account.json)
+- Download: `GET https://governor.proceedgate.dev/dl/n8n/proceedgate-demo-no-account`
+- Endpoint: `POST https://governor.proceedgate.dev/v1/check/demo` (no `Authorization` header)
+- **Demo only:** does not consume credits, does not issue production `proceed_token`, and does not protect real paid tools.
+- First run with the same `task_hash` → `allowed: true`; repeat → `allowed: false` (`demo_storm`).
+
+When you need workspace tracking, credits, and audit logs, import the ProceedGate-powered guard sub-workflow and switch to **`POST /v1/check`** with your workspace key.
 
 After import, open the **ProceedGate Check** HTTP Request node and replace the placeholder `REPLACE_WITH_PG_WORKSPACE_KEY` with your key (Header: `Authorization: Bearer pg_ws_...`).
 
@@ -16,6 +28,7 @@ After import, open the **ProceedGate Check** HTTP Request node and replace the p
 
 | Workflow | File | Status in repo |
 |----------|------|----------------|
+| No-account demo (routing only) | `examples/n8n/proceedgate-demo-no-account.json` | Present |
 | Guard Sub-workflow (native) | `examples/n8n/guard-sub-workflow.json` | Present |
 | ProceedGate Guard Sub-workflow | `examples/n8n/proceedgate-guard-sub-workflow.json` | Present |
 | Main AI Agent Flow | `examples/n8n/main-ai-agent-flow.json` | Present |

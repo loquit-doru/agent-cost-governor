@@ -28,6 +28,7 @@ import {
   clientIpFromHeaders,
   tryExecutionCtx,
 } from '../lib/usageTracking.js';
+import { handleN8nDemoCheck } from '../lib/n8nDemoCheck.js';
 
 const checkRoutes = new Hono<{ Bindings: Env; Variables: Vars }>();
 
@@ -1482,6 +1483,9 @@ const easyCheckSchema = z.object({
   action: z.enum(['model_call', 'tool_call', 'retry', 'override', 'plan_execute']).optional().default('tool_call'),
   step_hash: z.string().max(200).optional(),
 });
+
+// Demo-only n8n routing check — no auth, no credits, no production tokens.
+checkRoutes.post('/v1/check/demo', (c) => handleN8nDemoCheck(c));
 
 checkRoutes.post('/v1/check', async (c) => {
   const startMs = Date.now();

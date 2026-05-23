@@ -42,12 +42,24 @@
   <h1>Using ProceedGate with n8n</h1>
   <p>Place an <strong>HTTP Request</strong> node immediately before expensive or sensitive nodes (OpenAI, HTTP Tool, SerpAPI, CRM, etc.). Route with an <strong>IF</strong> node on <code>allowed</code>.</p>
 
+  <h2>Try it first — no account needed</h2>
+  <div class="alert info">
+    <strong>Sanity-check routing before creating a key.</strong>
+    Want to see allow/deny branching in n8n without signing up? Import the <strong>no-account demo workflow</strong>. It calls <code>POST /v1/check/demo</code> — demo-only, no API key, no credits consumed, and does not protect real production tools.
+    <ul style="margin:10px 0 0 18px;">
+      <li>First run with the same <code>task_hash</code> → <code>allowed: true</code></li>
+      <li>Repeat the same task → <code>allowed: false</code> (demo storm path)</li>
+    </ul>
+    <a href="https://governor.proceedgate.dev/dl/n8n/proceedgate-demo-no-account" class="cta">Download no-account demo workflow →</a>
+  </div>
+  <p><strong>Demo vs production:</strong> The demo endpoint is for routing tests only. For real workspace tracking, credits, and logs, create a free key and use <code>POST /v1/check</code> (5,000 checks/month).</p>
+
   <div class="alert">
     <strong>Verified API fields</strong> for <code>POST /v1/check</code>: <code>agent_id</code>, <code>task_hash</code>, optional <code>action</code> (<code>tool_call</code> · <code>model_call</code> · <code>retry</code> · …), optional <code>step_hash</code>. See <a href="docs.html#check">Docs</a>. Fields like <code>workflow_id</code> or <code>reason_code</code> in examples below are <strong>illustrative n8n patterns</strong> unless marked otherwise.
   </div>
 
   <div class="alert info">
-    <strong>Before you import — need an API key?</strong>
+    <strong>For real usage — need an API key?</strong>
     Create a free ProceedGate workspace to get <strong>5,000 checks/month</strong> (no credit card). Paste your workspace key into the n8n HTTP Request node as:
     <pre style="margin:10px 0 8px;padding:10px 12px;font-size:12px;">Authorization: Bearer pg_ws_...</pre>
     Do not hard-code the key in shared workflow exports.
@@ -78,6 +90,7 @@ Content-Type: application/json
   <p><strong>ProceedGate-powered:</strong> n8n keeps orchestration, approval UX, and workflow wiring; ProceedGate adds a shared guard decision/check layer. Same Guard sub-workflow shape, but replace the custom budget/repetition Code node with an <strong>HTTP Request</strong> to <code>POST /v1/check</code>. ProceedGate can replace that custom check with a managed allow/deny decision — then route primarily on <code>allowed</code> or HTTP 429. <code>zone</code> can be used for optional logging or review patterns where available, with shared decision logs across agents and workflows.</p>
   <p>Illustrative workflow JSON (not production-tested). Download/import examples:</p>
   <ul>
+    <li><a href="https://governor.proceedgate.dev/dl/n8n/proceedgate-demo-no-account">No-account demo workflow (routing only)</a></li>
     <li><a href="https://governor.proceedgate.dev/dl/n8n/guard-sub-workflow">Guard Sub-workflow JSON</a></li>
     <li><a href="https://governor.proceedgate.dev/dl/n8n/proceedgate-guard-sub-workflow">ProceedGate-powered Guard Sub-workflow JSON</a></li>
     <li><a href="https://governor.proceedgate.dev/dl/n8n/main-ai-agent-flow">Main AI Agent Flow JSON</a></li>

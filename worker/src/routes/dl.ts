@@ -17,6 +17,7 @@ const N8N_ASSETS: Record<string, string> = {
   'guard-sub-workflow': 'guard-sub-workflow.json',
   'main-ai-agent-flow': 'main-ai-agent-flow.json',
   'proceedgate-guard-sub-workflow': 'proceedgate-guard-sub-workflow.json',
+  'proceedgate-demo-no-account': 'proceedgate-demo-no-account.json',
   'native-vs-proceedgate-guide': 'native-vs-proceedgate-guard-workflow.md',
 };
 
