@@ -22,6 +22,7 @@ import type { D1Database } from './lib/crossIntelligence.js';
 import { CREDITS } from './lib/constants.js';
 import {
   applyFreeTopUp,
+  freeExpiredPaidRepairStorageKey,
   freeGrantStorageKey,
   resolveEffectivePlanFromSub,
   type EffectivePlanSnapshot,
@@ -514,6 +515,74 @@ export class BillingStoreDO {
     });
   }
 
+  /** Sum consumed credits for a UTC calendar month (YYYY-MM). */
+  private async getFreePeriodUsage(
+    workspaceId: string,
+    periodKey: string,
+  ): Promise<number> {
+    const parts = periodKey.split('-');
+    if (parts.length !== 2) return 0;
+    const year = Number(parts[0]);
+    const month = Number(parts[1]);
+    if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) {
+      return 0;
+    }
+
+    const start = Date.UTC(year, month - 1, 1);
+    const end = Date.UTC(month === 12 ? year + 1 : year, month === 12 ? 0 : month, 1);
+    let total = 0;
+    for (let t = start; t < end; t += 86_400_000) {
+      const dateKey = new Date(t).toISOString().slice(0, 10)!;
+      const usage = await this.getUsage(workspaceId, dateKey);
+      total += usage.credits;
+    }
+    return total;
+  }
+
+  /**
+   * One-time repair: expired paid → Free with balance 0 after paid-credit freeze,
+   * when monthly free_grant marker already blocked a normal top-up.
+   */
+  private async tryExpiredPaidFreeRepair(
+    workspaceId: string,
+    effective: EffectivePlanSnapshot,
+    balance: WorkspaceBalance,
+    nowMs: number,
+  ): Promise<{ applied: boolean; credits_remaining: number }> {
+    if (effective.reason !== 'expired_paid_fallback_free') {
+      return { applied: false, credits_remaining: balance.credits };
+    }
+    if (balance.credits > 0) {
+      return { applied: false, credits_remaining: balance.credits };
+    }
+
+    const repairKey = freeExpiredPaidRepairStorageKey(workspaceId, effective.free_period_key);
+    if (await this.state.storage.get<boolean>(repairKey)) {
+      return { applied: false, credits_remaining: 0 };
+    }
+
+    const grantKey = freeGrantStorageKey(workspaceId, effective.free_period_key);
+    if (!(await this.state.storage.get<boolean>(grantKey))) {
+      return { applied: false, credits_remaining: 0 };
+    }
+
+    const frozen = await this.state.storage.get<number>(`frozen_credits:${workspaceId}`);
+    if (typeof frozen !== 'number' || frozen <= 0) {
+      return { applied: false, credits_remaining: 0 };
+    }
+
+    const monthUsage = await this.getFreePeriodUsage(workspaceId, effective.free_period_key);
+    if (monthUsage >= CREDITS.FREE_TIER) {
+      return { applied: false, credits_remaining: 0 };
+    }
+
+    const after = applyFreeTopUp(0);
+    balance.credits = after;
+    await this.putBalance(balance);
+    await this.state.storage.put(repairKey, true);
+    return { applied: true, credits_remaining: after };
+  }
+
   /**
    * Policy B: once per calendar month (UTC), top free-tier balance up to 5000 if below cap.
    */
@@ -521,21 +590,37 @@ export class BillingStoreDO {
     workspaceId: string,
     effective: EffectivePlanSnapshot,
     nowMs: number,
-  ): Promise<{ credits_remaining: number; free_grant_applied: boolean }> {
+  ): Promise<{ credits_remaining: number; free_grant_applied: boolean; free_repair_applied: boolean }> {
     if (effective.effective_plan !== 'free') {
-      return { credits_remaining: effective.credits_remaining, free_grant_applied: false };
+      return {
+        credits_remaining: effective.credits_remaining,
+        free_grant_applied: false,
+        free_repair_applied: false,
+      };
     }
 
     const grantKey = freeGrantStorageKey(workspaceId, effective.free_period_key);
     const alreadyGranted = await this.state.storage.get<boolean>(grantKey);
     if (alreadyGranted) {
-      const bal = await this.readBalanceRecord(workspaceId);
-      return { credits_remaining: bal?.credits ?? effective.credits_remaining, free_grant_applied: false };
+      const resolved = await this.resolveBalance(workspaceId);
+      const balance = resolved.ok
+        ? resolved.balance
+        : { workspaceId, credits: effective.credits_remaining, updatedAtMs: nowMs };
+      const repair = await this.tryExpiredPaidFreeRepair(workspaceId, effective, balance, nowMs);
+      return {
+        credits_remaining: repair.credits_remaining,
+        free_grant_applied: false,
+        free_repair_applied: repair.applied,
+      };
     }
 
     const resolved = await this.resolveBalance(workspaceId);
     if (!resolved.ok) {
-      return { credits_remaining: effective.credits_remaining, free_grant_applied: false };
+      return {
+        credits_remaining: effective.credits_remaining,
+        free_grant_applied: false,
+        free_repair_applied: false,
+      };
     }
 
     const before = resolved.balance.credits;
@@ -545,14 +630,23 @@ export class BillingStoreDO {
       await this.putBalance(resolved.balance);
     }
     await this.state.storage.put(grantKey, true);
-    return { credits_remaining: after, free_grant_applied: after > before };
+    return {
+      credits_remaining: after,
+      free_grant_applied: after > before,
+      free_repair_applied: false,
+    };
   }
 
   private async reconcileBilling(
     workspaceId: string,
     nowMs = Date.now(),
   ): Promise<
-    | { ok: true; effective: EffectivePlanSnapshot; free_grant_applied: boolean }
+    | {
+        ok: true;
+        effective: EffectivePlanSnapshot;
+        free_grant_applied: boolean;
+        free_repair_applied: boolean;
+      }
     | { ok: false; error: 'subscription_not_found' | 'billing_not_initialized' | 'workspace_not_initialized' }
   > {
     const effective = await this.resolveEffectivePlan(workspaceId, nowMs);
@@ -564,7 +658,12 @@ export class BillingStoreDO {
 
     const grant = await this.reconcileFreeAllowance(workspaceId, effective, nowMs);
     effective.credits_remaining = grant.credits_remaining;
-    return { ok: true, effective, free_grant_applied: grant.free_grant_applied };
+    return {
+      ok: true,
+      effective,
+      free_grant_applied: grant.free_grant_applied,
+      free_repair_applied: grant.free_repair_applied,
+    };
   }
 
   private async getAuth(workspaceId: string): Promise<WorkspaceAuth | null> {
@@ -1512,6 +1611,7 @@ export class BillingStoreDO {
             workspace_id: workspaceId,
             ...reconciled.effective,
             free_grant_applied: reconciled.free_grant_applied,
+            free_repair_applied: reconciled.free_repair_applied,
           },
           { status: 200 },
         );

@@ -7,6 +7,7 @@ import { getBillingStub, getDecisionStub, doUrl } from '../lib/do.js';
 export type WorkspaceBillingEffective = EffectivePlanSnapshot & {
   workspace_id: string;
   free_grant_applied?: boolean;
+  free_repair_applied?: boolean;
 };
 
 // ============================================================================
@@ -135,6 +136,7 @@ export async function reconcileWorkspaceBilling(
       previous_plan:
         typeof body.previous_plan === 'string' ? body.previous_plan : undefined,
       free_grant_applied: body.free_grant_applied === true,
+      free_repair_applied: body.free_repair_applied === true,
     },
   };
 }

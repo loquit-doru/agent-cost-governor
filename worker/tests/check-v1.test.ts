@@ -4,6 +4,7 @@ import { checkRoutes } from '../src/routes/check.js';
 import { BillingStoreDO } from '../src/billingStoreDO.js';
 import { hashApiKey } from '../src/lib/crypto.js';
 import { CREDITS } from '../src/lib/constants.js';
+import { freeGrantStorageKey, freeBillingPeriodKey } from '../src/lib/effectivePlan.js';
 import type { Env } from '../src/types.js';
 import { createMockDOState } from './helpers/mockDoState.js';
 import type { Vars } from '../src/types.js';
@@ -264,6 +265,39 @@ describe('POST /v1/check', () => {
       expect(body.zone).toBe('billing');
       expect(body.iteration_count).toBeUndefined();
     }
+  });
+
+  it('J: expired starter frozen with grant marker allows check after repair', async () => {
+    const wsId = 'ws-starter-frozen-repair';
+    const periodKey = freeBillingPeriodKey(Date.now());
+    const { apiKey } = await seedWorkspace(billingDo, {
+      workspaceId: wsId,
+      plan: 'starter',
+      credits: 4994,
+      expires_at_ms: Date.now() - 86_400_000,
+    });
+    const state = (billingDo as unknown as {
+      state: {
+        storage: {
+          put: (k: string, v: unknown) => Promise<void>;
+        };
+      };
+    }).state;
+    await state.storage.put(`ws:${wsId}`, { workspaceId: wsId, credits: 0, updatedAtMs: Date.now() });
+    await state.storage.put(`frozen_credits:${wsId}`, 4994);
+    await state.storage.put(freeGrantStorageKey(wsId, periodKey), true);
+
+    const res = await postCheck(env, apiKey, {
+      agent_id: 'agent-1',
+      task_hash: 'frozen-repair-task',
+      action: 'tool_call',
+    });
+    const body = await res.json() as { allowed: boolean; credits_remaining?: number; zone?: string };
+
+    expect(res.status).toBe(200);
+    expect(body.allowed).toBe(true);
+    expect(body.zone).toBe('safe');
+    expect(body.credits_remaining).toBe(CREDITS.FREE_TIER - 1);
   });
 
   it('F: invalid action costly_tool_lookup returns 400', async () => {

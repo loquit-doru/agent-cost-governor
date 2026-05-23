@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { BillingStoreDO } from '../src/billingStoreDO.js';
 import { hashApiKey } from '../src/lib/crypto.js';
 import { CREDITS } from '../src/lib/constants.js';
-import { freeGrantStorageKey } from '../src/lib/effectivePlan.js';
+import { freeGrantStorageKey, freeExpiredPaidRepairStorageKey, freeBillingPeriodKey } from '../src/lib/effectivePlan.js';
 import { createMockDOState } from './helpers/mockDoState.js';
 
 function doRequest(doInstance: BillingStoreDO, path: string, init?: RequestInit) {
@@ -180,6 +180,159 @@ describe('BillingStoreDO balance resolution', () => {
     } finally {
       Date.now = origNow;
     }
+  });
+
+  it('expired starter with frozen credits and existing free_grant repairs to 5000 once', async () => {
+    const wsId = 'starter-mnk55htu85mf';
+    const periodKey = freeBillingPeriodKey(Date.now());
+    await doRequest(billingDo, '/workspaces/create', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        workspace_id: wsId,
+        api_key_hash: 'm'.repeat(64),
+        plan: 'starter',
+        credits: 4994,
+        expires_at_ms: Date.now() - 86_400_000,
+      }),
+    });
+
+    const state = (billingDo as unknown as {
+      state: {
+        storage: {
+          put: (k: string, v: unknown) => Promise<void>;
+          get: (k: string) => Promise<unknown>;
+        };
+      };
+    }).state;
+    await state.storage.put(`ws:${wsId}`, { workspaceId: wsId, credits: 0, updatedAtMs: Date.now() });
+    await state.storage.put(`frozen_credits:${wsId}`, 4994);
+    await state.storage.put(freeGrantStorageKey(wsId, periodKey), true);
+
+    const res = await doRequest(billingDo, `/workspaces/${wsId}/billing-effective`);
+    const body = await res.json() as {
+      effective_plan: string;
+      previous_plan?: string;
+      credits_remaining: number;
+      included_checks: number;
+      free_repair_applied?: boolean;
+    };
+    expect(res.status).toBe(200);
+    expect(body.effective_plan).toBe('free');
+    expect(body.previous_plan).toBe('starter');
+    expect(body.credits_remaining).toBe(CREDITS.FREE_TIER);
+    expect(body.included_checks).toBe(CREDITS.FREE_TIER);
+    expect(body.free_repair_applied).toBe(true);
+    expect(await state.storage.get(freeExpiredPaidRepairStorageKey(wsId, periodKey))).toBe(true);
+    expect(await state.storage.get(`frozen_credits:${wsId}`)).toBe(4994);
+  });
+
+  it('expired starter frozen repair does not apply twice in same period', async () => {
+    const wsId = 'ws-frozen-no-dup-repair';
+    const periodKey = freeBillingPeriodKey(Date.now());
+    await doRequest(billingDo, '/workspaces/create', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        workspace_id: wsId,
+        api_key_hash: 'n'.repeat(64),
+        plan: 'starter',
+        credits: 100,
+        expires_at_ms: Date.now() - 1,
+      }),
+    });
+    const state = (billingDo as unknown as {
+      state: {
+        storage: {
+          put: (k: string, v: unknown) => Promise<void>;
+        };
+      };
+    }).state;
+    await state.storage.put(`ws:${wsId}`, { workspaceId: wsId, credits: 0, updatedAtMs: Date.now() });
+    await state.storage.put(`frozen_credits:${wsId}`, 100);
+    await state.storage.put(freeGrantStorageKey(wsId, periodKey), true);
+
+    await doRequest(billingDo, `/workspaces/${wsId}/billing-effective`);
+    await state.storage.put(`ws:${wsId}`, { workspaceId: wsId, credits: 0, updatedAtMs: Date.now() });
+
+    const res = await doRequest(billingDo, `/workspaces/${wsId}/billing-effective`);
+    const body = await res.json() as { credits_remaining: number; free_repair_applied?: boolean };
+    expect(body.credits_remaining).toBe(0);
+    expect(body.free_repair_applied).toBe(false);
+  });
+
+  it('expired starter with frozen credits but free allowance genuinely used is not repaired', async () => {
+    const wsId = 'ws-frozen-exhausted';
+    const periodKey = freeBillingPeriodKey(Date.now());
+    await doRequest(billingDo, '/workspaces/create', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        workspace_id: wsId,
+        api_key_hash: 'o'.repeat(64),
+        plan: 'starter',
+        credits: 0,
+        expires_at_ms: Date.now() - 1,
+      }),
+    });
+    const state = (billingDo as unknown as {
+      state: {
+        storage: {
+          put: (k: string, v: unknown) => Promise<void>;
+        };
+      };
+    }).state;
+    const today = new Date().toISOString().slice(0, 10);
+    await state.storage.put(`usage:${wsId}:${today}`, {
+      workspaceId: wsId,
+      date: today,
+      credits: CREDITS.FREE_TIER,
+      actions: {},
+      tools: {},
+    });
+    await state.storage.put(`ws:${wsId}`, { workspaceId: wsId, credits: 0, updatedAtMs: Date.now() });
+    await state.storage.put(`frozen_credits:${wsId}`, 4994);
+    await state.storage.put(freeGrantStorageKey(wsId, periodKey), true);
+
+    const res = await doRequest(billingDo, `/workspaces/${wsId}/billing-effective`);
+    const body = await res.json() as { credits_remaining: number; free_repair_applied?: boolean };
+    expect(body.credits_remaining).toBe(0);
+    expect(body.free_repair_applied).toBe(false);
+  });
+
+  it('active free with zero balance and no frozen credits is not repaired', async () => {
+    const wsId = 'ws-free-exhausted';
+    const periodKey = freeBillingPeriodKey(Date.now());
+    await doRequest(billingDo, '/workspaces/create', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        workspace_id: wsId,
+        api_key_hash: 'p'.repeat(64),
+        plan: 'free',
+        credits: CREDITS.FREE_TIER,
+        expires_at_ms: Date.now() + 86_400_000,
+      }),
+    });
+    const state = (billingDo as unknown as {
+      state: {
+        storage: {
+          put: (k: string, v: unknown) => Promise<void>;
+        };
+      };
+    }).state;
+    await state.storage.put(`ws:${wsId}`, { workspaceId: wsId, credits: 0, updatedAtMs: Date.now() });
+    await state.storage.put(freeGrantStorageKey(wsId, periodKey), true);
+
+    const res = await doRequest(billingDo, `/workspaces/${wsId}/billing-effective`);
+    const body = await res.json() as {
+      credits_remaining: number;
+      free_repair_applied?: boolean;
+      reason: string;
+    };
+    expect(body.reason).toBe('active_free');
+    expect(body.credits_remaining).toBe(0);
+    expect(body.free_repair_applied).toBe(false);
   });
 
   it('consume on zero credits does not create a phantom balance row', async () => {

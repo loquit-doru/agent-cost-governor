@@ -96,6 +96,11 @@ export function freeGrantStorageKey(workspaceId: string, periodKey: string): str
   return `free_grant:${workspaceId}:${periodKey}`;
 }
 
+/** One-time repair when paid credits were frozen on expiry but free grant marker blocked top-up. */
+export function freeExpiredPaidRepairStorageKey(workspaceId: string, periodKey: string): string {
+  return `free_repair:${workspaceId}:${periodKey}:expired_paid_fallback`;
+}
+
 /** Top up to free cap once per period; never leave free tier above cap (Policy B). */
 export function applyFreeTopUp(currentCredits: number, cap = CREDITS.FREE_TIER): number {
   return Math.min(cap, Math.max(currentCredits, cap));
